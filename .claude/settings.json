@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Edit", "Write",
+      "Bash(npm *)", "Bash(npx *)", "Bash(node *)",
+      "Bash(mkdir *)", "Bash(ls *)", "Bash(cat *)",
+      "Bash(git add *)", "Bash(git commit *)", "Bash(git status *)", "Bash(git diff *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)", "Bash(sudo *)", "Bash(git push *)",
+      "Bash(curl *)", "Bash(wget *)"
+    ]
+  }
+}
