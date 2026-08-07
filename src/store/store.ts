@@ -1,8 +1,10 @@
 import { useSyncExternalStore } from 'react'
 import type { AppState, LoadArea, Sensitivity } from '../types'
 import { mondayOf, today } from '../logic/dates'
+import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
+/** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
 const ALL_AREAS: LoadArea[] = [
@@ -44,14 +46,22 @@ export function defaultState(): AppState {
     overrides: {},
     exerciseState: {},
     notices: [],
+    lastExportAt: null,
   }
 }
 
-/** Vult ontbrekende velden aan; nooit crashen op oude of half-lege data. */
+/**
+ * Tilt opgeslagen data naar de huidige schemaVersion en vult ontbrekende velden aan.
+ * Oude data wordt opgehoogd, niet geweigerd of gewist. Crasht nooit op half-lege data.
+ */
 export function migrate(raw: unknown): AppState {
   const base = defaultState()
   if (!raw || typeof raw !== 'object') return base
-  const s = raw as Partial<AppState>
+
+  const incoming = raw as RawState
+  const from = typeof incoming.schemaVersion === 'number' ? incoming.schemaVersion : 1
+  const migrated = from < SCHEMA_VERSION ? runMigrations(incoming, from, SCHEMA_VERSION) : incoming
+  const s = migrated as Partial<AppState>
   const settings = { ...base.settings, ...(s.settings ?? {}) }
   settings.sensitive = { ...base.settings.sensitive, ...(s.settings?.sensitive ?? {}) }
   if (!Array.isArray(settings.maintenanceItems)) {
@@ -74,6 +84,7 @@ export function migrate(raw: unknown): AppState {
     overrides: s.overrides ?? {},
     exerciseState: s.exerciseState ?? {},
     notices: Array.isArray(s.notices) ? s.notices : [],
+    lastExportAt: typeof s.lastExportAt === 'string' ? s.lastExportAt : null,
   }
 }
 
@@ -135,8 +146,12 @@ export function useStore(): AppState {
 
 /* ---------------- export / import ---------------- */
 
+/** Bouwt de export en onthoudt wanneer er voor het laatst geëxporteerd is. */
 export function exportJSON(): string {
-  return JSON.stringify({ ...state, exportedAt: new Date().toISOString() }, null, 2)
+  const stamp = new Date().toISOString()
+  const payload = JSON.stringify({ ...state, lastExportAt: stamp, exportedAt: stamp }, null, 2)
+  setState((s) => ({ ...s, lastExportAt: stamp }))
+  return payload
 }
 
 export function importJSON(text: string): { ok: true } | { ok: false; error: string } {
@@ -152,6 +167,7 @@ export function importJSON(text: string): { ok: true } | { ok: false; error: str
   if (v > SCHEMA_VERSION) {
     return { ok: false, error: `Bestand komt uit een nieuwere versie (${v}). Werk de app eerst bij.` }
   }
+  // ouder bestand: migrate() hoogt het op naar de huidige versie
   replaceState(migrate(parsed))
   return { ok: true }
 }

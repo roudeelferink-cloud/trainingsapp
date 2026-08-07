@@ -24,7 +24,14 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build
+
+      # Tests draaien vóór de build. Faalt er één, dan stopt deze job en draait
+      # de deploy-job hieronder niet, want die hangt via `needs` aan build.
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/configure-pages@v5

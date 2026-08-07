@@ -1,8 +1,22 @@
+# afhankelijkheden
 node_modules
+
+# build-output
 dist
 dist-ssr
 dev-dist
+coverage
+
+# lokale env- en instellingenbestanden
+.env
+.env.*
+!.env.example
 *.local
+.claude/settings.local.json
+
+# rommel
 .DS_Store
+*.log
+npm-debug.log*
 .smoke.cjs
 .render.cjs

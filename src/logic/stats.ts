@@ -114,6 +114,37 @@ export function oneRmSeries(state: AppState): { exerciseId: string; naam: string
     .sort((a, b) => b.points.length - a.points.length || a.naam.localeCompare(b.naam))
 }
 
+export const EXPORT_REMINDER_DAYS = 30
+
+export interface ExportReminder {
+  /** dagen sinds de laatste export; null als er nog nooit geëxporteerd is */
+  daysAgo: number | null
+  text: string
+}
+
+/**
+ * Herinnering om te exporteren. Komt terug zodra de laatste export ouder is dan
+ * 30 dagen, of als er wel data is maar nog nooit een export gemaakt.
+ */
+export function exportReminder(state: AppState, now = new Date()): ExportReminder | null {
+  const hasData =
+    completedSessions(state) > 0 || completedRuns(state) > 0 || Object.keys(state.protein).length > 0
+  if (!hasData) return null
+
+  if (!state.lastExportAt) {
+    return { daysAgo: null, text: 'Je hebt nog nooit een back-up gemaakt. Exporteer je historie.' }
+  }
+
+  const then = new Date(state.lastExportAt).getTime()
+  if (Number.isNaN(then)) {
+    return { daysAgo: null, text: 'Onbekend wanneer je voor het laatst geëxporteerd hebt. Maak een back-up.' }
+  }
+
+  const daysAgo = Math.floor((now.getTime() - then) / 86400000)
+  if (daysAgo < EXPORT_REMINDER_DAYS) return null
+  return { daysAgo, text: `Laatste back-up was ${daysAgo} dagen geleden. Tijd om te exporteren.` }
+}
+
 export function proteinGoal(state: AppState): number | null {
   const kg = state.settings.bodyweightKg
   if (!kg || kg <= 0) return null

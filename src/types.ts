@@ -180,4 +180,6 @@ export interface AppState {
   overrides: Record<string, DayOverride>
   exerciseState: Record<string, ExerciseState>
   notices: { date: string; text: string }[]
+  /** ISO-tijdstip van de laatste export; null = nog nooit geëxporteerd */
+  lastExportAt: string | null
 }

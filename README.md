@@ -16,6 +16,35 @@ npm run preview    # serveert dist/ op http://localhost:4173
 De service worker draait alleen in de productiebuild. Test installeren en offline
 gebruik dus via `npm run preview`, niet via `npm run dev`.
 
+Let op bij testen op je telefoon: service workers vragen een secure context, dus
+`localhost` of HTTPS. Via `npm run preview -- --host` op een LAN-adres laadt de app wel,
+maar registreert de service worker niet — geen installatie, geen offline. Daarvoor is
+GitHub Pages (HTTPS) nodig.
+
+## Testen
+
+```bash
+npm test           # eenmalig, dit draait ook in CI
+npm run test:watch # blijft draaien tijdens het werken
+npm run typecheck  # alleen TypeScript
+```
+
+De suite staat in `tests/` en draait op vitest, zonder browser:
+
+| Bestand | Dekt |
+| --- | --- |
+| `library.test.ts` | bibliotheek-invarianten: ≥6 oefeningen per patroon, unieke ids, geldige `bodyweightAlternative`, kuit/abductie blijven `core`, zaterdag zonder zware beenbelasting |
+| `cycle.test.ts` | weeknummer, cyclusweek, deload, kalibratie, rotatie na 3 cycli |
+| `day.test.ts` | weekstructuur, woensdag altijd leeg, deload, check-in-afschaling, korte versie, gevoelige gebieden, reismodus, verplaatsen/ruilen, zaterdagblokkade voor beensessies |
+| `running.test.ts` | volumeverdeling, de +10%-grens en het terugschalen |
+| `progression.test.ts` | streefwaarden, progressie op gewicht en op reps, de −5%-regel |
+| `stats.test.ts` | streaks, 1RM-reeks, eiwitdoel, exportherinnering |
+| `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion` |
+| `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
+
+`tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
+laden van de module.
+
 ## Deployen naar GitHub Pages
 
 De app draait vanaf een submap op Pages, dus de base-path moet mee. Die komt uit de
@@ -25,6 +54,10 @@ env-variabele `VITE_BASE`.
 Zet in de repo-instellingen *Settings → Pages → Source* op **GitHub Actions** en push
 naar `main` (of `master`). De workflow zet `VITE_BASE` op `/<repo-naam>/` en publiceert
 `dist/`.
+
+De workflow draait `npm test` vóór `npm run build`. Faalt een test, dan stopt de
+build-job daar en draait de deploy-job niet — die hangt er via `needs: build` aan. Er
+komt dus nooit een versie online die de tests niet haalt.
 
 **Optie 2 — handmatig.**
 
@@ -86,11 +119,36 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
 - **Reismodus:** alles naar lichaamsgewicht + band, max 30 min. Loopdagen ongewijzigd,
   de cyclus loopt door.
 
-## Data
+## Waar de data staat
 
-Alles staat in `localStorage` onder één sleutel, met `schemaVersion`. Instellingen →
-**Exporteer alles** geeft een JSON met de volledige historie; **Importeer** leest die terug
-en valideert op `schemaVersion`. Een export uit een nieuwere versie wordt geweigerd.
+Alles staat in de `localStorage` van de browser waarin je de app gebruikt, onder één
+sleutel: **`trainingsapp.state.v1`**. Eén JSON-object met historie, instellingen,
+streefwaarden en logs. Er gaat niets naar een server, er is geen sync tussen apparaten,
+en een geïnstalleerde PWA deelt de opslag met de browser die hem installeerde.
+
+Dat betekent ook: **browserdata wissen = alles kwijt.** Instellingen → **Exporteer alles**
+geeft een JSON met de volledige staat; **Importeer** leest die terug. Sinds er data is
+herinnert het instellingenscherm je eraan zodra de laatste export ouder is dan 30 dagen
+(of er nog nooit een was).
+
+### Versiebeheer van het formaat
+
+De opgeslagen staat heeft een `schemaVersion` (nu **2**). Bij het laden en bij een import:
+
+- **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
+  Niets wordt geweigerd of gewist.
+- **gelijk** → ongewijzigd overgenomen.
+- **nieuwer** → import wordt geweigerd met de melding dat de app eerst bijgewerkt moet worden.
+- **kapot, leeg of zonder `schemaVersion`** → aangevuld met de standaardwaarden; de app
+  start altijd.
+
+Een nieuwe versie toevoegen: verhoog `SCHEMA_VERSION` in `src/store/store.ts` en zet de
+stap van de oude naar de nieuwe versie in `MIGRATIONS` in `src/store/migrations.ts`. De
+sleutelnaam in `localStorage` blijft gelijk; het `v1`-achtervoegsel daarin is historisch.
+
+Bestaande stap — v1 → v2: sessielogs kregen een `exercises`-map (slotKey → exerciseId),
+zodat de voortgangsgrafiek weet welke oefening er echt gedaan is. Oude logs worden
+aangevuld met de standaardoefening van dat slot.
 
 ## Structuur
 
@@ -104,6 +162,9 @@ src/
   logic/progression.ts streefwaarden en progressie
   logic/running.ts    loopvolume en de +10%-bewaking
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
-  store/              localStorage-store en alle mutaties
+  store/store.ts      localStorage-store, export/import
+  store/migrations.ts migratiepad tussen schemaVersions
+  store/actions.ts    alle mutaties
   screens/            Vandaag, Sessie, Week, Voortgang, Instellingen
+tests/                vitest-suite, draait zonder browser
 ```

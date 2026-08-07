@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Card, Chip, SectionTitle, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { TEMPLATES } from '../data/plan'
-import { proteinGoal } from '../logic/stats'
+import { exportReminder, proteinGoal } from '../logic/stats'
 import * as A from '../store/actions'
 import { exportJSON, importJSON, resetState, SCHEMA_VERSION, useStore } from '../store/store'
 import type { LoadArea, Sensitivity } from '../types'
@@ -30,6 +30,7 @@ export function SettingsScreen() {
   const [confirmReset, setConfirmReset] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const goal = proteinGoal(state)
+  const reminder = exportReminder(state)
 
   function doExport() {
     const blob = new Blob([exportJSON()], { type: 'application/json' })
@@ -39,7 +40,7 @@ export function SettingsScreen() {
     a.download = `trainingsapp-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    setMessage('Export gedownload.')
+    setMessage('Export gedownload. De herinnering staat weer op 30 dagen.')
   }
 
   async function doImport(file: File) {
@@ -178,6 +179,15 @@ export function SettingsScreen() {
 
       <Card>
         <SectionTitle right={<Chip tone="off">schema v{SCHEMA_VERSION}</Chip>}>Back-up</SectionTitle>
+        {reminder && (
+          <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+            <p className="text-sm font-semibold text-amber-200">{reminder.text}</p>
+            <p className="text-xs text-amber-200/70 mt-1">
+              Alles staat alleen op dit toestel. Zonder export ben je bij het wissen van je
+              browserdata alles kwijt.
+            </p>
+          </div>
+        )}
         <div className="space-y-2">
           <button className="btn-ghost w-full" onClick={doExport}>
             Exporteer alles
