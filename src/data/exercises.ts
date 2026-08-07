@@ -1,7 +1,15 @@
-import type { Exercise, LoadArea, Pattern } from '../types'
+import type { Coaching, Exercise, LoadArea, Pattern } from '../types'
+import { COACHING } from './coaching'
+import { FIGURES } from './figures'
+import { START_WEIGHTS } from './startWeights'
 
-type Def = Omit<Exercise, 'setsReps' | 'bodyweightAlternative' | 'minIncrement' | 'progression' | 'role'> &
-  Partial<Pick<Exercise, 'setsReps' | 'bodyweightAlternative' | 'minIncrement' | 'progression' | 'role'>>
+/** Velden die per oefening in aparte bestanden staan en hier worden samengevoegd. */
+type Derived = 'coaching' | 'hasFigure' | 'startFactor' | 'relatedRatio'
+type Defaulted = 'setsReps' | 'bodyweightAlternative' | 'minIncrement' | 'progression' | 'role'
+
+type Def = Omit<Exercise, Defaulted | Derived> & Partial<Pick<Exercise, Defaulted>>
+
+const MISSING: Coaching = { setup: '', execution: [], mistake: '' }
 
 function ex(d: Def): Exercise {
   return {
@@ -11,6 +19,11 @@ function ex(d: Def): Exercise {
     setsReps: { sets: 3, repMin: 8, repMax: 12 },
     bodyweightAlternative: d.id,
     ...d,
+    // uitleg, poppetje en startgewicht staan per oefening in eigen bestanden
+    coaching: COACHING[d.id] ?? MISSING,
+    hasFigure: d.id in FIGURES,
+    startFactor: START_WEIGHTS[d.id]?.startFactor ?? 0,
+    relatedRatio: START_WEIGHTS[d.id]?.relatedRatio,
   }
 }
 

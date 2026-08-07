@@ -206,6 +206,58 @@ describe('migratie van oudere data', () => {
     expect(migrate({ schemaVersion: 1, sessions: { kapot: null } }).sessions).toEqual({ kapot: null })
   })
 
+  it('normaliseert kapotte setwaarden uit oudere versies (v2 -> v3)', () => {
+    const v2 = {
+      ...v1,
+      schemaVersion: 2,
+      sessions: {
+        [`${MON}:legs_a`]: {
+          date: MON,
+          kind: 'legs_a',
+          short: false,
+          completedAt: '2026-08-03T18:00:00.000Z',
+          skippedSlots: [],
+          exercises: { 'legs_a:0': 'leg_press' },
+          entries: {
+            'legs_a:0': [
+              { weight: '100', reps: 10, rir: 1 },
+              { weight: null, reps: undefined, rir: 2 },
+              { weight: 0, reps: 0, rir: 2 },
+            ],
+          },
+        },
+      },
+    }
+    expect(importJSON(JSON.stringify(v2)).ok).toBe(true)
+    const sets = getState().sessions[`${MON}:legs_a`].entries['legs_a:0']
+    // tekst wordt een getal, onbruikbare waarden worden 0, lege sets vervallen
+    expect(sets).toEqual([{ weight: 100, reps: 10, rir: 1 }])
+    expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
+  })
+
+  it('laat lopende concepten met lege sets ongemoeid', () => {
+    const draft = {
+      ...v1,
+      schemaVersion: 2,
+      sessions: {
+        [`${MON}:legs_a`]: {
+          date: MON, kind: 'legs_a', short: false, completedAt: null, skippedSlots: [],
+          exercises: {}, entries: { 'legs_a:0': [{ weight: 0, reps: 0, rir: 2 }] },
+        },
+      },
+    }
+    expect(importJSON(JSON.stringify(draft)).ok).toBe(true)
+    expect(getState().sessions[`${MON}:legs_a`].entries['legs_a:0']).toHaveLength(1)
+  })
+
+  it('draait beide migratiestappen achter elkaar vanaf v1', () => {
+    importJSON(JSON.stringify(v1))
+    expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
+    const log = getState().sessions[`${MON}:legs_a`]
+    expect(log.exercises['legs_a:0']).toBe('leg_press') // v1 -> v2
+    expect(log.entries['legs_a:0'].every((s) => typeof s.weight === 'number')).toBe(true) // v2 -> v3
+  })
+
   it('stopt netjes als er een migratiestap ontbreekt', () => {
     const out = runMigrations({ schemaVersion: 99 }, 99, 200)
     expect(out.schemaVersion).toBe(99)

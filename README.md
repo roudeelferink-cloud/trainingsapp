@@ -39,6 +39,9 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `running.test.ts` | volumeverdeling, de +10%-grens en het terugschalen |
 | `progression.test.ts` | streefwaarden, progressie op gewicht en op reps, de −5%-regel |
 | `stats.test.ts` | streaks, 1RM-reeks, eiwitdoel, exportherinnering |
+| `coaching.test.ts` | elke oefening heeft een gevulde setup, execution en mistake |
+| `figure.test.tsx` | elke oefening met `hasFigure` heeft twee complete hoekensets die binnen beeld blijven en foutloos renderen |
+| `startWeight.test.ts` | startgewichtadvies: met en zonder lichaamsgewicht, met en zonder vergelijkbare data, afronding, verdwijnen na de eerste set, en de verwijzingen bestaan en zijn niet circulair |
 | `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion` |
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
 
@@ -100,6 +103,59 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
 - **Hardloopvolume:** het weektotaal komt nooit meer dan 10% boven de vorige week;
   overschrijding wordt automatisch teruggeschaald.
 
+## Uitleg en poppetjes
+
+Elke oefening heeft een korte uitleg in het Nederlands: **Start** (stand, greep,
+machine-instelling), **Uitvoering** (2-3 punten inclusief tempo) en **Fout** (de meest
+gemaakte fout). Die staat achter het `?`-knopje in het sessiescherm en is standaard dicht,
+ook de eerste keer dat een oefening voorkomt.
+
+Samengestelde oefeningen krijgen daarboven twee poppetjes: **start** en **eind**. Die
+worden getekend door `<Figure />` uit gewrichtshoeken — enkel, knie, heup, romp, schouder,
+elleboog en nek, links en rechts apart waar dat uitmaakt — met vaste ledemaatlengtes,
+een vloerlijn en het materiaal als simpele lijnen (stang, dumbbell, machine-omtrek, bank,
+kabel). Isolatie-, band-, kabel- en rompoefeningen krijgen alleen tekst; het veld
+`hasFigure` legt dat per oefening vast.
+
+De hoeken staan in `src/data/figures.ts`. Ze zijn geschreven als segmentrichtingen en
+omgerekend naar gewrichtshoeken; een test controleert dat elk lichaamspunt binnen het
+kader en boven de vloer blijft.
+
+## Startgewichtadvies
+
+Bij een oefening waar nog niets van gelogd is, staat er een geschat gewicht als grijze
+waarde **in** het invoerveld. Overschrijven kan altijd, en het getal dat je logt is
+leidend — ook als het ver van de schatting ligt.
+
+De schatting komt van:
+
+1. de verhouding tot de oefening met de meest vergelijkbare **belastingsvorm**, zodra daar
+   data van is (`relatedRatio`);
+2. anders lichaamsgewicht × `startFactor`;
+3. zonder ingevuld lichaamsgewicht: geen advies.
+
+"Meest vergelijkbare belastingsvorm" betekent hetzelfde apparaat, of anders dezelfde soort
+weerstand: schijven, stang, dumbbells per hand, kabel, kettlebell of schouderzak. Het
+bewegingspatroon speelt geen rol — de eenbenige leg press hangt aan de gewone leg press
+(×0,5, halve belasting per been), niet aan een split squat met dumbbells.
+
+De verwijzingen vormen een boom per weerstandssoort met acht ankers: `leg_press`,
+`smith_squat`, `rdl_barbell`, `curl_bar_curl`, `flat_db_press`, `lat_pulldown`,
+`goblet_squat_kb` en `sandbag_squat`. Die hebben zelf geen verwijzing en vallen terug op
+het lichaamsgewicht. Er zitten dus geen kringetjes in; een test bewaakt dat.
+
+De advieslogica loopt de keten af tot een oefening waar wél data van is en vermenigvuldigt
+de ratio's onderweg. Heeft alleen het anker data, dan telt dus het hele pad mee: een leg
+curl zonder historie komt via leg extension (×0,8) en leg press (×0,35) uit op 0,28 × je
+gelogde leg press. Afronden gebeurt één keer, aan het eind. Pas als de hele keten leeg is,
+valt het advies terug op lichaamsgewicht × `startFactor`.
+
+Alles wordt naar beneden afgerond op de kleinste stap van dat apparaat, en de factoren
+staan bewust laag. Te licht beginnen kost een week; te zwaar beginnen kost een blessure.
+Zodra er één set gelogd is, verdwijnt het advies definitief en neemt de progressielogica
+het over. Wijzigt je lichaamsgewicht in Instellingen, dan schuiven alleen nog niet gelogde
+adviezen mee; bestaande historie blijft ongemoeid.
+
 ## Aanpassen tijdens de rit
 
 - **Ochtend-check-in** (1-5, optioneel): 4-5 normaal · 3 geen nieuwe gewichtsverhogingen ·
@@ -133,7 +189,7 @@ herinnert het instellingenscherm je eraan zodra de laatste export ouder is dan 3
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **2**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **3**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -146,25 +202,36 @@ Een nieuwe versie toevoegen: verhoog `SCHEMA_VERSION` in `src/store/store.ts` en
 stap van de oude naar de nieuwe versie in `MIGRATIONS` in `src/store/migrations.ts`. De
 sleutelnaam in `localStorage` blijft gelijk; het `v1`-achtervoegsel daarin is historisch.
 
-Bestaande stap — v1 → v2: sessielogs kregen een `exercises`-map (slotKey → exerciseId),
-zodat de voortgangsgrafiek weet welke oefening er echt gedaan is. Oude logs worden
-aangevuld met de standaardoefening van dat slot.
+Bestaande stappen:
+
+- **v1 → v2** — sessielogs kregen een `exercises`-map (slotKey → exerciseId), zodat de
+  voortgangsgrafiek weet welke oefening er echt gedaan is. Oude logs worden aangevuld met
+  de standaardoefening van dat slot.
+- **v2 → v3** — gelogde sets worden genormaliseerd: waarden die geen getal zijn worden 0,
+  en volledig lege sets uit afgeronde sessies vervallen. Het startgewichtadvies leest
+  gelogde gewichten terug, dus die moeten betrouwbaar numeriek zijn. Lopende concepten
+  blijven ongemoeid.
 
 ## Structuur
 
 ```
 src/
   data/exercises.ts   oefeningenbibliotheek (min. 6 per bewegingspatroon)
+  data/coaching.ts    uitleg per oefening: start, uitvoering, fout
+  data/figures.ts     hoekensets en materiaal voor de poppetjes
+  data/startWeights.ts startFactor en relatedRatio per oefening
   data/plan.ts        weekstructuur en de sessiesjablonen
   logic/cycle.ts      weeknummer, cyclusweek, deload, kalibratie, rotatie
   logic/select.ts     welke oefening je vandaag krijgt (rotatie, gevoelig, reismodus, wissels)
   logic/day.ts        wat er vandaag te doen is
   logic/progression.ts streefwaarden en progressie
   logic/running.ts    loopvolume en de +10%-bewaking
+  logic/startWeight.ts geschat startgewicht zonder historie
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
   store/store.ts      localStorage-store, export/import
   store/migrations.ts migratiepad tussen schemaVersions
   store/actions.ts    alle mutaties
+  components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
   screens/            Vandaag, Sessie, Week, Voortgang, Instellingen
 tests/                vitest-suite, draait zonder browser
 ```

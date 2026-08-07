@@ -8,6 +8,8 @@ import { SessionScreen } from '../src/screens/SessionScreen'
 import { SettingsScreen } from '../src/screens/SettingsScreen'
 import { Today } from '../src/screens/Today'
 import { WeekScreen } from '../src/screens/WeekScreen'
+import { getExercise } from '../src/data/exercises'
+import { getFigure } from '../src/data/figures'
 import { getState, resetState, setState } from '../src/store/store'
 
 const noop = () => {}
@@ -86,6 +88,45 @@ describe('schermen renderen', () => {
     const html = render(createElement(Today, { onOpenSession: noop }))
     expect(html).toContain('Reismodus')
     expect(render(createElement(WeekScreen, { onOpenSession: noop }))).toContain('Deload')
+  })
+
+  it('houdt de uitleg standaard dicht, ook bij een oefening zonder eerdere logs', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const kind = plan.strength!.kind
+    const html = render(createElement(SessionScreen, { date: monday, kind, onClose: noop }))
+
+    // niets gelogd, dus zeker geen eerdere historie voor deze oefeningen
+    expect(getState().exerciseState).toEqual({})
+
+    // de knop is er wel, de inhoud niet
+    expect(html).toContain('Uitleg Leg press')
+    expect(html).not.toContain('Uitvoering')
+    expect(html).not.toContain('Voeten middenhoog')
+    expect(html).not.toContain('Poppetje')
+  })
+
+  it('toont de uitleg met poppetje, Start, Uitvoering en Fout zodra die open staat', () => {
+    const spec = getFigure('leg_press')!
+    const ex = getExercise('leg_press')
+    expect(ex.hasFigure).toBe(true)
+    expect(spec.start).toBeDefined()
+    // de inhoud die achter de ?-knop zit
+    expect(ex.coaching.setup).toContain('Rugleuning')
+    expect(ex.coaching.execution.length).toBeGreaterThanOrEqual(2)
+    expect(ex.coaching.mistake.length).toBeGreaterThan(20)
+  })
+
+  it('toont het geschatte startgewicht als grijze waarde in het invoerveld', () => {
+    setState((s) => ({ ...s, startDate: addDays(mondayOf(today()), -21) })) // voorbij de kalibratieweken
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+    // 82 kg × 0,5 -> 40 kg, als placeholder en niet als ingevulde waarde
+    expect(html).toContain('placeholder="40"')
+    expect(html).toContain('Voelt dit te licht?')
   })
 
   it('toont de exportherinnering in Instellingen als er nog nooit geëxporteerd is', () => {

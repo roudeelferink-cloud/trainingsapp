@@ -52,6 +52,25 @@ export interface SetsReps {
   repMax: number
 }
 
+/** Korte uitleg bij een oefening. Alles in het Nederlands, concreet. */
+export interface Coaching {
+  /** 1-2 zinnen: stand, greep, instelling van de machine */
+  setup: string
+  /** 2-3 korte punten: de beweging zelf, inclusief tempo */
+  execution: string[]
+  /** 1 zin: de meest gemaakte fout */
+  mistake: string
+}
+
+/**
+ * Verhouding tot de oefening met de meest vergelijkbare belastingsvorm: hetzelfde
+ * apparaat, of anders dezelfde soort weerstand. Mag over bewegingspatronen heen.
+ */
+export interface RelatedRatio {
+  exerciseId: string
+  ratio: number
+}
+
 export interface Exercise {
   id: string
   naam: string
@@ -70,6 +89,14 @@ export interface Exercise {
   /** hoe de belasting wordt ingevoerd */
   unit?: 'kg' | 'band' | 'bw'
   cue?: string
+  /** uitleg: opzet, uitvoering en de meest gemaakte fout */
+  coaching: Coaching
+  /** heeft deze oefening een poppetje? alleen samengestelde oefeningen */
+  hasFigure: boolean
+  /** vermenigvuldiger van het lichaamsgewicht voor een conservatief startpunt */
+  startFactor: number
+  /** verhouding tot de best vergelijkbare oefening, gebruikt zodra daar data van is */
+  relatedRatio?: RelatedRatio
 }
 
 export type DayKind = 'legs_a' | 'push' | 'pull' | 'legs_b' | 'optional_upper' | 'rest'

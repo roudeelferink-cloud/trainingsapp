@@ -95,6 +95,8 @@ export function Stepper({
   max = 999,
   suffix,
   decimals = 0,
+  placeholder,
+  ariaLabel,
 }: {
   value: number
   onChange: (v: number) => void
@@ -103,26 +105,38 @@ export function Stepper({
   max?: number
   suffix?: string
   decimals?: number
+  /** grijze voorgevulde schatting; verdwijnt zodra er zelf iets ingevuld wordt */
+  placeholder?: number
+  ariaLabel?: string
 }) {
   const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 100) / 100))
+  const empty = value === 0 && placeholder !== undefined
+  const basis = empty ? placeholder : value
+
   return (
     <div className="flex items-stretch gap-1">
       <button
         className="btn-ghost btn-sm w-11 shrink-0 text-xl"
-        onClick={() => onChange(clamp(value - step))}
+        onClick={() => onChange(clamp(basis - step))}
         aria-label="Minder"
       >
         −
       </button>
-      <div className="flex-1 min-w-0 flex items-center justify-center rounded-lg bg-ink-900 border border-ink-600 px-1 tabular-nums font-bold">
-        <span className="truncate">
-          {decimals ? value.toFixed(decimals) : value}
-          {suffix && <span className="text-xs text-slate-400 ml-0.5">{suffix}</span>}
-        </span>
+      <div className="flex-1 min-w-0 flex items-center rounded-lg bg-ink-900 border border-ink-600 px-1 focus-within:border-accent">
+        <input
+          type="number"
+          inputMode="decimal"
+          aria-label={ariaLabel}
+          className="w-full min-w-0 bg-transparent text-center tabular-nums font-bold focus:outline-none placeholder:text-slate-500 placeholder:font-normal"
+          value={empty ? '' : decimals ? value.toFixed(decimals) : String(value)}
+          placeholder={placeholder === undefined ? undefined : String(placeholder)}
+          onChange={(e) => onChange(e.target.value === '' ? 0 : clamp(Number(e.target.value)))}
+        />
+        {suffix && <span className="text-xs text-slate-400 pr-1">{suffix}</span>}
       </div>
       <button
         className="btn-ghost btn-sm w-11 shrink-0 text-xl"
-        onClick={() => onChange(clamp(value + step))}
+        onClick={() => onChange(clamp(basis + step))}
         aria-label="Meer"
       >
         +

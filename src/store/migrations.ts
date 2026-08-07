@@ -46,8 +46,48 @@ function defaultExerciseForSlot(slotKey: string): string | null {
   return slot?.exerciseId ?? null
 }
 
+/**
+ * v2 -> v3: het sessiescherm vult nu een geschat startgewicht voor. Die schatting
+ * leest gelogde gewichten terug, dus normaliseren we oude logs: elke set krijgt
+ * gegarandeerd numerieke waarden en volledig lege sets uit afgeronde sessies
+ * verdwijnen. Lopende concepten blijven ongemoeid.
+ */
+function v2_to_v3(state: RawState): RawState {
+  const sessions = (state.sessions ?? {}) as Record<string, Record<string, unknown>>
+  const next: Record<string, Record<string, unknown>> = {}
+
+  for (const [key, log] of Object.entries(sessions)) {
+    if (!log || typeof log !== 'object') {
+      next[key] = log
+      continue
+    }
+    const entries = (log.entries ?? {}) as Record<string, unknown>
+    const cleaned: Record<string, { weight: number; reps: number; rir: number }[]> = {}
+    for (const [slotKey, sets] of Object.entries(entries)) {
+      const list = (Array.isArray(sets) ? sets : []).map((s) => {
+        const set = (s ?? {}) as Record<string, unknown>
+        return {
+          weight: num(set.weight),
+          reps: num(set.reps),
+          rir: num(set.rir),
+        }
+      })
+      cleaned[slotKey] = log.completedAt ? list.filter((s) => s.reps > 0 || s.weight > 0) : list
+    }
+    next[key] = { ...log, entries: cleaned }
+  }
+
+  return { ...state, sessions: next }
+}
+
+function num(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
+  2: v2_to_v3,
 }
 
 /**
