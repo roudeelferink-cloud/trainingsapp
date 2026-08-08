@@ -54,6 +54,23 @@
   }
 }
 
+@keyframes pop-check {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.pop-check {
+  animation: pop-check 0.45s ease-out;
+}
+
 .safe-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }

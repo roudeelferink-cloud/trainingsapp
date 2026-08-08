@@ -132,6 +132,7 @@ export function saveSessionDraft(
   entries: Record<string, LoggedSet[]>,
   exercises: Record<string, string>,
   short: boolean,
+  completedSlots: string[] = [],
 ): void {
   const key = sessionKeyFor(iso, kind)
   setState((s) => ({
@@ -145,21 +146,30 @@ export function saveSessionDraft(
         entries,
         exercises,
         skippedSlots: s.overrides[iso]?.skippedSlots ?? [],
+        completedSlots,
         completedAt: s.sessions[key]?.completedAt ?? null,
       },
     },
   }))
 }
 
-/** Sluit de sessie af en laat de progressielogica de streefwaarden bijwerken. */
+/**
+ * Sluit de sessie af en laat de progressielogica de streefwaarden bijwerken.
+ * Alleen afgevinkte sets tellen mee: voorgevulde maar niet-gedane sets worden
+ * niet opgeslagen en sturen de progressie niet.
+ */
 export function completeSession(
   iso: string,
   kind: DayKind,
   slots: ResolvedSlot[],
   entries: Record<string, LoggedSet[]>,
   short: boolean,
+  completedSlots: string[] = [],
 ): string[] {
   const messages: string[] = []
+  const doneOnly = Object.fromEntries(
+    slots.map((r) => [r.slot.key, (entries[r.slot.key] ?? []).filter((x) => x.done && x.reps > 0)]),
+  )
   setState((s) => {
     const info = cycleInfo(s.startDate, iso)
     const checkin = s.checkins[iso]
@@ -167,7 +177,7 @@ export function completeSession(
     const exerciseState = { ...s.exerciseState }
 
     for (const r of slots) {
-      const sets = (entries[r.slot.key] ?? []).filter((x) => x.reps > 0)
+      const sets = doneOnly[r.slot.key]
       if (sets.length === 0) continue
       const ex = getExercise(r.exercise.id)
       const res = applyProgression(
@@ -194,9 +204,10 @@ export function completeSession(
           date: iso,
           kind,
           short,
-          entries,
+          entries: doneOnly,
           exercises: Object.fromEntries(slots.map((r) => [r.slot.key, r.exercise.id])),
           skippedSlots: s.overrides[iso]?.skippedSlots ?? [],
+          completedSlots,
           completedAt: new Date().toISOString(),
         },
       },

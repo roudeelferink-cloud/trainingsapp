@@ -3,7 +3,7 @@ import type { AppState, LoadArea, Sensitivity } from '../types'
 import { mondayOf, today } from '../logic/dates'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 

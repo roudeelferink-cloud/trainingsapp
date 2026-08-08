@@ -85,9 +85,42 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+/**
+ * v3 -> v4: sets krijgen een expliciete `done`-vlag en sessies een `completedSlots`-
+ * lijst (per oefening afgerond). Voorheen gold "reps ingevuld" als gelogd, dus oude
+ * sets met reps > 0 worden als afgevinkt gemarkeerd.
+ */
+function v3_to_v4(state: RawState): RawState {
+  const sessions = (state.sessions ?? {}) as Record<string, Record<string, unknown>>
+  const next: Record<string, unknown> = {}
+
+  for (const [key, log] of Object.entries(sessions)) {
+    if (!log || typeof log !== 'object') {
+      next[key] = log
+      continue
+    }
+    const entries = (log.entries ?? {}) as Record<string, unknown>
+    const marked: Record<string, unknown> = {}
+    for (const [slotKey, sets] of Object.entries(entries)) {
+      marked[slotKey] = (Array.isArray(sets) ? sets : []).map((s) => {
+        const set = (s ?? {}) as Record<string, unknown>
+        return { ...set, done: typeof set.done === 'boolean' ? set.done : num(set.reps) > 0 }
+      })
+    }
+    next[key] = {
+      ...log,
+      entries: marked,
+      completedSlots: Array.isArray(log.completedSlots) ? log.completedSlots : [],
+    }
+  }
+
+  return { ...state, sessions: next }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
+  3: v3_to_v4,
 }
 
 /**

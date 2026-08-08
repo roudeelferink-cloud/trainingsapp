@@ -138,6 +138,8 @@ export interface LoggedSet {
   weight: number
   reps: number
   rir: number
+  /** afgevinkt; voorgevulde waarden tellen pas als gelogd zodra dit waar is */
+  done?: boolean
 }
 
 export interface SessionLog {
@@ -150,6 +152,8 @@ export interface SessionLog {
   /** slotKey -> exerciseId zoals daadwerkelijk uitgevoerd */
   exercises: Record<string, string>
   skippedSlots: string[]
+  /** slotKeys van oefeningen die als afgerond gemarkeerd zijn */
+  completedSlots: string[]
 }
 
 export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek'

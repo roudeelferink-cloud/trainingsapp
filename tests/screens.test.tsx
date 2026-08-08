@@ -117,16 +117,26 @@ describe('schermen renderen', () => {
     expect(ex.coaching.mistake.length).toBeGreaterThan(20)
   })
 
-  it('toont het geschatte startgewicht als grijze waarde in het invoerveld', () => {
+  it('vult het geschatte startgewicht voor in het invoerveld', () => {
     setState((s) => ({ ...s, startDate: addDays(mondayOf(today()), -21) })) // voorbij de kalibratieweken
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
     const html = render(
       createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
     )
-    // 82 kg × 0,5 -> 40 kg, als placeholder en niet als ingevulde waarde
-    expect(html).toContain('placeholder="40"')
+    // 82 kg × 0,5 -> 40 kg, voorgevuld als overschrijfbare waarde
+    expect(html).toContain('value="40"')
     expect(html).toContain('Voelt dit te licht?')
+  })
+
+  it('toont per oefening een klaar-knop en de afrondvoortgang', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+    expect(html).toContain('Oefening klaar')
+    expect(html).toContain(`0 van ${plan.strength!.slots.length} afgerond`)
   })
 
   it('toont de exportherinnering in Instellingen als er nog nooit geëxporteerd is', () => {
@@ -139,6 +149,7 @@ describe('schermen renderen', () => {
           short: false,
           completedAt: 'x',
           skippedSlots: [],
+          completedSlots: [],
           exercises: {},
           entries: {},
         },

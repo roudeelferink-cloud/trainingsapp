@@ -8,6 +8,13 @@ import { buildDay } from '../logic/day'
 import { formatShort } from '../logic/dates'
 import { CALIBRATION_TEXT, fmt, targetFor } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
+import {
+  allSetsDone,
+  checkSet,
+  nextUncompleted,
+  seedSets,
+  uncheckSet,
+} from '../logic/sessionFlow'
 import { ADVICE_HINT, startWeightAdvice } from '../logic/startWeight'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
@@ -34,6 +41,8 @@ export function SessionScreen({
   const [optionsFor, setOptionsFor] = useState<ResolvedSlot | null>(null)
   const [doneOpen, setDoneOpen] = useState(false)
   const [messages, setMessages] = useState<string[] | null>(null)
+  const [completed, setCompleted] = useState<string[]>(() => strength?.log?.completedSlots ?? [])
+  const [justDone, setJustDone] = useState<string | null>(null)
 
   const signature = `${date}|${kind}|${slots.map((s) => `${s.slot.key}:${s.exercise.id}:${s.sets}`).join(',')}`
 
@@ -49,11 +58,7 @@ export function SessionScreen({
         calibration: plan.cycle.calibration,
         deload: plan.cycle.deload,
       })
-      out[r.slot.key] = Array.from({ length: r.sets }, () => ({
-        weight: t.weight ?? 0,
-        reps: 0,
-        rir: 2,
-      }))
+      out[r.slot.key] = seedSets(r.sets, t, adviceFor(r, state, plan.cycle.calibration))
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,7 +70,7 @@ export function SessionScreen({
   if (signature !== seenSignature) {
     const fresh = seed()
     for (const [k, v] of Object.entries(entries)) {
-      if (fresh[k] && v.some((s) => s.reps > 0)) fresh[k] = v
+      if (fresh[k] && v.some((s) => s.done)) fresh[k] = v
     }
     setSeenSignature(signature)
     setEntries(fresh)
@@ -101,18 +106,32 @@ export function SessionScreen({
     return out
   }
 
+  function persistDraft(nextEntries: Record<string, LoggedSet[]>, nextCompleted: string[]) {
+    A.saveSessionDraft(
+      date,
+      kind,
+      nextEntries,
+      Object.fromEntries(slots.map((x) => [x.slot.key, x.exercise.id])),
+      strength!.short,
+      nextCompleted,
+    )
+  }
+
   function updateSet(slotKey: string, i: number, patch: Partial<LoggedSet>) {
     setEntries((cur) => {
       const arr = [...(cur[slotKey] ?? [])]
       arr[i] = { ...arr[i], ...patch }
       const next = { ...cur, [slotKey]: arr }
-      A.saveSessionDraft(
-        date,
-        kind,
-        next,
-        Object.fromEntries(slots.map((x) => [x.slot.key, x.exercise.id])),
-        strength!.short,
-      )
+      persistDraft(next, completed)
+      return next
+    })
+  }
+
+  function setSetDone(slotKey: string, i: number, done: boolean) {
+    setEntries((cur) => {
+      const arr = done ? checkSet(cur[slotKey] ?? [], i) : uncheckSet(cur[slotKey] ?? [], i)
+      const next = { ...cur, [slotKey]: arr }
+      persistDraft(next, completed)
       return next
     })
   }
@@ -121,16 +140,40 @@ export function SessionScreen({
     setEntries((cur) => {
       const arr = [...(cur[slotKey] ?? [])]
       const last = arr[arr.length - 1]
-      arr.push(last ? { ...last, reps: 0 } : { weight: 0, reps: 0, rir: 2 })
+      arr.push(last ? { ...last, done: false } : { weight: 0, reps: 0, rir: 2, done: false })
       return { ...cur, [slotKey]: arr }
     })
   }
 
+  function completeExercise(key: string) {
+    const next = [...completed, key]
+    setCompleted(next)
+    persistDraft(entries, next)
+    setJustDone(key)
+    window.setTimeout(() => {
+      setJustDone(null)
+      setActive(
+        nextUncompleted(
+          slots.map((r) => r.slot.key),
+          next,
+          key,
+        ),
+      )
+    }, 700)
+  }
+
+  function uncompleteExercise(key: string) {
+    const next = completed.filter((k) => k !== key)
+    setCompleted(next)
+    persistDraft(entries, next)
+  }
+
   const totalSets = slots.reduce((n, x) => n + (entries[x.slot.key]?.length ?? x.sets), 0)
   const doneSets = slots.reduce(
-    (n, x) => n + (entries[x.slot.key] ?? []).filter((s) => s.reps > 0).length,
+    (n, x) => n + (entries[x.slot.key] ?? []).filter((s) => s.done).length,
     0,
   )
+  const completedCount = slots.filter((x) => completed.includes(x.slot.key)).length
 
   return (
     <Full onClose={onClose} title={strength.naam}>
@@ -142,7 +185,9 @@ export function SessionScreen({
           />
         </div>
         <div className="flex justify-between text-xs text-slate-400 mt-1">
-          <span>{slots.length} oefeningen</span>
+          <span>
+            {completedCount} van {slots.length} afgerond
+          </span>
           <span>
             {doneSets}/{totalSets} sets
           </span>
@@ -157,8 +202,9 @@ export function SessionScreen({
         {slots.map((r, i) => {
           const isActive = active === r.slot.key
           const isHelp = helpOpen.includes(r.slot.key)
+          const isCompleted = completed.includes(r.slot.key)
           const sets = entries[r.slot.key] ?? []
-          const filled = sets.filter((s) => s.reps > 0).length
+          const filled = sets.filter((s) => s.done).length
           const advice = adviceFor(r, state, plan.cycle.calibration)
 
           return (
@@ -171,11 +217,18 @@ export function SessionScreen({
                   className="flex-1 min-w-0 text-left py-1.5"
                   onClick={() => setActive(isActive ? null : r.slot.key)}
                 >
-                  <span className="block font-semibold truncate">{r.exercise.naam}</span>
+                  <span className="block font-semibold truncate">
+                    {isCompleted && (
+                      <span className="text-emerald-400 mr-1" aria-hidden>
+                        ✓
+                      </span>
+                    )}
+                    {r.exercise.naam}
+                  </span>
                   <span className="block text-xs text-slate-400 tabular-nums">
                     {r.sets} × {r.repMin === r.repMax ? r.repMin : `${r.repMin}-${r.repMax}`}
                     {r.exercise.perSide && ' p/kant'}
-                    {filled > 0 && ` · ${filled} gelogd`}
+                    {filled > 0 && ` · ${filled} afgevinkt`}
                   </span>
                 </button>
                 <RoundButton
@@ -213,7 +266,7 @@ export function SessionScreen({
                     <div
                       key={si}
                       className={`rounded-xl border p-2 ${
-                        s.reps > 0 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-900/40'
+                        s.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-900/40'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-2">
@@ -225,7 +278,7 @@ export function SessionScreen({
                               ariaLabel={`Gewicht set ${si + 1}`}
                               value={s.weight}
                               onChange={(v) => updateSet(r.slot.key, si, { weight: v })}
-                              step={r.exercise.minIncrement || 1}
+                              step={r.exercise.minIncrement || 2.5}
                               max={400}
                               placeholder={advice?.weight}
                             />
@@ -241,6 +294,17 @@ export function SessionScreen({
                             />
                           </div>
                         </div>
+                        <button
+                          aria-label={`Set ${si + 1} ${s.done ? 'weer openzetten' : 'afvinken'}`}
+                          onClick={() => setSetDone(r.slot.key, si, !s.done)}
+                          className={`shrink-0 w-11 h-11 self-end rounded-lg border text-lg font-bold ${
+                            s.done
+                              ? 'bg-emerald-500 text-ink-900 border-emerald-500'
+                              : 'bg-ink-700 border-ink-600 text-slate-400'
+                          }`}
+                        >
+                          ✓
+                        </button>
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-bold text-slate-400 w-10">RIR</span>
@@ -262,6 +326,28 @@ export function SessionScreen({
                     + set toevoegen
                   </button>
                   <RestTimer seconds={r.slot.role === 'core' ? 150 : 90} />
+                  {justDone === r.slot.key && (
+                    <div className="flex justify-center" aria-hidden>
+                      <span className="pop-check inline-flex w-12 h-12 items-center justify-center rounded-full bg-emerald-500 text-ink-900 text-2xl font-bold">
+                        ✓
+                      </span>
+                    </div>
+                  )}
+                  {isCompleted ? (
+                    <button
+                      className="btn-quiet w-full"
+                      onClick={() => uncompleteExercise(r.slot.key)}
+                    >
+                      ✓ Afgerond — zet terug
+                    </button>
+                  ) : (
+                    <button
+                      className={`${allSetsDone(sets) ? 'btn-primary' : 'btn-quiet'} w-full`}
+                      onClick={() => completeExercise(r.slot.key)}
+                    >
+                      Oefening klaar
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -279,12 +365,14 @@ export function SessionScreen({
         {messages === null ? (
           <>
             <p className="text-sm text-slate-400 mb-4">
-              {doneSets} van {totalSets} sets gelogd. Lege sets worden genegeerd.
+              {doneSets} van {totalSets} sets afgevinkt. Alleen afgevinkte sets tellen mee.
             </p>
             <button
               className="btn-primary w-full"
               onClick={() =>
-                setMessages(A.completeSession(date, kind, slots, effectiveEntries(), strength.short))
+                setMessages(
+                  A.completeSession(date, kind, slots, effectiveEntries(), strength.short, completed),
+                )
               }
             >
               Afronden en opslaan

@@ -250,14 +250,14 @@ describe('advies en historie in de echte store', () => {
     expect(startWeightAdvice(legPress, getState())!.weight).toBe(40)
 
     // handmatig veel zwaarder gelogd dan geadviseerd
-    A.completeSession(MON, 'legs_a', [slot], { 'legs_a:0': [{ weight: 70, reps: 9, rir: 2 }] }, false)
+    A.completeSession(MON, 'legs_a', [slot], { 'legs_a:0': [{ weight: 70, reps: 9, rir: 2, done: true }] }, false)
 
     expect(getState().exerciseState.leg_press.targetWeight).toBe(70)
     expect(startWeightAdvice(legPress, getState())).toBeNull()
   })
 
   it('laat een nieuw lichaamsgewicht alleen nog niet gelogde adviezen veranderen', () => {
-    A.completeSession(MON, 'legs_a', [slot], { 'legs_a:0': [{ weight: 70, reps: 9, rir: 2 }] }, false)
+    A.completeSession(MON, 'legs_a', [slot], { 'legs_a:0': [{ weight: 70, reps: 9, rir: 2, done: true }] }, false)
     const historie = JSON.stringify(getState().sessions)
 
     A.setBodyweight(100)
@@ -274,7 +274,7 @@ describe('advies en historie in de echte store', () => {
     // zonder data hangt het eenbenige advies nog aan het lichaamsgewicht
     expect(startWeightAdvice(slLegPress, getState())!.source).toBe('bodyweight')
 
-    A.completeSession(MON, 'legs_a', [slot], { 'legs_a:0': [{ weight: 60, reps: 9, rir: 2 }] }, false)
+    A.completeSession(MON, 'legs_a', [slot], { 'legs_a:0': [{ weight: 60, reps: 9, rir: 2, done: true }] }, false)
 
     const advies = startWeightAdvice(slLegPress, getState())!
     expect(advies.source).toBe('related')

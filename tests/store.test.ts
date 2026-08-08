@@ -21,8 +21,9 @@ const sessionLog = {
     short: false,
     completedAt: '2026-08-03T18:00:00.000Z',
     skippedSlots: [],
+    completedSlots: ['legs_a:0'],
     exercises: { 'legs_a:0': 'leg_press' },
-    entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1 }] },
+    entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1, done: true }] },
   },
 }
 
@@ -159,7 +160,9 @@ describe('migratie van oudere data', () => {
     expect(s.protein).toEqual({ [MON]: 150 })
     expect(s.settings.bodyweightKg).toBe(80)
     expect(s.settings.sensitive.knee_deep).toBe('off')
-    expect(s.sessions[`${MON}:legs_a`].entries['legs_a:0']).toEqual([{ weight: 100, reps: 10, rir: 1 }])
+    expect(s.sessions[`${MON}:legs_a`].entries['legs_a:0']).toEqual([
+      { weight: 100, reps: 10, rir: 1, done: true },
+    ])
   })
 
   it('vult de ontbrekende oefeningmap aan uit de sjablonen', () => {
@@ -231,7 +234,7 @@ describe('migratie van oudere data', () => {
     expect(importJSON(JSON.stringify(v2)).ok).toBe(true)
     const sets = getState().sessions[`${MON}:legs_a`].entries['legs_a:0']
     // tekst wordt een getal, onbruikbare waarden worden 0, lege sets vervallen
-    expect(sets).toEqual([{ weight: 100, reps: 10, rir: 1 }])
+    expect(sets).toEqual([{ weight: 100, reps: 10, rir: 1, done: true }])
     expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
   })
 
