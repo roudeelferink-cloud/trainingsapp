@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { buildDay } from '../src/logic/day'
 import * as A from '../src/store/actions'
-import { getState, migrate, replaceState, resetState, setState } from '../src/store/store'
+import { getState, migrate, replaceRoot, resetState, setState } from '../src/store/store'
 import { MON } from './helpers'
 
 const key = `${MON}:legs_a`
@@ -23,7 +23,7 @@ describe('afgeronde oefeningen bewaren en herstellen', () => {
     // herlaadbeurt: opnieuw inladen wat er in localStorage staat
     const raw = localStorage.getItem('trainingsapp.state.v1')
     expect(raw).not.toBeNull()
-    replaceState(migrate(JSON.parse(raw!)))
+    replaceRoot(migrate(JSON.parse(raw!)))
     expect(getState().sessions[key].completedSlots).toEqual(['legs_a:0'])
     expect(getState().sessions[key].entries['legs_a:0'][0].done).toBe(true)
   })
@@ -113,7 +113,7 @@ describe('migratie v3 -> v4', () => {
       },
     }
 
-    const s = migrate(v3)
+    const s = migrate(v3).users.rob
     expect(s.sessions[key].completedSlots).toEqual([])
     expect(s.sessions[key].entries['legs_a:0']).toEqual([
       { weight: 100, reps: 10, rir: 1, done: true },

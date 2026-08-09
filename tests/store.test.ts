@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   SCHEMA_VERSION,
+  getRoot,
   defaultState,
+  defaultRoot,
   exportJSON,
   getState,
   importJSON,
   migrate,
-  replaceState,
+  replaceRoot,
   resetState,
   setState,
 } from '../src/store/store'
@@ -149,7 +151,7 @@ describe('migratie van oudere data', () => {
   it('hoogt de versie op in plaats van te weigeren', () => {
     const res = importJSON(JSON.stringify(v1))
     expect(res.ok).toBe(true)
-    expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
+    expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
   })
 
   it('houdt alle bestaande data overeind', () => {
@@ -194,19 +196,21 @@ describe('migratie van oudere data', () => {
     expect(schemaVersion).toBe(1)
     const migrated = migrate(zonderVersie)
     expect(migrated.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(migrated.sessions[`${MON}:legs_a`].exercises['legs_a:0']).toBe('leg_press')
+    expect(migrated.users.rob.sessions[`${MON}:legs_a`].exercises['legs_a:0']).toBe('leg_press')
   })
 
   it('laat data die al actueel is ongemoeid', () => {
-    const actueel = { ...defaultState(), startDate: MON, sessions: sessionLog }
-    expect(migrate(actueel).sessions).toEqual(sessionLog)
+    const actueel = { ...defaultRoot(), users: { rob: { ...defaultState(), startDate: MON, sessions: sessionLog } } }
+    expect(migrate(actueel).users.rob.sessions).toEqual(sessionLog)
   })
 
   it('overleeft kapotte of half-lege data', () => {
     expect(migrate(null).schemaVersion).toBe(SCHEMA_VERSION)
-    expect(migrate('kapot').settings.maintenanceItems.length).toBeGreaterThan(0)
-    expect(migrate({ schemaVersion: 1 }).sessions).toEqual({})
-    expect(migrate({ schemaVersion: 1, sessions: { kapot: null } }).sessions).toEqual({ kapot: null })
+    expect(migrate('kapot').users.rob.settings.maintenanceItems.length).toBeGreaterThan(0)
+    expect(migrate({ schemaVersion: 1 }).users.rob.sessions).toEqual({})
+    expect(migrate({ schemaVersion: 1, sessions: { kapot: null } }).users.rob.sessions).toEqual({
+      kapot: null,
+    })
   })
 
   it('normaliseert kapotte setwaarden uit oudere versies (v2 -> v3)', () => {
@@ -235,7 +239,7 @@ describe('migratie van oudere data', () => {
     const sets = getState().sessions[`${MON}:legs_a`].entries['legs_a:0']
     // tekst wordt een getal, onbruikbare waarden worden 0, lege sets vervallen
     expect(sets).toEqual([{ weight: 100, reps: 10, rir: 1, done: true }])
-    expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
+    expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
   })
 
   it('laat lopende concepten met lege sets ongemoeid', () => {
@@ -255,7 +259,7 @@ describe('migratie van oudere data', () => {
 
   it('draait beide migratiestappen achter elkaar vanaf v1', () => {
     importJSON(JSON.stringify(v1))
-    expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
+    expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
     const log = getState().sessions[`${MON}:legs_a`]
     expect(log.exercises['legs_a:0']).toBe('leg_press') // v1 -> v2
     expect(log.entries['legs_a:0'].every((s) => typeof s.weight === 'number')).toBe(true) // v2 -> v3
@@ -286,7 +290,7 @@ describe('acties op de gedeelde staat', () => {
     A.setProtein(MON, 175)
     const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
     expect(opgeslagen).not.toBeNull()
-    replaceState(migrate(JSON.parse(opgeslagen!)))
+    replaceRoot(migrate(JSON.parse(opgeslagen!)))
     expect(getState().protein[MON]).toBe(175)
   })
 })

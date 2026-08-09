@@ -3,6 +3,8 @@ import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { buildDay } from '../src/logic/day'
 import { addDays, mondayOf, today } from '../src/logic/dates'
+import { Onboarding } from '../src/screens/Onboarding'
+import { OtherScreen } from '../src/screens/OtherScreen'
 import { ProgressScreen } from '../src/screens/ProgressScreen'
 import { SessionScreen } from '../src/screens/SessionScreen'
 import { SettingsScreen } from '../src/screens/SettingsScreen'
@@ -10,7 +12,7 @@ import { Today } from '../src/screens/Today'
 import { WeekScreen } from '../src/screens/WeekScreen'
 import { getExercise } from '../src/data/exercises'
 import { getFigure } from '../src/data/figures'
-import { getState, resetState, setState } from '../src/store/store'
+import { ANOUC, ROB, getState, resetState, setCurrentUser, setState } from '../src/store/store'
 
 const noop = () => {}
 
@@ -137,6 +139,38 @@ describe('schermen renderen', () => {
     )
     expect(html).toContain('Oefening klaar')
     expect(html).toContain(`0 van ${plan.strength!.slots.length} afgerond`)
+  })
+
+  it('rendert het startscherm met code en gebruikerskeuze', () => {
+    const html = render(createElement(Onboarding, { onDone: noop }))
+    expect(html).toContain('Huishoudcode')
+    expect(html).toContain('Wie ben je?')
+    expect(html).toContain('Rob')
+    expect(html).toContain('Anouc')
+  })
+
+  it('rendert de voortgang van de ander als kijkscherm, zonder logknoppen', () => {
+    setCurrentUser(ROB)
+    const html = render(createElement(OtherScreen))
+    expect(html).toContain('Anouc')
+    expect(html).toContain('meekijken')
+    expect(html).toContain('Kilometers per week')
+    expect(html).not.toContain('Start sessie')
+    expect(html).not.toContain('Activiteit toevoegen')
+  })
+
+  it('rendert Vandaag voor Anouc met haar eigen full body-sessie', () => {
+    setCurrentUser(ANOUC)
+    setState((s) => ({ ...s, startDate: mondayOf(today()) }))
+    const woensdag = addDays(mondayOf(today()), 2)
+    const plan = buildDay(getState(), woensdag)
+    expect(plan.strength?.kind).toBe('full_body_a')
+
+    const html = render(createElement(WeekScreen, { onOpenSession: noop }))
+    expect(html).toContain('Full body A')
+    expect(html).toContain('Full body B')
+    // haar loopdagen krijgen geen voorgeschreven afstand
+    expect(html).toContain('eigen afstand')
   })
 
   it('toont de exportherinnering in Instellingen als er nog nooit geëxporteerd is', () => {

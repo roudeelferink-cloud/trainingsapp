@@ -1,4 +1,5 @@
 import { getExercise } from '../data/exercises'
+import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
 import { buildDay, moveBlockReason, sessionKeyFor } from '../logic/day'
 import type { ResolvedSlot } from '../logic/select'
@@ -7,11 +8,11 @@ import type {
   Activity,
   ActivityIntensity,
   ActivityType,
-  AppState,
   DayKind,
   LoggedSet,
   RunKind,
   SkipReason,
+  UserState,
 } from '../types'
 import { getState, setState } from './store'
 
@@ -39,7 +40,7 @@ export function toggleMaintenance(iso: string, id: string): void {
   })
 }
 
-function patchOverride(s: AppState, iso: string, patch: Partial<AppState['overrides'][string]>): AppState {
+function patchOverride(s: UserState, iso: string, patch: Partial<UserState['overrides'][string]>): UserState {
   return { ...s, overrides: { ...s.overrides, [iso]: { ...(s.overrides[iso] ?? {}), ...patch } } }
 }
 
@@ -246,6 +247,7 @@ export function completeSession(
   setState((s) => {
     const info = cycleInfo(s.startDate, iso)
     const checkin = s.checkins[iso]
+    const pace = programFor(s).pace
     const allowIncrease = !info.calibration && !info.deload && checkin !== 3
     const exerciseState = { ...s.exerciseState }
 
@@ -258,7 +260,7 @@ export function completeSession(
         { repMin: r.repMin, repMax: r.repMax },
         sets,
         stateFor({ ...s, exerciseState }, ex.id),
-        { allowIncrease },
+        { allowIncrease, pace },
       )
       exerciseState[ex.id] = res.next
       if (res.message) messages.push(res.message)
@@ -304,7 +306,7 @@ export function setBodyweight(kg: number | null): void {
   setState((s) => ({ ...s, settings: { ...s.settings, bodyweightKg: kg } }))
 }
 
-export function setSensitivity(area: keyof AppState['settings']['sensitive'], value: 'ok' | 'careful' | 'off'): void {
+export function setSensitivity(area: keyof UserState['settings']['sensitive'], value: 'ok' | 'careful' | 'off'): void {
   setState((s) => ({
     ...s,
     settings: { ...s.settings, sensitive: { ...s.settings.sensitive, [area]: value } },

@@ -1,25 +1,48 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Onboarding } from './screens/Onboarding'
+import { OtherScreen } from './screens/OtherScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
 import { SessionScreen } from './screens/SessionScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { Today } from './screens/Today'
 import { WeekScreen } from './screens/WeekScreen'
+import { useRoot } from './store/store'
+import { initSync } from './store/sync'
 import type { DayKind } from './types'
 
-type Tab = 'vandaag' | 'week' | 'voortgang' | 'instellingen'
-
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'vandaag', label: 'Vandaag', icon: '●' },
-  { id: 'week', label: 'Week', icon: '▦' },
-  { id: 'voortgang', label: 'Voortgang', icon: '↗' },
-  { id: 'instellingen', label: 'Instellingen', icon: '⚙' },
-]
+type Tab = 'vandaag' | 'week' | 'voortgang' | 'ander' | 'instellingen'
 
 export default function App() {
+  const root = useRoot()
   const [tab, setTab] = useState<Tab>('vandaag')
   const [session, setSession] = useState<{ date: string; kind: DayKind } | null>(null)
+  const klaar = !!root.household && !!root.currentUser
+
+  useEffect(() => {
+    if (klaar) void initSync()
+  }, [klaar])
 
   const open = (date: string, kind: DayKind) => setSession({ date, kind })
+
+  if (!klaar) {
+    return (
+      <div className="min-h-dvh bg-ink-900">
+        <main className="max-w-md mx-auto px-4 pt-6 pb-10 safe-top">
+          <Onboarding onDone={() => setTab('vandaag')} />
+        </main>
+      </div>
+    )
+  }
+
+  const ander = Object.values(root.users).find((u) => u.id !== root.currentUser)
+
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'vandaag', label: 'Vandaag', icon: '●' },
+    { id: 'week', label: 'Week', icon: '▦' },
+    { id: 'voortgang', label: 'Voortgang', icon: '↗' },
+    { id: 'ander', label: ander?.naam ?? 'Ander', icon: '👥' },
+    { id: 'instellingen', label: 'Instellingen', icon: '⚙' },
+  ]
 
   return (
     <div className="min-h-dvh bg-ink-900">
@@ -27,23 +50,24 @@ export default function App() {
         {tab === 'vandaag' && <Today onOpenSession={open} />}
         {tab === 'week' && <WeekScreen onOpenSession={open} />}
         {tab === 'voortgang' && <ProgressScreen />}
+        {tab === 'ander' && <OtherScreen />}
         {tab === 'instellingen' && <SettingsScreen />}
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-ink-800/95 backdrop-blur border-t border-ink-600 safe-bottom">
-        <div className="max-w-md mx-auto grid grid-cols-4">
-          {TABS.map((t) => (
+        <div className="max-w-md mx-auto grid grid-cols-5">
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-h-[60px] text-xs font-semibold ${
+              className={`flex flex-col items-center justify-center gap-0.5 min-h-[60px] text-[11px] font-semibold ${
                 tab === t.id ? 'text-accent' : 'text-slate-400'
               }`}
             >
               <span className="text-lg leading-none" aria-hidden>
                 {t.icon}
               </span>
-              {t.label}
+              <span className="truncate max-w-full px-1">{t.label}</span>
             </button>
           ))}
         </div>

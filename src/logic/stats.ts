@@ -1,16 +1,16 @@
 import { BY_ID } from '../data/exercises'
-import type { AppState } from '../types'
+import type { UserState } from '../types'
 import { buildDay } from './day'
 import { addDays, mondayOf, today } from './dates'
 import { estimate1RM } from './progression'
 import { cycleInfo } from './cycle'
 
 /** Aantal afgeronde krachtsessies. */
-export function completedSessions(state: AppState): number {
+export function completedSessions(state: UserState): number {
   return Object.values(state.sessions).filter((s) => s.completedAt).length
 }
 
-export function completedRuns(state: AppState): number {
+export function completedRuns(state: UserState): number {
   return Object.values(state.runs).filter((r) => r.completedAt).length
 }
 
@@ -18,7 +18,7 @@ export function completedRuns(state: AppState): number {
  * Trainingsstreak in dagen. Woensdag, zaterdag en met reden overgeslagen dagen
  * zijn neutraal: ze verlengen de streak niet, maar breken hem ook niet.
  */
-export function trainingStreak(state: AppState): number {
+export function trainingStreak(state: UserState): number {
   let streak = 0
   let iso = today()
   for (let i = 0; i < 400; i++) {
@@ -43,7 +43,7 @@ export function trainingStreak(state: AppState): number {
 }
 
 /** Streak van de dagelijkse onderhoudschecklist. */
-export function maintenanceStreak(state: AppState): number {
+export function maintenanceStreak(state: UserState): number {
   const items = state.settings.maintenanceItems
   if (items.length === 0) return 0
   let streak = 0
@@ -66,7 +66,7 @@ export interface WeekVolume {
 }
 
 /** Hardloopvolume per week, oudste eerst. */
-export function weeklyRunVolume(state: AppState, weeks = 12): WeekVolume[] {
+export function weeklyRunVolume(state: UserState, weeks = 12): WeekVolume[] {
   const out: WeekVolume[] = []
   const start = mondayOf(today())
   for (let w = weeks - 1; w >= 0; w--) {
@@ -88,7 +88,7 @@ export interface Point {
 }
 
 /** Geschat 1RM per oefening over de tijd (beste set per sessie). */
-export function oneRmSeries(state: AppState): { exerciseId: string; naam: string; points: Point[] }[] {
+export function oneRmSeries(state: UserState): { exerciseId: string; naam: string; points: Point[] }[] {
   const byEx = new Map<string, Point[]>()
   const logs = Object.values(state.sessions)
     .filter((s) => s.completedAt)
@@ -126,7 +126,7 @@ export interface ExportReminder {
  * Herinnering om te exporteren. Komt terug zodra de laatste export ouder is dan
  * 30 dagen, of als er wel data is maar nog nooit een export gemaakt.
  */
-export function exportReminder(state: AppState, now = new Date()): ExportReminder | null {
+export function exportReminder(state: UserState, now = new Date()): ExportReminder | null {
   const hasData =
     completedSessions(state) > 0 || completedRuns(state) > 0 || Object.keys(state.protein).length > 0
   if (!hasData) return null
@@ -145,7 +145,7 @@ export function exportReminder(state: AppState, now = new Date()): ExportReminde
   return { daysAgo, text: `Laatste back-up was ${daysAgo} dagen geleden. Tijd om te exporteren.` }
 }
 
-export function proteinGoal(state: AppState): number | null {
+export function proteinGoal(state: UserState): number | null {
   const kg = state.settings.bodyweightKg
   if (!kg || kg <= 0) return null
   return Math.round((kg * state.settings.proteinFactor) / 5) * 5

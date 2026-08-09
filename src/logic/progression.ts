@@ -1,4 +1,6 @@
-import type { AppState, Exercise, ExerciseState, LoggedSet } from '../types'
+import type { UserState, Exercise, ExerciseState, LoggedSet } from '../types'
+
+export type ProgressionPace = 'standard' | 'gentle'
 
 export const CALIBRATION_TEXT = 'op gevoel, stop bij RIR 2-3'
 
@@ -11,7 +13,7 @@ export function emptyExerciseState(): ExerciseState {
   return { targetWeight: null, targetReps: null, belowMinStreak: 0, lastNote: null, lastUpdated: null }
 }
 
-export function stateFor(state: AppState, id: string): ExerciseState {
+export function stateFor(state: UserState, id: string): ExerciseState {
   return state.exerciseState[id] ?? emptyExerciseState()
 }
 
@@ -27,7 +29,7 @@ export interface Target {
 export function targetFor(
   ex: Exercise,
   repMin: number,
-  state: AppState,
+  state: UserState,
   opts: { calibration: boolean; deload: boolean },
 ): Target {
   const es = stateFor(state, ex.id)
@@ -50,23 +52,29 @@ export interface ProgressionResult {
  * - alle sets op repMax met RIR <= 2  -> gewicht omhoog met minIncrement, reps terug naar repMin
  * - progression 'reps'                -> eerst door tot repMax + 2, pas dan gewicht omhoog
  * - twee sessies onder de ondergrens  -> streefgewicht 5% omlaag
+ *
+ * `pace: 'gentle'` (beginnersprogramma) behandelt élke oefening als reps-progressie:
+ * eerst herhalingen opbouwen tot boven de bovengrens, pas daarna gewicht erbij. Dat
+ * klimt duidelijk rustiger dan meteen naar de volgende schijf.
  */
 export function applyProgression(
   ex: Exercise,
   bounds: { repMin: number; repMax: number },
   sets: LoggedSet[],
   prev: ExerciseState,
-  opts: { allowIncrease: boolean },
+  opts: { allowIncrease: boolean; pace?: ProgressionPace },
 ): ProgressionResult {
   const done = sets.filter((s) => s.reps > 0)
   if (done.length === 0) return { next: prev, message: null }
 
+  const gentle = (opts.pace ?? 'standard') === 'gentle'
+  const progression = gentle ? 'reps' : ex.progression
   const inc = ex.minIncrement
   const usedWeight = Math.max(...done.map((s) => s.weight))
   const minReps = Math.min(...done.map((s) => s.reps))
   const maxRir = Math.max(...done.map((s) => s.rir))
   const currentTargetReps = prev.targetReps ?? bounds.repMin
-  const repCeiling = ex.progression === 'reps' ? bounds.repMax + 2 : bounds.repMax
+  const repCeiling = progression === 'reps' ? bounds.repMax + 2 : bounds.repMax
 
   const next: ExerciseState = {
     ...prev,
@@ -98,14 +106,14 @@ export function applyProgression(
   next.belowMinStreak = 0
 
   const succeeded = minReps >= Math.min(repCeiling, Math.max(currentTargetReps, bounds.repMax)) && maxRir <= 2
-  const repsSucceeded = ex.progression === 'reps' && minReps >= currentTargetReps && maxRir <= 2
+  const repsSucceeded = progression === 'reps' && minReps >= currentTargetReps && maxRir <= 2
 
   if (!opts.allowIncrease) {
     next.lastNote = 'Check-in 3: vandaag geen nieuwe gewichtsverhoging.'
     return { next, message: null }
   }
 
-  if (ex.progression === 'weight') {
+  if (progression === 'weight') {
     if (succeeded) {
       if (inc > 0 && next.targetWeight !== null) {
         next.targetWeight = roundTo(next.targetWeight + inc, inc)
@@ -120,7 +128,7 @@ export function applyProgression(
     return { next, message: null }
   }
 
-  // progression === 'reps'
+  // progression === 'reps' (ook alle oefeningen bij pace 'gentle')
   if (repsSucceeded) {
     if (currentTargetReps < repCeiling) {
       next.targetReps = currentTargetReps + 1

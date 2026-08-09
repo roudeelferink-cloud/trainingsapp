@@ -4,7 +4,7 @@ import { emptyExerciseState } from '../src/logic/progression'
 import { hasLoggedHistory, startWeightAdvice } from '../src/logic/startWeight'
 import * as A from '../src/store/actions'
 import { getState, resetState, setState } from '../src/store/store'
-import type { AppState, ExerciseState } from '../src/types'
+import type { UserState, ExerciseState } from '../src/types'
 import { MON, baseState } from './helpers'
 
 const legPress = getExercise('leg_press') // anker: stap 1,25 · factor 0,5 · geen verwijzing
@@ -12,7 +12,7 @@ const slLegPress = getExercise('single_leg_press') // verwijst naar leg_press ×
 const dbPress = getExercise('db_shoulder_press') // stap 2,5 · factor 0,16
 const squatBw = getExercise('squat_bw') // lichaamsgewicht
 
-function withWeight(kg: number | null, patch: Partial<AppState> = {}): AppState {
+function withWeight(kg: number | null, patch: Partial<UserState> = {}): UserState {
   const s = baseState(patch)
   return { ...s, settings: { ...s.settings, bodyweightKg: kg } }
 }

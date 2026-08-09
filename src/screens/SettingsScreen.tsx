@@ -1,10 +1,22 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Card, Chip, SectionTitle, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { TEMPLATES } from '../data/plan'
+import { programById } from '../data/programs'
 import { exportReminder, proteinGoal } from '../logic/stats'
 import * as A from '../store/actions'
-import { exportJSON, importJSON, resetState, SCHEMA_VERSION, useStore } from '../store/store'
+import {
+  exportJSON,
+  importJSON,
+  resetState,
+  SCHEMA_VERSION,
+  setCurrentUser,
+  setHousehold,
+  setUserName,
+  useRoot,
+  useStore,
+} from '../store/store'
+import { connectHousehold, syncInfo, watchSync, type SyncInfo } from '../store/sync'
 import type { LoadArea, Sensitivity } from '../types'
 
 const AREAS: LoadArea[] = [
@@ -56,6 +68,8 @@ export function SettingsScreen() {
       {message && (
         <div className="rounded-xl bg-ink-700 border border-ink-600 p-3 text-sm">{message}</div>
       )}
+
+      <HouseholdCard />
 
       <Card>
         <SectionTitle>Lichaamsgewicht</SectionTitle>
@@ -240,6 +254,119 @@ export function SettingsScreen() {
         </p>
       </Card>
     </div>
+  )
+}
+
+const SYNC_LABEL: Record<SyncInfo['status'], string> = {
+  uit: 'nog niet gekoppeld',
+  starten: 'verbinden…',
+  verbonden: 'gesynchroniseerd',
+  offline: 'offline',
+  fout: 'fout',
+}
+
+/** Huishoudcode, wie je bent, en wat de sync aan het doen is. */
+function HouseholdCard() {
+  const root = useRoot()
+  const [sync, setSync] = useState<SyncInfo>(syncInfo)
+  const [code, setCode] = useState('')
+  const [naam, setNaam] = useState('')
+  const [msg, setMsg] = useState<string | null>(null)
+
+  useEffect(() => watchSync(setSync), [])
+
+  const users = Object.values(root.users)
+  const huidige = root.users[root.currentUser]
+
+  function koppel() {
+    const clean = code.trim().toLowerCase()
+    if (!/^[0-9a-f]{16}$/.test(clean)) {
+      setMsg('Een code is 16 tekens: 0-9 en a-f.')
+      return
+    }
+    setHousehold(clean)
+    connectHousehold(clean)
+    setCode('')
+    setMsg('Gekoppeld. De gegevens onder deze code worden opgehaald.')
+  }
+
+  return (
+    <Card>
+      <SectionTitle
+        right={
+          <Chip tone={sync.status === 'fout' ? 'warn' : sync.status === 'verbonden' ? 'ok' : 'off'}>
+            {SYNC_LABEL[sync.status]}
+            {sync.pending > 0 ? ` · ${sync.pending} wacht` : ''}
+          </Chip>
+        }
+      >
+        Huishouden
+      </SectionTitle>
+
+      {sync.detail && <p className="text-sm text-slate-400 mb-3">{sync.detail}</p>}
+
+      <p className="label mb-1">Wie ben je?</p>
+      <div className="grid grid-cols-2 gap-2 mb-1">
+        {users.map((u) => (
+          <button
+            key={u.id}
+            onClick={() => setCurrentUser(u.id)}
+            className={`btn btn-sm ${
+              u.id === root.currentUser ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+            }`}
+          >
+            {u.naam}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-slate-400 mb-3">
+        {huidige ? programById(huidige.programId).omschrijving : 'Kies wie dit toestel gebruikt.'}
+      </p>
+
+      <p className="label mb-1">Jouw naam</p>
+      <div className="flex gap-2 mb-3">
+        <input
+          className="field"
+          placeholder={huidige?.naam ?? ''}
+          value={naam}
+          onChange={(e) => setNaam(e.target.value)}
+        />
+        <button
+          className="btn-ghost btn-sm shrink-0"
+          onClick={() => {
+            if (naam.trim() && huidige) {
+              setUserName(huidige.id, naam.trim())
+              setNaam('')
+              setMsg('Naam aangepast.')
+            }
+          }}
+        >
+          Opslaan
+        </button>
+      </div>
+
+      <p className="label mb-1">Huishoudcode</p>
+      <input className="field font-mono mb-2" readOnly value={root.household} aria-label="Huidige huishoudcode" />
+      <p className="text-xs text-slate-400 mb-2">
+        Zelfde code op het andere toestel = zelfde gedeelde gegevens. Deel hem alleen met elkaar: wie
+        de code heeft, kan erbij.
+      </p>
+      <div className="flex gap-2">
+        <input
+          className="field font-mono"
+          placeholder="Andere code"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+        <button className="btn-ghost btn-sm shrink-0" onClick={koppel}>
+          Koppel
+        </button>
+      </div>
+      {msg && <p className="text-sm text-slate-300 mt-2">{msg}</p>}
+    </Card>
   )
 }
 

@@ -99,8 +99,19 @@ export interface Exercise {
   relatedRatio?: RelatedRatio
 }
 
-export type DayKind = 'legs_a' | 'push' | 'pull' | 'legs_b' | 'optional_upper' | 'rest'
+export type DayKind =
+  | 'legs_a'
+  | 'push'
+  | 'pull'
+  | 'legs_b'
+  | 'optional_upper'
+  | 'full_body_a'
+  | 'full_body_b'
+  | 'rest'
 export type RunKind = 'short' | 'long'
+
+/** Welk trainingsprogramma een gebruiker volgt. Bepaalt week, sjablonen en tempo. */
+export type ProgramId = 'kracht_hardlopen' | 'fullbody_hardlopen'
 
 export interface SessionSlot {
   key: string
@@ -208,8 +219,16 @@ export interface DayOverride {
   runScale?: number
 }
 
-export interface AppState {
-  schemaVersion: number
+/**
+ * Alles van één gebruiker. Dit is wat de logica leest: progressie, streefgewichten
+ * en voortgang worden altijd over precies één `UserState` berekend, nooit over twee.
+ * In Firestore is dit één document onder `trainingsapp/{code}/gebruikers/{id}`.
+ */
+export interface UserState {
+  /** stabiel id; blijft gelijk als de naam verandert */
+  id: string
+  naam: string
+  programId: ProgramId
   startDate: string // maandag van week 1
   settings: Settings
   /** slotKey -> exerciseId (permanent, rouleert niet mee) */
@@ -236,4 +255,22 @@ export interface AppState {
   notices: { date: string; text: string }[]
   /** ISO-tijdstip van de laatste export; null = nog nooit geëxporteerd */
   lastExportAt: string | null
+  /** ISO-tijdstip van de laatste lokale wijziging; bepaalt wie wint bij sync */
+  updatedAt: string | null
+}
+
+/**
+ * De volledige opgeslagen staat: welk huishouden, wie je bent, en de gebruikers.
+ * Alleen de store en de synclaag werken hierop. Schermen en logica krijgen de
+ * `UserState` van de geselecteerde gebruiker, zodat data van de ander per
+ * constructie niet in een berekening kan meelopen.
+ */
+export interface AppState {
+  schemaVersion: number
+  /** gedeelde huishoudcode (16 hex); leeg = nog niet ingesteld */
+  household: string
+  /** id van de gebruiker die dit toestel gebruikt; leeg = nog niet gekozen */
+  currentUser: string
+  /** gebruikersid -> gebruiker */
+  users: Record<string, UserState>
 }

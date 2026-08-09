@@ -1,8 +1,13 @@
 # Trainingsschema
 
-Persoonlijke PWA voor een doorlopend full-body krachtschema met nadruk op benen,
-gecombineerd met 3x per week hardlopen. Offline-first, installeerbaar, donker thema,
-alles lokaal in `localStorage`. Geen backend, geen accounts, geen externe API's.
+PWA voor twee gebruikers, elk met een eigen trainingsschema, gedeeld binnen één
+huishouden. Offline-first, installeerbaar, donker thema. Geen accounts en geen
+wachtwoorden: een gedeelde huishoudcode koppelt de toestellen, Firestore synct en
+`localStorage` is de offline cache.
+
+- **Rob** — doorlopend krachtschema met nadruk op benen, naast 3x per week hardlopen.
+- **Anouc** — 2x full body (woensdag en zaterdag) van 45-60 min, naast haar eigen 3x
+  hardlopen.
 
 ## Draaien
 
@@ -44,6 +49,8 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `startWeight.test.ts` | startgewichtadvies: met en zonder lichaamsgewicht, met en zonder vergelijkbare data, afronding, verdwijnen na de eerste set, en de verwijzingen bestaan en zijn niet circulair |
 | `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion` |
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
+| `users.test.ts` | twee gebruikers: eigen schema, eigen logs en instellingen, en de bevestiging dat progressie, gewichtsadvies, 1RM en weekvolume strikt per gebruiker blijven; plus het full body-schema van Anouc (dagen, duur, materiaal, rustiger opbouw, lichter startpunt) |
+| `sync.test.ts` | offline loggen en later syncen, bundelen per gebruiker, botsingen op tijdstempel, half-kapotte documenten, en de migratie van bestaande localStorage-data naar gebruiker Rob |
 | `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, migratie v4 → v5, en de bevestiging dat ze de krachtprogressie, 1RM-grafiek en loopvolume niet raken |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
@@ -77,7 +84,28 @@ Na de eerste keer openen: in Chrome/Safari *Toevoegen aan beginscherm*. Daarna s
 hij als losse app en werkt hij offline. Updates worden automatisch opgehaald
 (`autoUpdate`) en zijn actief na het sluiten en heropenen van de app.
 
+## Twee gebruikers
+
+Bij de eerste start vraagt de app om twee dingen: een **huishoudcode** en **wie je bent**.
+Beide worden op het toestel onthouden en zijn later te wijzigen bij Instellingen →
+Huishouden.
+
+- **Huishoudcode** — 16 tekens (0-9, a-f). Dezelfde code op beide toestellen betekent
+  dezelfde gedeelde gegevens. Nog geen code? De app maakt er een. Wie de code heeft kan
+  erbij, dus deel hem alleen met elkaar.
+- **Wie ben je** — bepaalt alles wat je ziet en logt. Elke gebruiker heeft een eigen
+  schema, eigen oefeningen, eigen sessielogs, eigen hardloopregistratie, eigen losse
+  activiteiten, eigen streefgewichten en eigen voortgang.
+- **Meekijken** — het tabblad met de naam van de ander toont diens streak, afgelopen
+  sessies en kilometers per week. Puur om te kijken: **loggen kan alleen voor jezelf.**
+
+Progressie en gewichtsadvies worden altijd over precies één gebruiker berekend. Dat zit in
+de vorm van de data: de logica krijgt een `UserState` en kan de ander domweg niet zien. De
+enige acties die buiten je eigen gebruiker komen zijn "wie ben je" en "welke huishoudcode".
+
 ## Hoe het schema werkt
+
+### Rob — kracht + hardlopen
 
 | Dag | Programma |
 | --- | --- |
@@ -103,6 +131,34 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
   reps door tot repMax + 2. Twee sessies onder de ondergrens → streefgewicht −5%.
 - **Hardloopvolume:** het weektotaal komt nooit meer dan 10% boven de vorige week;
   overschrijding wordt automatisch teruggeschaald.
+
+### Anouc — full body + hardlopen
+
+| Dag | Programma |
+| --- | --- |
+| ma | **Rustdag** |
+| di | Hardlopen |
+| wo | Full body A |
+| do | Hardlopen |
+| vr | Vrij |
+| za | Full body B |
+| zo | Duurloop |
+
+Twee krachtsessies per week van 45-60 min, zelfde thuisgym en zelfde uitleg per oefening
+als het andere schema. Het hardlopen dat er al was verandert niet: de app schrijft geen
+afstanden voor op die dagen en registreert alleen wat er gelopen is.
+
+Beginnend niveau, dus twee dingen anders dan bij Rob:
+
+- **Lager startpunt** — het geadviseerde startgewicht gaat maal 0,7.
+- **Rustiger opbouw** — elke oefening klimt eerst in herhalingen door tot boven de
+  bovengrens; pas daarna komt er gewicht bij. Waar Rob na één goede sessie een schijf
+  erbij krijgt, groeit hier eerst het aantal reps.
+
+De oefeningkeuze houdt rekening met het materiaal: de lichtste dumbbell is 12,5 kg, dus
+duw- en schouderwerk loopt via kabel (chest press, laag roeien, pull-through), band
+(overhead press, abductie) of lichaamsgewicht (glute bridge, step-up, kuitheffing,
+dead bug). Leg press en smith laten zich vanaf de laagste stand belasten.
 
 ## Uitleg en poppetjes
 
@@ -196,19 +252,38 @@ veranderen niets aan het schema of de rustdaglogica.
 
 ## Waar de data staat
 
-Alles staat in de `localStorage` van de browser waarin je de app gebruikt, onder één
-sleutel: **`trainingsapp.state.v1`**. Eén JSON-object met historie, instellingen,
-streefwaarden en logs. Er gaat niets naar een server, er is geen sync tussen apparaten,
-en een geïnstalleerde PWA deelt de opslag met de browser die hem installeerde.
+**Firestore is de bron van waarheid, `localStorage` is de offline cache.** Elke wijziging
+gaat eerst lokaal (onder de sleutel `trainingsapp.state.v1`) en daarna gebufferd naar de
+cloud. Zonder internet werkt alles gewoon door; wat nog niet weg is blijft in de wachtrij
+staan en gaat alsnog zodra er verbinding is. Instellingen → Huishouden toont de status en
+hoeveel er nog wacht.
 
-Dat betekent ook: **browserdata wissen = alles kwijt.** Instellingen → **Exporteer alles**
-geeft een JSON met de volledige staat; **Importeer** leest die terug. Sinds er data is
-herinnert het instellingenscherm je eraan zodra de laatste export ouder is dan 30 dagen
-(of er nog nooit een was).
+Opzet, gelijk aan camper-app:
+
+- **Geen login.** De app meldt zich anoniem aan bij Firebase, puur zodat de rules een
+  auth-token kunnen eisen. De niet-te-raden huishoudcode is het gedeelde geheim.
+- **Eén document per gebruiker**, onder `trainingsapp/{code}/gebruikers/{id}`. Bewust geen
+  gezamenlijk document: twee toestellen die tegelijk loggen schrijven zo nooit over elkaar
+  heen, en de data van de ander kan niet in je eigen berekening belanden.
+- **Botsingen**: het jongste `updatedAt` wint, per gebruiker.
+- **Eigen collection en eigen code.** camper-app zit onder `households` in hetzelfde
+  Firebase-project en blijft daar ongemoeid; de codes worden niet gedeeld.
+
+Wat er in de repo staat is de gewone Firebase web-config — geen geheim, die hoort in de
+client. De afscherming komt van `firestore.rules`.
+
+**Rules publiceren** (Firebase-console → Firestore → Rules): plak `firestore.rules` in zijn
+geheel. Rules vervangen altijd het hele bestand, dus de regel van camper-app staat er
+bewust in — verdwijnt die, dan valt de sync van camper-app stil. Zet daarnaast onder
+Authentication → Sign-in method **Anonymous** aan.
+
+Back-up blijft verstandig: **Exporteer alles** geeft een JSON met beide gebruikers,
+**Importeer** leest die terug. Sinds er data is herinnert het instellingenscherm je eraan
+zodra de laatste export ouder is dan 30 dagen (of er nog nooit een was).
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **5**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **6**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -232,6 +307,10 @@ Bestaande stappen:
   blijven ongemoeid.
 - **v3 → v4** — sets kregen een expliciete `done`-vlag en sessies een `completedSlots`-lijst.
   Voorheen gold "reps ingevuld" als gelogd, dus oude sets met reps > 0 worden afgevinkt.
+- **v5 → v6** — meerdere gebruikers. Tot en met v5 was de opgeslagen staat één platte
+  gebruiker, en die was van Rob: hij verhuist ongewijzigd naar `users.rob` en het toestel
+  staat meteen op Rob, zodat er na de update niets verandert aan wat je ziet. Anouc komt
+  er leeg bij. De huishoudcode blijft leeg tot je hem invult bij de eerste start.
 - **v4 → v5** — losse activiteiten naast het schema. Oude data kent die lijst nog niet en
   krijgt een lege; bestaande sessies, loops en oefeningstanden blijven ongemoeid.
   Activiteiten uit een handgeschreven bestand worden gerepareerd: een onbekend type wordt
@@ -254,11 +333,14 @@ src/
   logic/startWeight.ts geschat startgewicht zonder historie
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
   logic/activities.ts losse activiteiten naast het schema
+  data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
+  store/sync.ts       Firestore-sync per huishouden, offline wachtrij
   store/store.ts      localStorage-store, export/import
   store/migrations.ts migratiepad tussen schemaVersions
   store/actions.ts    alle mutaties
   components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
   components/Activities.tsx  invoer en weergave van losse activiteiten
-  screens/            Vandaag, Sessie, Week, Voortgang, Instellingen
+  screens/            Welkom, Vandaag, Sessie, Week, Voortgang, Meekijken, Instellingen
+firestore.rules       security rules; publiceer dit bestand in zijn geheel
 tests/                vitest-suite, draait zonder browser
 ```

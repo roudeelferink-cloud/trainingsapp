@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card, Chip } from '../components/ui'
-import { WEEK } from '../data/plan'
+import { programFor } from '../data/programs'
 import { activitiesOn, activityTypeLabel } from '../logic/activities'
 import { buildDay } from '../logic/day'
 import { addDays, formatShort, mondayOf, today } from '../logic/dates'
@@ -13,6 +13,8 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
   const [offset, setOffset] = useState(0)
   const monday = addDays(mondayOf(today()), offset * 7)
   const info = buildDay(state, monday).cycle
+  const program = programFor(state)
+  const vrijLopen = program.runMode === 'free'
   const week = plannedWeekKm(state, monday)
 
   return (
@@ -35,7 +37,11 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
       <div className="flex flex-wrap gap-2 justify-center">
         {info.deload && <Chip tone="warn">Deloadweek — 1 set minder, −10% gewicht, −20% loopvolume</Chip>}
         {info.calibration && <Chip tone="lift">Kalibratie — op gevoel, RIR 2-3</Chip>}
-        <Chip tone="run">loopvolume ~{week.km} km{week.capped ? ' (teruggeschaald)' : ''}</Chip>
+        {vrijLopen ? (
+          <Chip tone="run">3 loopdagen · eigen afstand</Chip>
+        ) : (
+          <Chip tone="run">loopvolume ~{week.km} km{week.capped ? ' (teruggeschaald)' : ''}</Chip>
+        )}
         {offset !== 0 && (
           <button className="chip bg-ink-600 text-slate-200" onClick={() => setOffset(0)}>
             terug naar deze week
@@ -44,7 +50,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
       </div>
 
       <div className="space-y-2">
-        {WEEK.map((spec, i) => {
+        {program.week.map((spec, i) => {
           const iso = addDays(monday, i)
           const plan = buildDay(state, iso)
           const extras = activitiesOn(state, iso)
@@ -64,7 +70,11 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                       {plan.run && (
                         <p className="font-semibold">
                           <span className="text-amber-300">1.</span>{' '}
-                          {plan.run.bike ? 'Fietsen 30 min' : `Hardlopen ${plan.run.km} km`}
+                          {plan.run.bike
+                            ? 'Fietsen 30 min'
+                            : plan.run.free
+                              ? 'Hardlopen'
+                              : `Hardlopen ${plan.run.km} km`}
                         </p>
                       )}
                       {plan.strength && (

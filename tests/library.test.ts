@@ -51,7 +51,7 @@ describe('sessiesjablonen', () => {
   })
 
   it('houdt kuitwerk en heupabductie op core, zodat ze nooit vervallen bij tijdgebrek', () => {
-    const calfAndAbduction = [...TEMPLATES.legs_a.slots, ...TEMPLATES.legs_b.slots].filter((s) =>
+    const calfAndAbduction = [...TEMPLATES.legs_a!.slots, ...TEMPLATES.legs_b!.slots].filter((s) =>
       ['standing_calf_smith', 'band_lateral_walk', 'seated_calf', 'band_hip_abduction_seated'].includes(
         s.exerciseId,
       ),
@@ -61,7 +61,7 @@ describe('sessiesjablonen', () => {
   })
 
   it('zet smith squat en leg curl in benen A op accessory', () => {
-    const accessories = TEMPLATES.legs_a.slots.filter((s) =>
+    const accessories = TEMPLATES.legs_a!.slots.filter((s) =>
       ['smith_squat', 'leg_curl'].includes(s.exerciseId),
     )
     expect(accessories).toHaveLength(2)

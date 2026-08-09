@@ -280,7 +280,7 @@ describe('resolveSlot', () => {
       saturdayTemplate(1),
     ]
     for (const tpl of templates) {
-      for (const slot of tpl.slots) {
+      for (const slot of tpl!.slots) {
         for (let rotation = 0; rotation < 8; rotation++) {
           const r = resolveSlot(slot, s0, MON, rotation)
           expect(r.exercise, `${slot.key} rotatie ${rotation}`).toBeTruthy()

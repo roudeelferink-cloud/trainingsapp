@@ -1,5 +1,5 @@
 import { alternatives, getExercise } from '../data/exercises'
-import type { AppState, Exercise, LoadArea, SessionSlot, Sensitivity } from '../types'
+import type { UserState, Exercise, LoadArea, SessionSlot, Sensitivity } from '../types'
 
 export type ReplaceReason = 'permanent' | 'rotatie' | 'reismodus' | 'gevoelig' | 'vandaag'
 
@@ -60,7 +60,7 @@ function sensitiveSwap(e: Exercise, off: LoadArea[], travel: boolean): { ex: Exe
 
 export function resolveSlot(
   slot: SessionSlot,
-  state: AppState,
+  state: UserState,
   iso: string,
   rotation: number,
 ): ResolvedSlot {
@@ -109,7 +109,7 @@ export function resolveSlot(
 }
 
 /** Kandidaten die de UI aanbiedt bij "wissel". */
-export function swapCandidates(current: Exercise, state: AppState): Exercise[] {
+export function swapCandidates(current: Exercise, state: UserState): Exercise[] {
   const travel = state.settings.travelMode
   const off = offAreas(state.settings.sensitive)
   return alternatives(current)

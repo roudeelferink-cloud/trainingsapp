@@ -1,4 +1,4 @@
-import type { AppState, RunKind } from '../types'
+import type { UserState, RunKind } from '../types'
 import { cycleInfo } from './cycle'
 import { addDays, mondayOf } from './dates'
 
@@ -21,7 +21,7 @@ function rawWeekKm(week: number): number {
 }
 
 /** Werkelijk gelopen kilometers in de week van `iso`. */
-export function actualWeekKm(state: AppState, iso: string): number {
+export function actualWeekKm(state: UserState, iso: string): number {
   const mon = mondayOf(iso)
   let total = 0
   for (let i = 0; i < 7; i++) {
@@ -35,7 +35,7 @@ export function actualWeekKm(state: AppState, iso: string): number {
  * Geplande weekafstand met harde bewaking: nooit meer dan 10% boven de vorige week.
  * Bij overschrijding wordt automatisch teruggeschaald.
  */
-export function plannedWeekKm(state: AppState, iso: string): { km: number; capped: boolean } {
+export function plannedWeekKm(state: UserState, iso: string): { km: number; capped: boolean } {
   const info = cycleInfo(state.startDate, iso)
   const raw = rawWeekKm(info.week)
   if (info.week <= 1) return { km: round05(raw), capped: false }
@@ -50,7 +50,7 @@ export function plannedWeekKm(state: AppState, iso: string): { km: number; cappe
 }
 
 /** Verdeling over de drie loopdagen: kort / kort / lang. */
-export function plannedRunKm(state: AppState, iso: string, kind: RunKind): { km: number; capped: boolean } {
+export function plannedRunKm(state: UserState, iso: string, kind: RunKind): { km: number; capped: boolean } {
   const week = plannedWeekKm(state, iso)
   const short = Math.min(8, Math.max(5, round05(week.km * (6 / BASE_WEEK_KM))))
   if (kind === 'short') return { km: short, capped: week.capped }

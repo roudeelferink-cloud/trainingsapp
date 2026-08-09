@@ -1,4 +1,4 @@
-import type { AppState, Exercise } from '../types'
+import type { UserState, Exercise } from '../types'
 import { BY_ID } from '../data/exercises'
 
 export interface StartAdvice {
@@ -20,7 +20,7 @@ function floorToStep(value: number, step: number): number {
 }
 
 /** Is er al iets gelogd voor deze oefening? Dan neemt de progressielogica het over. */
-export function hasLoggedHistory(state: AppState, exerciseId: string): boolean {
+export function hasLoggedHistory(state: UserState, exerciseId: string): boolean {
   const es = state.exerciseState[exerciseId]
   return !!es && (es.targetWeight !== null || es.lastUpdated !== null)
 }
@@ -33,10 +33,12 @@ export function hasLoggedHistory(state: AppState, exerciseId: string): boolean {
  * is, valt het advies terug op lichaamsgewicht × startFactor. Zonder lichaamsgewicht
  * geen advies.
  *
+ * `scale` komt uit het programma: een beginnersprogramma start bewust lichter.
+ *
  * De keten is per opzet acyclisch en eindigt bij een anker zonder verwijzing; de
  * `seen`-set hieronder is puur een veiligheidsklep voor handmatig aangepaste data.
  */
-export function startWeightAdvice(ex: Exercise, state: AppState): StartAdvice | null {
+export function startWeightAdvice(ex: Exercise, state: UserState, scale = 1): StartAdvice | null {
   if (ex.unit === 'bw' || ex.unit === 'band') return null
   if (hasLoggedHistory(state, ex.id)) return null
 
@@ -55,7 +57,7 @@ export function startWeightAdvice(ex: Exercise, state: AppState): StartAdvice | 
 
     const relWeight = state.exerciseState[next.id]?.targetWeight
     if (relWeight !== null && relWeight !== undefined && relWeight > 0) {
-      const weight = floorToStep(relWeight * ratio, ex.minIncrement)
+      const weight = floorToStep(relWeight * ratio * scale, ex.minIncrement)
       if (weight > 0) return { weight, source: 'related', relatedName: next.naam }
     }
     current = next
@@ -63,7 +65,7 @@ export function startWeightAdvice(ex: Exercise, state: AppState): StartAdvice | 
 
   const bw = state.settings.bodyweightKg
   if (!bw || bw <= 0 || ex.startFactor <= 0) return null
-  const weight = floorToStep(bw * ex.startFactor, ex.minIncrement)
+  const weight = floorToStep(bw * ex.startFactor * scale, ex.minIncrement)
   if (weight <= 0) return null
   return { weight, source: 'bodyweight' }
 }

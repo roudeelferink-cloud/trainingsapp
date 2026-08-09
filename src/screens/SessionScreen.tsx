@@ -15,10 +15,11 @@ import {
   seedSets,
   uncheckSet,
 } from '../logic/sessionFlow'
+import { programFor } from '../data/programs'
 import { ADVICE_HINT, startWeightAdvice } from '../logic/startWeight'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
-import type { AppState, DayKind, Exercise, LoggedSet } from '../types'
+import type { UserState, DayKind, Exercise, LoggedSet } from '../types'
 
 export function SessionScreen({
   date,
@@ -402,10 +403,13 @@ export function SessionScreen({
   )
 }
 
-/** Tijdens kalibratie geen schatting: dan is "op gevoel" de instructie. */
-function adviceFor(r: ResolvedSlot, state: AppState, calibration: boolean) {
+/**
+ * Tijdens kalibratie geen schatting: dan is "op gevoel" de instructie.
+ * De schaal komt uit het programma van deze gebruiker — een beginner start lichter.
+ */
+function adviceFor(r: ResolvedSlot, state: UserState, calibration: boolean) {
   if (calibration) return null
-  return startWeightAdvice(r.exercise, state)
+  return startWeightAdvice(r.exercise, state, programFor(state).startScale)
 }
 
 function RoundButton({

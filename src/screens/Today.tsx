@@ -196,9 +196,18 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
         <div>
           <Chip tone="run">1 · Hardlopen</Chip>
           <p className="text-xl font-bold mt-2">
-            {run.bike ? `Fietsen ${BIKE_MINUTES} min` : `${run.kind === 'long' ? 'Duurloop' : 'Korte loop'} ${run.km} km`}
+            {run.bike
+              ? `Fietsen ${BIKE_MINUTES} min`
+              : run.free
+                ? run.kind === 'long'
+                  ? 'Duurloop'
+                  : 'Hardlopen'
+                : `${run.kind === 'long' ? 'Duurloop' : 'Korte loop'} ${run.km} km`}
           </p>
-          {!run.bike && run.km !== run.plannedKm && (
+          {run.free && !run.bike && (
+            <p className="text-sm text-slate-400">Eigen afstand en tempo — log wat je gelopen hebt.</p>
+          )}
+          {!run.free && !run.bike && run.km !== run.plannedKm && (
             <p className="text-sm text-slate-400">Gepland was {run.plannedKm} km</p>
           )}
         </div>

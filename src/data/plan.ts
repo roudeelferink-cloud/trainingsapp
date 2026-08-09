@@ -6,7 +6,7 @@ function slot(kind: DayKind, i: number, exerciseId: string, role: 'core' | 'acce
   return { key: `${kind}:${i}`, exerciseId, role, setsReps: { sets, repMin, repMax } }
 }
 
-export const TEMPLATES: Record<Exclude<DayKind, 'rest' | 'optional_upper'>, SessionTemplate> = {
+export const TEMPLATES: Partial<Record<DayKind, SessionTemplate>> = {
   legs_a: {
     id: 'legs_a',
     naam: 'Benen A (zwaar)',
@@ -90,7 +90,7 @@ export function saturdayTemplate(weekIndex: number): SessionTemplate {
 export function templateFor(kind: DayKind, weekIndex: number): SessionTemplate | null {
   if (kind === 'rest') return null
   if (kind === 'optional_upper') return saturdayTemplate(weekIndex)
-  return TEMPLATES[kind]
+  return TEMPLATES[kind] ?? null
 }
 
 /** ISO-weekdag 1 = maandag ... 7 = zondag */
@@ -122,5 +122,7 @@ export const DAY_LABEL: Record<DayKind, string> = {
   pull: 'Trekken',
   legs_b: 'Benen B',
   optional_upper: 'Bovenlichaam (optioneel)',
+  full_body_a: 'Full body A',
+  full_body_b: 'Full body B',
   rest: 'Rust',
 }

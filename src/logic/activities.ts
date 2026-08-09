@@ -1,4 +1,4 @@
-import type { Activity, ActivityIntensity, ActivityType, AppState } from '../types'
+import type { Activity, ActivityIntensity, ActivityType, UserState } from '../types'
 
 /**
  * Losse activiteiten staan naast het schema. Ze worden nergens in de
@@ -37,19 +37,19 @@ export function activitySummary(a: Activity): string {
 }
 
 /** Activiteiten van één dag, oudst ingevoerd eerst. */
-export function activitiesOn(state: AppState, iso: string): Activity[] {
+export function activitiesOn(state: UserState, iso: string): Activity[] {
   return state.activities
     .filter((a) => a.date === iso)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 }
 
 /** Alle activiteiten voor de historie: nieuwste dag eerst. */
-export function recentActivities(state: AppState, limit = 30): Activity[] {
+export function recentActivities(state: UserState, limit = 30): Activity[] {
   return [...state.activities]
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit)
 }
 
-export function activityCount(state: AppState): number {
+export function activityCount(state: UserState): number {
   return state.activities.length
 }

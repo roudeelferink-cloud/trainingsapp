@@ -11,6 +11,7 @@ import * as A from '../src/store/actions'
 import {
   SCHEMA_VERSION,
   exportJSON,
+  getRoot,
   getState,
   importJSON,
   migrate,
@@ -131,7 +132,7 @@ describe('bewerken en verwijderen', () => {
 
     const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
     expect(opgeslagen).not.toBeNull()
-    const herladen = migrate(JSON.parse(opgeslagen!))
+    const herladen = migrate(JSON.parse(opgeslagen!)).users.rob
     expect(herladen.activities).toHaveLength(1)
     expect(herladen.activities[0].minutes).toBe(50)
   })
@@ -232,7 +233,7 @@ describe('opslag, export en migratie', () => {
     const voor = getState().activities
 
     const backup = exportJSON()
-    expect(JSON.parse(backup).activities).toHaveLength(2)
+    expect(JSON.parse(backup).users.rob.activities).toHaveLength(2)
 
     resetState()
     expect(getState().activities).toEqual([])
@@ -262,7 +263,7 @@ describe('opslag, export en migratie', () => {
 
     expect(importJSON(JSON.stringify(v4)).ok).toBe(true)
     const s = getState()
-    expect(s.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
     expect(s.activities).toEqual([])
     // bestaande data blijft overeind
     expect(s.sessions[`${MON}:legs_a`].entries['legs_a:0']).toHaveLength(1)
@@ -286,7 +287,7 @@ describe('opslag, export en migratie', () => {
     }
 
     expect(importJSON(JSON.stringify(v1)).ok).toBe(true)
-    expect(getState().schemaVersion).toBe(SCHEMA_VERSION)
+    expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
     expect(getState().activities).toEqual([])
     expect(getState().sessions[`${MON}:legs_a`].exercises['legs_a:0']).toBe('leg_press')
   })
@@ -318,8 +319,8 @@ describe('opslag, export en migratie', () => {
   })
 
   it('overleeft een activities-veld dat geen lijst is', () => {
-    expect(migrate({ schemaVersion: SCHEMA_VERSION, activities: 'kapot' }).activities).toEqual([])
-    expect(migrate({ schemaVersion: 4, activities: { a: 1 } }).activities).toEqual([])
+    expect(migrate({ schemaVersion: 5, activities: 'kapot' }).users.rob.activities).toEqual([])
+    expect(migrate({ schemaVersion: 4, activities: { a: 1 } }).users.rob.activities).toEqual([])
   })
 })
 

@@ -157,11 +157,32 @@ function normalizeActivities(raw: unknown): unknown[] {
   return out
 }
 
+/**
+ * v5 -> v6: meerdere gebruikers. Tot en met v5 was de opgeslagen staat één platte
+ * gebruiker; die was van Rob. Hij verhuist daarom ongewijzigd naar `users.rob`, en
+ * dit toestel staat meteen op Rob ingesteld zodat er na de update niets verandert
+ * aan wat je ziet. De huishoudcode blijft leeg: die vraagt de app bij de eerste
+ * start, waarna Rob's historie onder die code komt te staan.
+ *
+ * Er gaat niets verloren: elk veld van de oude staat gaat mee, alleen `schemaVersion`
+ * schuift naar het niveau erboven.
+ */
+function v5_to_v6(state: RawState): RawState {
+  if (state.users && typeof state.users === 'object') return state
+  const { schemaVersion: _versie, ...user } = state
+  return {
+    household: typeof state.household === 'string' ? state.household : '',
+    currentUser: 'rob',
+    users: { rob: { ...user, id: 'rob', naam: 'Rob', programId: 'kracht_hardlopen' } },
+  }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
   3: v3_to_v4,
   4: v4_to_v5,
+  5: v5_to_v6,
 }
 
 /**

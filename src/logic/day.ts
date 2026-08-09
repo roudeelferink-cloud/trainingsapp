@@ -1,5 +1,6 @@
-import { DAY_LABEL, REST_WEEKDAY, WEEK, templateFor } from '../data/plan'
-import type { AppState, DayKind, RunKind, RunLog, SessionLog, SkipReason } from '../types'
+import { DAY_LABEL } from '../data/plan'
+import { programFor } from '../data/programs'
+import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason } from '../types'
 import { cycleInfo, type CycleInfo } from './cycle'
 import { weekday } from './dates'
 import { plannedRunKm, scaledRunKm } from './running'
@@ -10,6 +11,8 @@ export interface RunBlock {
   plannedKm: number
   km: number
   bike: boolean
+  /** de app schrijft geen afstand voor: jij loopt wat je wilt, de app registreert */
+  free: boolean
   capped: boolean
   scaledDown: boolean
   done: boolean
@@ -50,14 +53,15 @@ export function sessionKeyFor(date: string, kind: DayKind): string {
 }
 
 /** Bouwt alles wat er op één dag te doen is. Woensdag is altijd leeg. */
-export function buildDay(state: AppState, iso: string): DayPlan {
+export function buildDay(state: UserState, iso: string): DayPlan {
+  const program = programFor(state)
   const wd = weekday(iso)
   const cycle = cycleInfo(state.startDate, iso)
   const checkin = state.checkins[iso]
   const notes: string[] = []
   const lowEnergy = checkin !== undefined && checkin <= 2
 
-  if (wd === REST_WEEKDAY) {
+  if (wd === program.restWeekday) {
     return {
       date: iso, weekday: wd, isRest: true, cycle, checkin,
       run: null, strength: null, movedTo: null,
@@ -65,22 +69,24 @@ export function buildDay(state: AppState, iso: string): DayPlan {
     }
   }
 
-  const spec = WEEK[wd - 1]
+  const spec = program.week[wd - 1]
   const override = state.overrides[iso]
 
   /* ---- loop ---- */
   let run: RunBlock | null = null
   if (spec.run) {
-    const planned = plannedRunKm(state, iso, spec.run)
     const log = state.runs[iso] ?? null
     const bike = override?.bike ?? log?.bike ?? false
-    const scaled = scaledRunKm(planned.km, checkin)
     const skip = state.skips[`${iso}:run`]
+    const free = program.runMode === 'free'
+    const planned = free ? { km: 0, capped: false } : plannedRunKm(state, iso, spec.run)
+    const scaled = free ? 0 : scaledRunKm(planned.km, checkin)
     run = {
       kind: spec.run,
       plannedKm: planned.km,
       km: override?.runScale ? Math.round(planned.km * override.runScale * 2) / 2 : scaled,
       bike,
+      free,
       capped: planned.capped,
       scaledDown: scaled < planned.km,
       done: !!log?.completedAt,
@@ -101,7 +107,7 @@ export function buildDay(state: AppState, iso: string): DayPlan {
     const incoming = Object.entries(state.moves).find(([, to]) => to === iso)
     if (incoming) {
       const origin = incoming[0]
-      const originKind = WEEK[weekday(origin) - 1].strength
+      const originKind = program.week[weekday(origin) - 1].strength
       if (originKind) {
         kind = originKind
         movedFrom = origin
@@ -120,7 +126,7 @@ export function buildDay(state: AppState, iso: string): DayPlan {
           : 'Check-in laag: de optionele zaterdagsessie staat vandaag uit.',
       )
     } else {
-      const tpl = templateFor(kind, cycle.week)!
+      const tpl = program.templateFor(kind, cycle.week)!
       const sessionKey = sessionKeyFor(iso, kind)
       const log = state.sessions[sessionKey] ?? null
       const short = override?.short ?? log?.short ?? false
@@ -197,7 +203,7 @@ export function isLegsSession(kind: DayKind | null | undefined): boolean {
  * Beensessies mogen nooit op zaterdag landen: zondag is de duurloop.
  * Dat geldt in beide richtingen, want een bezette doeldag betekent ruilen.
  */
-export function moveBlockReason(state: AppState, iso: string, target: string): string | null {
+export function moveBlockReason(state: UserState, iso: string, target: string): string | null {
   const sourceKind = buildDay(state, iso).strength?.kind ?? null
   if (weekday(target) === SATURDAY && isLegsSession(sourceKind)) return SATURDAY_LEGS_REASON
   if (weekday(iso) === SATURDAY) {
@@ -212,11 +218,12 @@ export function moveBlockReason(state: AppState, iso: string, target: string): s
  * Staat er op de doeldag al een sessie, dan ruilen de twee van plek.
  * Geblokkeerde dagen komen wél terug, met reden, zodat de UI kan uitleggen waarom.
  */
-export function moveTargets(state: AppState, iso: string): MoveTarget[] {
+export function moveTargets(state: UserState, iso: string): MoveTarget[] {
+  const rest = programFor(state).restWeekday
   const out: MoveTarget[] = []
   for (let d = 1; d <= 6; d++) {
     const target = shift(iso, d)
-    if (weekday(target) === REST_WEEKDAY) continue
+    if (weekday(target) === rest) continue
     if (state.moves[target]) continue // al verplaatst, geen ketens
     const plan = buildDay(state, target)
     if (plan.strength?.movedFrom) continue
