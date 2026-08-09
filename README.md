@@ -139,8 +139,8 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
 | ma | **Rustdag** |
 | di | Hardlopen |
 | wo | Full body A |
-| do | Hardlopen |
-| vr | Vrij |
+| do | Vrij |
+| vr | Hardlopen |
 | za | Full body B |
 | zo | Duurloop |
 

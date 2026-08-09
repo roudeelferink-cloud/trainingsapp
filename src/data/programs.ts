@@ -94,8 +94,8 @@ const FULL_BODY_WEEK: DaySpec[] = [
   { weekday: 1, label: 'Maandag', short: 'ma', run: null, strength: null },
   { weekday: 2, label: 'Dinsdag', short: 'di', run: 'short', strength: null },
   { weekday: 3, label: 'Woensdag', short: 'wo', run: null, strength: 'full_body_a' },
-  { weekday: 4, label: 'Donderdag', short: 'do', run: 'short', strength: null },
-  { weekday: 5, label: 'Vrijdag', short: 'vr', run: null, strength: null },
+  { weekday: 4, label: 'Donderdag', short: 'do', run: null, strength: null },
+  { weekday: 5, label: 'Vrijdag', short: 'vr', run: 'short', strength: null },
   { weekday: 6, label: 'Zaterdag', short: 'za', run: null, strength: 'full_body_b' },
   { weekday: 7, label: 'Zondag', short: 'zo', run: 'long', strength: null },
 ]

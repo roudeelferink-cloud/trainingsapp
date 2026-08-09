@@ -21,7 +21,7 @@ import {
   setState,
   setUserName,
 } from '../src/store/store'
-import { DI, MON, WO, ZA } from './helpers'
+import { DI, DO, MON, VR, WO, ZA, ZO } from './helpers'
 
 const CODE = '00112233445566aa'
 
@@ -176,14 +176,27 @@ describe('het schema van Anouc', () => {
     expect(buildDay(getState(), WO).isRest).toBe(false)
   })
 
-  it('laat de drie loopdagen staan zonder afstand voor te schrijven', () => {
-    const loopdagen = [DI, '2026-08-06', '2026-08-09'] // di, do, zo
-    for (const iso of loopdagen) {
+  it('loopt op dinsdag, vrijdag en zondag, zonder afstand voor te schrijven', () => {
+    for (const iso of [DI, VR, ZO]) {
       const run = buildDay(getState(), iso).run
       expect(run, iso).not.toBeNull()
       expect(run!.free, iso).toBe(true)
       expect(run!.plannedKm, iso).toBe(0)
     }
+  })
+
+  it('houdt donderdag vrij van hardlopen', () => {
+    const donderdag = buildDay(getState(), DO)
+    expect(donderdag.run).toBeNull()
+    expect(donderdag.strength).toBeNull()
+  })
+
+  it('laat de krachtdagen staan waar ze stonden', () => {
+    expect(buildDay(getState(), WO).strength?.kind).toBe('full_body_a')
+    expect(buildDay(getState(), ZA).strength?.kind).toBe('full_body_b')
+    // en de loopdagen komen niet bovenop een krachtdag
+    expect(buildDay(getState(), WO).run).toBeNull()
+    expect(buildDay(getState(), ZA).run).toBeNull()
   })
 
   it('past binnen 45-60 min en gebruikt licht te belasten oefeningen', () => {
