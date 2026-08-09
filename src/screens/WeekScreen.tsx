@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Card, Chip } from '../components/ui'
 import { WEEK } from '../data/plan'
+import { activitiesOn, activityTypeLabel } from '../logic/activities'
 import { buildDay } from '../logic/day'
 import { addDays, formatShort, mondayOf, today } from '../logic/dates'
 import { plannedWeekKm } from '../logic/running'
@@ -46,6 +47,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
         {WEEK.map((spec, i) => {
           const iso = addDays(monday, i)
           const plan = buildDay(state, iso)
+          const extras = activitiesOn(state, iso)
           const isToday = iso === today()
           return (
             <Card key={iso} className={isToday ? 'border-accent/60' : ''}>
@@ -78,6 +80,12 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                         <p className="text-slate-400">Niets ingepland</p>
                       )}
                     </div>
+                  )}
+                  {extras.length > 0 && (
+                    <p className="text-sm text-slate-300 mt-1">
+                      <span className="text-slate-500">extra: </span>
+                      {extras.map((a) => `${activityTypeLabel(a.type)} ${a.minutes} min`).join(' · ')}
+                    </p>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">

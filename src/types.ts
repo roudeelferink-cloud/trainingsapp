@@ -168,6 +168,27 @@ export interface RunLog {
   completedAt: string | null
 }
 
+/* ---------- losse activiteiten ---------- */
+
+export type ActivityType = 'fietsen' | 'wandelen' | 'zwemmen' | 'hardlopen' | 'spinning' | 'overig'
+export type ActivityIntensity = 'rustig' | 'normaal' | 'intensief'
+
+/**
+ * Iets wat je naast het schema gedaan hebt: een avondrondje op de fiets, een
+ * wandeling, een keer zwemmen. Staat volledig los van de krachtprogressie en het
+ * loopvolume: deze logs sturen geen gewichtsadvies en veranderen het schema niet.
+ */
+export interface Activity {
+  id: string
+  date: string
+  type: ActivityType
+  minutes: number
+  intensity: ActivityIntensity
+  /** vrije notitie; leeg veld wordt null */
+  note: string | null
+  createdAt: string
+}
+
 export interface ExerciseState {
   targetWeight: number | null
   targetReps: number | null
@@ -203,6 +224,8 @@ export interface AppState {
   sessions: Record<string, SessionLog>
   /** datum -> looplog */
   runs: Record<string, RunLog>
+  /** losse, ongeplande activiteiten naast het schema */
+  activities: Activity[]
   /** datum -> reden (overgeslagen krachtsessie of loop) */
   skips: Record<string, { reason: SkipReason; what: 'strength' | 'run' }>
   /** originele datum -> nieuwe datum (alleen krachtsessies) */

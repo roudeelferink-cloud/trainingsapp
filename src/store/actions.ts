@@ -3,7 +3,16 @@ import { cycleInfo } from '../logic/cycle'
 import { buildDay, moveBlockReason, sessionKeyFor } from '../logic/day'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, stateFor } from '../logic/progression'
-import type { AppState, DayKind, LoggedSet, RunKind, SkipReason } from '../types'
+import type {
+  Activity,
+  ActivityIntensity,
+  ActivityType,
+  AppState,
+  DayKind,
+  LoggedSet,
+  RunKind,
+  SkipReason,
+} from '../types'
 import { getState, setState } from './store'
 
 export function setCheckin(iso: string, value: number): void {
@@ -124,6 +133,70 @@ export function completeRun(
       [iso]: { date: iso, kind, ...data, completedAt: new Date().toISOString() },
     },
   }))
+}
+
+/* ---- losse activiteiten ---- */
+
+export interface ActivityInput {
+  type: ActivityType
+  minutes: number
+  intensity: ActivityIntensity
+  note?: string | null
+}
+
+let activitySeq = 0
+
+function activityId(): string {
+  activitySeq += 1
+  return `act_${Date.now().toString(36)}_${activitySeq.toString(36)}`
+}
+
+function cleanNote(note: string | null | undefined): string | null {
+  const trimmed = (note ?? '').trim()
+  return trimmed === '' ? null : trimmed
+}
+
+/**
+ * Logt iets buiten het schema om. Mag op elke dag, ook op een rustdag, ook naast een
+ * al afgeronde sessie, en meerdere keren per dag. Raakt de progressie niet aan.
+ * Geeft het id terug zodat de UI meteen kan doorschakelen naar bewerken.
+ */
+export function addActivity(iso: string, input: ActivityInput): string {
+  const activity: Activity = {
+    id: activityId(),
+    date: iso,
+    type: input.type,
+    minutes: Math.max(1, Math.round(input.minutes)),
+    intensity: input.intensity,
+    note: cleanNote(input.note),
+    createdAt: new Date().toISOString(),
+  }
+  setState((s) => ({ ...s, activities: [...s.activities, activity] }))
+  return activity.id
+}
+
+/** Bewerkt een gelogde activiteit. De datum mag mee veranderen. */
+export function updateActivity(
+  id: string,
+  patch: Partial<ActivityInput> & { date?: string },
+): void {
+  setState((s) => ({
+    ...s,
+    activities: s.activities.map((a) =>
+      a.id === id
+        ? {
+            ...a,
+            ...patch,
+            minutes: patch.minutes === undefined ? a.minutes : Math.max(1, Math.round(patch.minutes)),
+            note: patch.note === undefined ? a.note : cleanNote(patch.note),
+          }
+        : a,
+    ),
+  }))
+}
+
+export function removeActivity(id: string): void {
+  setState((s) => ({ ...s, activities: s.activities.filter((a) => a.id !== id) }))
 }
 
 export function saveSessionDraft(

@@ -44,6 +44,7 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `startWeight.test.ts` | startgewichtadvies: met en zonder lichaamsgewicht, met en zonder vergelijkbare data, afronding, verdwijnen na de eerste set, en de verwijzingen bestaan en zijn niet circulair |
 | `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion` |
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
+| `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, migratie v4 → v5, en de bevestiging dat ze de krachtprogressie, 1RM-grafiek en loopvolume niet raken |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
 laden van de module.
@@ -175,6 +176,24 @@ adviezen mee; bestaande historie blijft ongemoeid.
 - **Reismodus:** alles naar lichaamsgewicht + band, max 30 min. Loopdagen ongewijzigd,
   de cyclus loopt door.
 
+## Losse activiteiten
+
+Naast het schema kun je elke dag **losse activiteiten** loggen: 's ochtends gepland
+hardgelopen en 's avonds nog rustig gefietst, een wandeling, een keer zwemmen. De knop
+*Activiteit toevoegen* staat elke dag op Vandaag — ook op een rustdag, ook als de geplande
+sessie al afgerond is, en meerdere keren per dag.
+
+De invoer blijft licht: type (fietsen, wandelen, zwemmen, hardlopen, spinning, overig),
+duur in minuten, intensiteit (rustig / normaal / intensief) en een optionele notitie. Geen
+sets of reps. In het formulier staat ook de datum, dus achteraf invullen op een eerdere dag
+kan. Bewerken en verwijderen gaat via dezelfde weg: tik op *Bewerk* bij de activiteit, op
+Vandaag of in de historie onder Voortgang.
+
+Ze staan overal apart van het schema, met het label **Extra**, zodat zichtbaar blijft wat
+gepland was en wat erbij kwam. Belangrijk: ze zijn puur registratie. Ze tellen niet mee in
+de krachtprogressie, het gewichtsadvies, de 1RM-grafiek of het hardloopvolume, en ze
+veranderen niets aan het schema of de rustdaglogica.
+
 ## Waar de data staat
 
 Alles staat in de `localStorage` van de browser waarin je de app gebruikt, onder één
@@ -189,7 +208,7 @@ herinnert het instellingenscherm je eraan zodra de laatste export ouder is dan 3
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **3**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **5**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -211,6 +230,12 @@ Bestaande stappen:
   en volledig lege sets uit afgeronde sessies vervallen. Het startgewichtadvies leest
   gelogde gewichten terug, dus die moeten betrouwbaar numeriek zijn. Lopende concepten
   blijven ongemoeid.
+- **v3 → v4** — sets kregen een expliciete `done`-vlag en sessies een `completedSlots`-lijst.
+  Voorheen gold "reps ingevuld" als gelogd, dus oude sets met reps > 0 worden afgevinkt.
+- **v4 → v5** — losse activiteiten naast het schema. Oude data kent die lijst nog niet en
+  krijgt een lege; bestaande sessies, loops en oefeningstanden blijven ongemoeid.
+  Activiteiten uit een handgeschreven bestand worden gerepareerd: een onbekend type wordt
+  `overig`, een onleesbare duur 0, en records zonder `id` vervallen.
 
 ## Structuur
 
@@ -228,10 +253,12 @@ src/
   logic/running.ts    loopvolume en de +10%-bewaking
   logic/startWeight.ts geschat startgewicht zonder historie
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
+  logic/activities.ts losse activiteiten naast het schema
   store/store.ts      localStorage-store, export/import
   store/migrations.ts migratiepad tussen schemaVersions
   store/actions.ts    alle mutaties
   components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
+  components/Activities.tsx  invoer en weergave van losse activiteiten
   screens/            Vandaag, Sessie, Week, Voortgang, Instellingen
 tests/                vitest-suite, draait zonder browser
 ```

@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { ActivityList, ActivitySheet } from '../components/Activities'
 import { Bar, Card, Chip, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
+import { activitiesOn } from '../logic/activities'
 import { buildDay, moveTargets, type DayPlan } from '../logic/day'
 import { formatLong, formatShort, today } from '../logic/dates'
 import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
-import type { DayKind, SkipReason } from '../types'
+import type { Activity, DayKind, SkipReason } from '../types'
 
 const REASONS: { id: SkipReason; label: string }[] = [
   { id: 'druk', label: 'Druk' },
@@ -72,9 +74,50 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
         </Card>
       )}
 
+      <ExtraActivities iso={iso} />
       <Maintenance iso={iso} />
       <Protein iso={iso} />
     </div>
+  )
+}
+
+/**
+ * Alles wat je buiten het schema om gedaan hebt. Staat er elke dag, ook op een
+ * rustdag en ook als de geplande sessie al afgerond is.
+ */
+function ExtraActivities({ iso }: { iso: string }) {
+  const state = useStore()
+  const items = activitiesOn(state, iso)
+  const [sheet, setSheet] = useState<{ activity?: Activity } | null>(null)
+
+  return (
+    <Card>
+      <SectionTitle
+        right={items.length > 0 ? <Chip tone="neutral">{items.length}</Chip> : undefined}
+      >
+        Extra activiteiten
+      </SectionTitle>
+      <p className="text-sm text-slate-400 mb-3">
+        Naast het schema. Telt niet mee in je krachtprogressie of gewichtsadvies.
+      </p>
+
+      {items.length === 0 ? (
+        <Empty>Nog niets extra gelogd vandaag.</Empty>
+      ) : (
+        <ActivityList items={items} onEdit={(a) => setSheet({ activity: a })} />
+      )}
+
+      <button className="btn-ghost w-full mt-3" onClick={() => setSheet({})}>
+        Activiteit toevoegen
+      </button>
+
+      <ActivitySheet
+        open={sheet !== null}
+        onClose={() => setSheet(null)}
+        date={iso}
+        activity={sheet?.activity}
+      />
+    </Card>
   )
 }
 

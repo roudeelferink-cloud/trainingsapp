@@ -3,7 +3,7 @@ import type { AppState, LoadArea, Sensitivity } from '../types'
 import { mondayOf, today } from '../logic/dates'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
@@ -41,6 +41,7 @@ export function defaultState(): AppState {
     maintenance: {},
     sessions: {},
     runs: {},
+    activities: [],
     skips: {},
     moves: {},
     overrides: {},
@@ -79,6 +80,7 @@ export function migrate(raw: unknown): AppState {
     maintenance: s.maintenance ?? {},
     sessions: s.sessions ?? {},
     runs: s.runs ?? {},
+    activities: Array.isArray(s.activities) ? s.activities : [],
     skips: s.skips ?? {},
     moves: s.moves ?? {},
     overrides: s.overrides ?? {},

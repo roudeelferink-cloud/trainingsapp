@@ -117,10 +117,51 @@ function v3_to_v4(state: RawState): RawState {
   return { ...state, sessions: next }
 }
 
+/**
+ * v4 -> v5: losse activiteiten naast het schema (fietsen, wandelen, ...). Oude data
+ * kent die lijst nog niet en krijgt een lege. Bestaande sessies, loops en
+ * oefeningstanden blijven onaangeroerd: activiteiten sturen geen progressie.
+ */
+function v4_to_v5(state: RawState): RawState {
+  return { ...state, activities: normalizeActivities(state.activities) }
+}
+
+const ACTIVITY_TYPES = ['fietsen', 'wandelen', 'zwemmen', 'hardlopen', 'spinning', 'overig']
+const ACTIVITY_INTENSITIES = ['rustig', 'normaal', 'intensief']
+
+/**
+ * Maakt er bruikbare activiteiten van: onbekende types worden 'overig', een
+ * onleesbare duur wordt 0 en records zonder id vervallen. Handgeschreven of
+ * half-kapotte importbestanden mogen de app niet laten crashen.
+ */
+function normalizeActivities(raw: unknown): unknown[] {
+  if (!Array.isArray(raw)) return []
+  const out: unknown[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const a = item as Record<string, unknown>
+    if (typeof a.id !== 'string' || typeof a.date !== 'string') continue
+    out.push({
+      id: a.id,
+      date: a.date,
+      type: typeof a.type === 'string' && ACTIVITY_TYPES.includes(a.type) ? a.type : 'overig',
+      minutes: Math.max(0, Math.round(num(a.minutes))),
+      intensity:
+        typeof a.intensity === 'string' && ACTIVITY_INTENSITIES.includes(a.intensity)
+          ? a.intensity
+          : 'normaal',
+      note: typeof a.note === 'string' && a.note.trim() ? a.note.trim() : null,
+      createdAt: typeof a.createdAt === 'string' ? a.createdAt : `${a.date}T00:00:00.000Z`,
+    })
+  }
+  return out
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
   3: v3_to_v4,
+  4: v4_to_v5,
 }
 
 /**

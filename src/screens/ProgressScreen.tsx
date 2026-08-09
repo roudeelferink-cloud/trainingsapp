@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { ActivityList, ActivitySheet } from '../components/Activities'
 import { BarChart, LineChart } from '../components/Chart'
 import { Card, Chip, Empty, SectionTitle } from '../components/ui'
+import { activityCount, recentActivities } from '../logic/activities'
+import { today } from '../logic/dates'
 import { fmt, stateFor } from '../logic/progression'
 import {
   completedRuns,
@@ -9,6 +12,7 @@ import {
   weeklyRunVolume,
 } from '../logic/stats'
 import { useStore } from '../store/store'
+import type { Activity } from '../types'
 
 export function ProgressScreen() {
   const state = useStore()
@@ -18,7 +22,7 @@ export function ProgressScreen() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Card className="text-center">
           <p className="text-3xl font-bold tabular-nums">{completedSessions(state)}</p>
           <p className="text-xs text-slate-400">krachtsessies</p>
@@ -26,6 +30,10 @@ export function ProgressScreen() {
         <Card className="text-center">
           <p className="text-3xl font-bold tabular-nums">{completedRuns(state)}</p>
           <p className="text-xs text-slate-400">looptrainingen</p>
+        </Card>
+        <Card className="text-center">
+          <p className="text-3xl font-bold tabular-nums">{activityCount(state)}</p>
+          <p className="text-xs text-slate-400">extra activiteiten</p>
         </Card>
       </div>
 
@@ -92,6 +100,8 @@ export function ProgressScreen() {
         )}
       </Card>
 
+      <ExtraActivityHistory />
+
       {state.notices.length > 0 && (
         <Card>
           <SectionTitle>Meldingen</SectionTitle>
@@ -108,5 +118,37 @@ export function ProgressScreen() {
         </Card>
       )}
     </div>
+  )
+}
+
+/**
+ * Historie van alles buiten het schema om. Bewust een eigen blok: hier hoort geen
+ * geplande sessie tussen te staan.
+ */
+function ExtraActivityHistory() {
+  const state = useStore()
+  const items = recentActivities(state, 30)
+  const [edit, setEdit] = useState<Activity | null>(null)
+
+  return (
+    <Card>
+      <SectionTitle>Losse activiteiten</SectionTitle>
+      {items.length === 0 ? (
+        <Empty>Nog niets gelogd naast het schema.</Empty>
+      ) : (
+        <>
+          <ActivityList items={items} showDate onEdit={setEdit} />
+          <p className="text-xs text-slate-400 mt-2">
+            Deze tellen niet mee in de 1RM-grafiek of het hardloopvolume.
+          </p>
+        </>
+      )}
+      <ActivitySheet
+        open={edit !== null}
+        onClose={() => setEdit(null)}
+        date={edit?.date ?? today()}
+        activity={edit ?? undefined}
+      />
+    </Card>
   )
 }
