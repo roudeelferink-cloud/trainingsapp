@@ -13,18 +13,18 @@ import { applyRemoteUser, getRoot, getUser, setLocalChangeHandler } from './stor
  * je eigen berekening belanden.
  */
 
-// Firebase web-config. Hoort in de client thuis: dit zijn geen geheimen, de
-// afscherming komt van de security rules (zie firestore.rules).
+// Firebase web-config van het eigen project van deze app. Hoort in de client
+// thuis: dit zijn geen geheimen, de afscherming komt van de security rules
+// (zie firestore.rules).
 export const firebaseConfig = {
-  apiKey: 'AIzaSyBfIRQVYADLitxVUXHaENwRjEsMOfXQvto',
-  authDomain: 'notin-app.firebaseapp.com',
-  projectId: 'notin-app',
-  storageBucket: 'notin-app.firebasestorage.app',
-  messagingSenderId: '368094874150',
-  appId: '1:368094874150:web:a8b70cc36c458c565934e7',
+  apiKey: 'AIzaSyAs4blOnjvhaO-AgdUwfJXIKkkF7j4b4B4',
+  authDomain: 'trainingsapp-c87cf.firebaseapp.com',
+  projectId: 'trainingsapp-c87cf',
+  storageBucket: 'trainingsapp-c87cf.firebasestorage.app',
+  messagingSenderId: '709476264842',
+  appId: '1:709476264842:web:2cfdda85285c201e507673',
 }
 
-/** Eigen top-level collection; camper-app zit onder `households` en blijft ongemoeid. */
 export const COLLECTION = 'trainingsapp'
 export const USERS_SUBCOLLECTION = 'gebruikers'
 

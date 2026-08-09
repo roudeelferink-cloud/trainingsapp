@@ -266,16 +266,16 @@ Opzet, gelijk aan camper-app:
   gezamenlijk document: twee toestellen die tegelijk loggen schrijven zo nooit over elkaar
   heen, en de data van de ander kan niet in je eigen berekening belanden.
 - **Botsingen**: het jongste `updatedAt` wint, per gebruiker.
-- **Eigen collection en eigen code.** camper-app zit onder `households` in hetzelfde
-  Firebase-project en blijft daar ongemoeid; de codes worden niet gedeeld.
+- **Eigen Firebase-project** (`trainingsapp-c87cf`), los van de andere apps. De
+  huishoudcode van camper-app wordt hier niet hergebruikt.
 
 Wat er in de repo staat is de gewone Firebase web-config — geen geheim, die hoort in de
 client. De afscherming komt van `firestore.rules`.
 
 **Rules publiceren** (Firebase-console → Firestore → Rules): plak `firestore.rules` in zijn
-geheel. Rules vervangen altijd het hele bestand, dus de regel van camper-app staat er
-bewust in — verdwijnt die, dan valt de sync van camper-app stil. Zet daarnaast onder
-Authentication → Sign-in method **Anonymous** aan.
+geheel; rules vervangen altijd het hele bestand. Zet daarnaast onder Authentication →
+Sign-in method **Anonymous** aan, anders geeft elke lees- of schrijfpoging
+`permission-denied`.
 
 Back-up blijft verstandig: **Exporteer alles** geeft een JSON met beide gebruikers,
 **Importeer** leest die terug. Sinds er data is herinnert het instellingenscherm je eraan

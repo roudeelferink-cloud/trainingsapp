@@ -1,32 +1,20 @@
 rules_version = '2';
 
 /*
- * Firestore-rules voor het gedeelde project `notin-app`.
+ * Firestore-rules voor het eigen project van de trainingsapp (trainingsapp-c87cf).
  *
- * Dit project bedient meerdere apps. Publiceer dit bestand in zijn geheel: de
- * regel van camper-app staat er bewust ongewijzigd in, want rules vervangen
- * altijd het volledige bestand. Verdwijnt de `households`-regel, dan valt de
- * sync van camper-app stil.
+ * Model: geen accounts, wel een (anonieme) auth-token. De niet-te-raden code in
+ * het pad is het gedeelde geheim tussen de toestellen van één huishouden. Wie de
+ * code niet heeft, kan het pad niet noemen en komt er dus niet bij; zonder token
+ * komt niemand ergens.
  *
- * Model, gelijk aan camper-app: geen accounts, wel een (anonieme) auth-token.
- * De niet-te-raden code in het pad is het gedeelde geheim tussen de toestellen
- * van één huishouden. Wie de code niet heeft, kan het pad niet noemen en komt er
- * dus niet bij; zonder token komt niemand ergens.
+ * Per gebruiker één document, zodat twee toestellen die tegelijk loggen elkaar
+ * niet overschrijven.
  */
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /* ---------------- camper-app — niet wijzigen ---------------- */
-    // Eén document per huishouden; doc-ID = niet-te-raden 16-teken hex-code.
-    match /households/{code} {
-      allow read, write: if request.auth != null;
-    }
-
-    /* ---------------- trainingsapp ---------------- */
-    // Eigen top-level collection en een eigen code: de camper-code wordt hier
-    // bewust niet hergebruikt. Per gebruiker één document, zodat twee toestellen
-    // die tegelijk loggen elkaar niet overschrijven.
     match /trainingsapp/{code} {
       allow read, write: if request.auth != null && geldigeCode(code);
 
@@ -41,7 +29,7 @@ service cloud.firestore {
       return code is string && code.matches('^[0-9a-f]{16}$');
     }
 
-    /* ---------------- de rest: dicht ---------------- */
+    // De rest van het project: dicht.
     match /{document=**} {
       allow read, write: if false;
     }
