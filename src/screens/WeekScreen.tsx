@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Card, Chip } from '../components/ui'
 import { programFor } from '../data/programs'
-import { activitiesOn, activityTypeLabel } from '../logic/activities'
+import { activitiesOn, activityKm, activityTypeLabel } from '../logic/activities'
 import { buildDay } from '../logic/day'
 import { addDays, formatShort, mondayOf, today } from '../logic/dates'
 import { plannedWeekKm } from '../logic/running'
@@ -94,7 +94,13 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                   {extras.length > 0 && (
                     <p className="text-sm text-slate-300 mt-1">
                       <span className="text-slate-500">extra: </span>
-                      {extras.map((a) => `${activityTypeLabel(a.type)} ${a.minutes} min`).join(' · ')}
+                      {extras
+                        .map((a) => {
+                          const km = activityKm(a)
+                          const afstand = km === null ? '' : ` / ${String(km).replace('.', ',')} km`
+                          return `${activityTypeLabel(a.type)} ${a.minutes} min${afstand}`
+                        })
+                        .join(' · ')}
                     </p>
                   )}
                 </div>

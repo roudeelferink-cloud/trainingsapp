@@ -129,6 +129,14 @@ function v4_to_v5(state: RawState): RawState {
 
 const ACTIVITY_TYPES = ['fietsen', 'wandelen', 'zwemmen', 'hardlopen', 'spinning', 'overig']
 const ACTIVITY_INTENSITIES = ['rustig', 'normaal', 'intensief']
+/** Alleen deze typen krijgen een afstand; bij de rest is km betekenisloos. */
+const DISTANCE_TYPES = ['hardlopen', 'fietsen', 'wandelen']
+
+function distanceOf(type: string, raw: unknown): number | null {
+  if (!DISTANCE_TYPES.includes(type)) return null
+  const km = num(raw)
+  return km > 0 ? Math.round(km * 100) / 100 : null
+}
 
 /**
  * Maakt er bruikbare activiteiten van: onbekende types worden 'overig', een
@@ -142,11 +150,13 @@ function normalizeActivities(raw: unknown): unknown[] {
     if (!item || typeof item !== 'object') continue
     const a = item as Record<string, unknown>
     if (typeof a.id !== 'string' || typeof a.date !== 'string') continue
+    const type = typeof a.type === 'string' && ACTIVITY_TYPES.includes(a.type) ? a.type : 'overig'
     out.push({
       id: a.id,
       date: a.date,
-      type: typeof a.type === 'string' && ACTIVITY_TYPES.includes(a.type) ? a.type : 'overig',
+      type,
       minutes: Math.max(0, Math.round(num(a.minutes))),
+      distanceKm: distanceOf(type, a.distanceKm),
       intensity:
         typeof a.intensity === 'string' && ACTIVITY_INTENSITIES.includes(a.intensity)
           ? a.intensity
@@ -179,10 +189,14 @@ function v5_to_v6(state: RawState): RawState {
 }
 
 /**
- * v6 -> v7: stangen hebben een eigen gewicht. Je voert vanaf nu alleen de schijven
- * in en de app telt de stang erbij, dus krijgt elke gebruiker de standaardgewichten
- * in zijn instellingen. Bestaande logs blijven zoals ze zijn: daar staat het totaal
- * in, en dat is precies wat de app nu ook opslaat.
+ * v6 -> v7: twee toevoegingen die allebei per gebruiker opgeslagen worden.
+ *
+ * 1. Stangen hebben een eigen gewicht. Je voert vanaf nu alleen de schijven in en
+ *    de app telt de stang erbij, dus krijgt elke gebruiker de standaardgewichten in
+ *    zijn instellingen. Bestaande logs blijven zoals ze zijn: daar staat het totaal
+ *    in, en dat is precies wat de app nu ook opslaat.
+ * 2. Losse activiteiten kunnen een afstand hebben. Bestaande activiteiten krijgen
+ *    `distanceKm: null`; ze zijn destijds zonder afstand gelogd.
  *
  * Vanaf v6 zit alles onder `users`, dus deze stap loopt de gebruikers langs.
  */
@@ -202,7 +216,11 @@ function v6_to_v7(state: RawState): RawState {
     for (const [bar, kg] of Object.entries(bars)) {
       if (bar in barWeights && num(kg) > 0) barWeights[bar] = num(kg)
     }
-    next[id] = { ...user, settings: { ...settings, barWeights } }
+    next[id] = {
+      ...user,
+      settings: { ...settings, barWeights },
+      activities: normalizeActivities(user.activities),
+    }
   }
 
   return { ...state, users: next }

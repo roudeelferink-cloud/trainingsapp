@@ -23,6 +23,16 @@ export const ACTIVITY_INTENSITIES: { id: ActivityIntensity; label: string }[] = 
 
 export const DEFAULT_ACTIVITY_MINUTES = 30
 
+/**
+ * Activiteiten waarbij een afstand betekenis heeft. Zwemmen gaat in banen en
+ * spinning staat stil, dus die vragen niet om kilometers.
+ */
+export const DISTANCE_ACTIVITY_TYPES: ActivityType[] = ['hardlopen', 'fietsen', 'wandelen']
+
+export function supportsDistance(type: ActivityType): boolean {
+  return DISTANCE_ACTIVITY_TYPES.includes(type)
+}
+
 export function activityTypeLabel(type: ActivityType): string {
   return ACTIVITY_TYPES.find((t) => t.id === type)?.label ?? type
 }
@@ -31,9 +41,44 @@ export function activityIntensityLabel(intensity: ActivityIntensity): string {
   return ACTIVITY_INTENSITIES.find((i) => i.id === intensity)?.label ?? intensity
 }
 
-/** Eén regel: "Fietsen 40 min · rustig". */
+/** Eén regel: "Fietsen 40 min · 12,5 km · rustig". */
 export function activitySummary(a: Activity): string {
-  return `${activityTypeLabel(a.type)} ${a.minutes} min · ${activityIntensityLabel(a.intensity).toLowerCase()}`
+  const delen = [`${activityTypeLabel(a.type)} ${a.minutes} min`]
+  const km = activityKm(a)
+  if (km !== null) delen.push(`${fmtNumber(km)} km`)
+  delen.push(activityIntensityLabel(a.intensity).toLowerCase())
+  return delen.join(' · ')
+}
+
+/** De gelogde afstand, of null als er geen bruikbare afstand bij hoort. */
+export function activityKm(a: Activity): number | null {
+  if (!supportsDistance(a.type)) return null
+  const km = a.distanceKm
+  return typeof km === 'number' && Number.isFinite(km) && km > 0 ? km : null
+}
+
+/**
+ * Gemiddeld tempo, alleen waar het iets zegt: min/km bij hardlopen en wandelen,
+ * km/u bij fietsen. Zonder afstand of zonder tijd valt er niets te rekenen.
+ */
+export function activityPace(a: Activity): string | null {
+  const km = activityKm(a)
+  if (km === null || a.minutes <= 0) return null
+
+  if (a.type === 'fietsen') {
+    const kmh = (km / a.minutes) * 60
+    return `${fmtNumber(Math.round(kmh * 10) / 10)} km/u`
+  }
+
+  const secPerKm = Math.round((a.minutes * 60) / km)
+  const min = Math.floor(secPerKm / 60)
+  const sec = secPerKm % 60
+  return `${min}:${String(sec).padStart(2, '0')} min/km`
+}
+
+/** Nederlandse notatie: komma als decimaalteken, geen nullen die niets toevoegen. */
+function fmtNumber(n: number): string {
+  return String(Math.round(n * 100) / 100).replace('.', ',')
 }
 
 /** Activiteiten van één dag, oudst ingevoerd eerst. */

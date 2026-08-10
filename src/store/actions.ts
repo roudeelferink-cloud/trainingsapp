@@ -1,4 +1,5 @@
 import { getExercise } from '../data/exercises'
+import { supportsDistance } from '../logic/activities'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
 import { buildDay, moveBlockReason, sessionKeyFor } from '../logic/day'
@@ -143,6 +144,8 @@ export interface ActivityInput {
   type: ActivityType
   minutes: number
   intensity: ActivityIntensity
+  /** alleen zinvol bij hardlopen, fietsen en wandelen; anders (of leeg) null */
+  distanceKm?: number | null
   note?: string | null
 }
 
@@ -159,6 +162,16 @@ function cleanNote(note: string | null | undefined): string | null {
 }
 
 /**
+ * Afstand hoort alleen bij een activiteit waar kilometers iets betekenen. Bij de
+ * rest (zwemmen, spinning, overig) verdwijnt hij, ook als het type later wijzigt.
+ */
+function cleanDistance(type: ActivityType, km: number | null | undefined): number | null {
+  if (!supportsDistance(type)) return null
+  if (km === null || km === undefined || !Number.isFinite(km) || km <= 0) return null
+  return Math.round(km * 100) / 100
+}
+
+/**
  * Logt iets buiten het schema om. Mag op elke dag, ook op een rustdag, ook naast een
  * al afgeronde sessie, en meerdere keren per dag. Raakt de progressie niet aan.
  * Geeft het id terug zodat de UI meteen kan doorschakelen naar bewerken.
@@ -169,6 +182,7 @@ export function addActivity(iso: string, input: ActivityInput): string {
     date: iso,
     type: input.type,
     minutes: Math.max(1, Math.round(input.minutes)),
+    distanceKm: cleanDistance(input.type, input.distanceKm),
     intensity: input.intensity,
     note: cleanNote(input.note),
     createdAt: new Date().toISOString(),
@@ -184,16 +198,19 @@ export function updateActivity(
 ): void {
   setState((s) => ({
     ...s,
-    activities: s.activities.map((a) =>
-      a.id === id
-        ? {
-            ...a,
-            ...patch,
-            minutes: patch.minutes === undefined ? a.minutes : Math.max(1, Math.round(patch.minutes)),
-            note: patch.note === undefined ? a.note : cleanNote(patch.note),
-          }
-        : a,
-    ),
+    activities: s.activities.map((a) => {
+      if (a.id !== id) return a
+      const type = patch.type ?? a.type
+      return {
+        ...a,
+        ...patch,
+        type,
+        minutes: patch.minutes === undefined ? a.minutes : Math.max(1, Math.round(patch.minutes)),
+        // het type kan mee veranderen, dus de afstand wordt altijd opnieuw gewogen
+        distanceKm: cleanDistance(type, patch.distanceKm === undefined ? a.distanceKm : patch.distanceKm),
+        note: patch.note === undefined ? a.note : cleanNote(patch.note),
+      }
+    }),
   }))
 }
 

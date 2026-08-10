@@ -3,7 +3,9 @@ import {
   ACTIVITY_INTENSITIES,
   ACTIVITY_TYPES,
   DEFAULT_ACTIVITY_MINUTES,
+  activityPace,
   activitySummary,
+  supportsDistance,
 } from '../logic/activities'
 import { formatShort } from '../logic/dates'
 import * as A from '../store/actions'
@@ -51,16 +53,21 @@ function ActivityForm({
 }) {
   const [type, setType] = useState<ActivityType>(activity?.type ?? 'fietsen')
   const [minutes, setMinutes] = useState(activity?.minutes ?? DEFAULT_ACTIVITY_MINUTES)
+  const [km, setKm] = useState(activity?.distanceKm ?? 0)
   const [intensity, setIntensity] = useState<ActivityIntensity>(activity?.intensity ?? 'normaal')
   const [note, setNote] = useState(activity?.note ?? '')
   const [day, setDay] = useState(activity?.date ?? date)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  // afstand vragen we alleen bij hardlopen, fietsen en wandelen
+  const metAfstand = supportsDistance(type)
+
   function save() {
+    const input = { type, minutes, intensity, note, distanceKm: metAfstand ? km : null }
     if (activity) {
-      A.updateActivity(activity.id, { type, minutes, intensity, note, date: day })
+      A.updateActivity(activity.id, { ...input, date: day })
     } else {
-      A.addActivity(day, { type, minutes, intensity, note })
+      A.addActivity(day, input)
     }
     onDone()
   }
@@ -86,8 +93,35 @@ function ActivityForm({
 
       <div>
         <p className="label mb-1">Duur (min)</p>
-        <Stepper value={minutes} onChange={setMinutes} step={5} min={1} max={600} suffix="min" />
+        <Stepper
+          ariaLabel="Duur in minuten"
+          value={minutes}
+          onChange={setMinutes}
+          step={5}
+          min={1}
+          max={600}
+          suffix="min"
+        />
       </div>
+
+      {metAfstand && (
+        <div>
+          <p className="label mb-1">Afstand (km)</p>
+          <Stepper
+            ariaLabel="Afstand in kilometer"
+            value={km}
+            onChange={setKm}
+            step={0.5}
+            min={0}
+            max={300}
+            decimals={1}
+            suffix="km"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            {tempoHint(type, minutes, km) ?? 'Laat op 0 staan als je de afstand niet weet.'}
+          </p>
+        </div>
+      )}
 
       <div>
         <p className="label mb-1">Intensiteit</p>
@@ -159,6 +193,18 @@ function ActivityForm({
   )
 }
 
+/**
+ * Live tempo terwijl je invult, zodat je meteen ziet of de ingevoerde afstand klopt.
+ * Rekent op dezelfde manier als de historie: min/km bij lopen, km/u bij fietsen.
+ */
+function tempoHint(type: ActivityType, minutes: number, km: number): string | null {
+  const pace = activityPace({
+    id: '', date: '', createdAt: '', note: null, intensity: 'normaal',
+    type, minutes, distanceKm: km,
+  })
+  return pace === null ? null : `Gemiddeld ${pace}.`
+}
+
 /** Lijst met gelogde activiteiten. Altijd herkenbaar als extra, nooit als schema. */
 export function ActivityList({
   items,
@@ -182,6 +228,11 @@ export function ActivityList({
               {showDate && <span className="text-xs text-slate-400">{formatShort(a.date)}</span>}
             </div>
             <p className="font-semibold mt-1">{activitySummary(a)}</p>
+            {activityPace(a) && (
+              <p className="text-sm text-slate-400 tabular-nums">
+                gemiddeld {activityPace(a)}
+              </p>
+            )}
             {a.note && <p className="text-sm text-slate-400 break-words">{a.note}</p>}
           </div>
           <button className="btn-ghost btn-sm shrink-0" onClick={() => onEdit(a)}>

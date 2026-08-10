@@ -1,7 +1,15 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { activitiesOn, recentActivities } from '../src/logic/activities'
+import {
+  DISTANCE_ACTIVITY_TYPES,
+  activitiesOn,
+  activityKm,
+  activityPace,
+  activitySummary,
+  recentActivities,
+  supportsDistance,
+} from '../src/logic/activities'
 import { buildDay } from '../src/logic/day'
 import { today } from '../src/logic/dates'
 import { oneRmSeries, weeklyRunVolume } from '../src/logic/stats'
@@ -84,6 +92,109 @@ describe('losse activiteiten loggen', () => {
       A.addActivity(MON, { type: 'fietsen', minutes: 20, intensity: 'rustig' }),
     ]
     expect(new Set(ids).size).toBe(3)
+  })
+})
+
+describe('afstand bij afstandsactiviteiten', () => {
+  it('logt kilometers bij hardlopen, fietsen en wandelen', () => {
+    A.addActivity(MON, { type: 'hardlopen', minutes: 30, intensity: 'normaal', distanceKm: 5 })
+    A.addActivity(MON, { type: 'fietsen', minutes: 60, intensity: 'rustig', distanceKm: 24 })
+    A.addActivity(MON, { type: 'wandelen', minutes: 45, intensity: 'rustig', distanceKm: 4.2 })
+
+    expect(activitiesOn(getState(), MON).map((a) => a.distanceKm)).toEqual([5, 24, 4.2])
+  })
+
+  it('laat de afstand weg waar kilometers niets zeggen', () => {
+    expect(supportsDistance('zwemmen')).toBe(false)
+    expect(supportsDistance('spinning')).toBe(false)
+    expect(supportsDistance('overig')).toBe(false)
+    expect(DISTANCE_ACTIVITY_TYPES).toEqual(['hardlopen', 'fietsen', 'wandelen'])
+
+    // ook als er wel een getal wordt meegegeven
+    A.addActivity(MON, { type: 'zwemmen', minutes: 30, intensity: 'normaal', distanceKm: 2 })
+    expect(activitiesOn(getState(), MON)[0].distanceKm).toBeNull()
+  })
+
+  it('maakt een lege of onzinnige afstand null', () => {
+    A.addActivity(MON, { type: 'hardlopen', minutes: 30, intensity: 'normaal', distanceKm: 0 })
+    A.addActivity(DI, { type: 'hardlopen', minutes: 30, intensity: 'normaal' })
+    A.addActivity(WO, { type: 'hardlopen', minutes: 30, intensity: 'normaal', distanceKm: -3 })
+
+    for (const iso of [MON, DI, WO]) {
+      expect(activitiesOn(getState(), iso)[0].distanceKm, iso).toBeNull()
+    }
+  })
+
+  it('gooit de afstand weg als het type verandert naar iets zonder kilometers', () => {
+    const id = A.addActivity(MON, {
+      type: 'hardlopen',
+      minutes: 30,
+      intensity: 'normaal',
+      distanceKm: 5,
+    })
+    A.updateActivity(id, { type: 'zwemmen' })
+    expect(activitiesOn(getState(), MON)[0].distanceKm).toBeNull()
+  })
+
+  it('past een afstand aan zonder de rest te raken', () => {
+    const id = A.addActivity(MON, {
+      type: 'fietsen',
+      minutes: 40,
+      intensity: 'rustig',
+      distanceKm: 12,
+      note: 'avondrondje',
+    })
+    A.updateActivity(id, { distanceKm: 15.5 })
+
+    const a = activitiesOn(getState(), MON)[0]
+    expect(a).toMatchObject({ minutes: 40, intensity: 'rustig', distanceKm: 15.5 })
+    expect(a.note).toBe('avondrondje')
+  })
+
+  it('toont tijd en afstand samen in het overzicht', () => {
+    A.addActivity(MON, { type: 'hardlopen', minutes: 30, intensity: 'normaal', distanceKm: 5 })
+    const a = activitiesOn(getState(), MON)[0]
+
+    expect(activitySummary(a)).toBe('Hardlopen 30 min · 5 km · normaal')
+    expect(activityKm(a)).toBe(5)
+  })
+
+  it('rekent het gemiddelde tempo uit waar dat zinvol is', () => {
+    const maak = (
+      type: 'hardlopen' | 'wandelen' | 'fietsen' | 'zwemmen',
+      minutes: number,
+      km: number,
+    ) => {
+      resetState()
+      setState((s) => ({ ...s, startDate: MON }))
+      A.addActivity(MON, { type, minutes, intensity: 'normaal', distanceKm: km })
+      return activitiesOn(getState(), MON)[0]
+    }
+
+    // hardlopen en wandelen in min/km
+    expect(activityPace(maak('hardlopen', 30, 5))).toBe('6:00 min/km')
+    expect(activityPace(maak('hardlopen', 50, 8))).toBe('6:15 min/km')
+    expect(activityPace(maak('wandelen', 60, 5))).toBe('12:00 min/km')
+    // fietsen in km/u: die tel je niet in minuten per kilometer
+    expect(activityPace(maak('fietsen', 60, 24))).toBe('24 km/u')
+    expect(activityPace(maak('fietsen', 30, 15.5))).toBe('31 km/u')
+    // zonder afstand valt er niets te rekenen
+    expect(activityPace(maak('zwemmen', 30, 2))).toBeNull()
+    expect(activityPace(maak('hardlopen', 30, 0))).toBeNull()
+  })
+
+  it('toont afstand en tempo op het dagoverzicht', () => {
+    setState((s) => ({ ...s, startDate: today() }))
+    A.addActivity(today(), {
+      type: 'hardlopen',
+      minutes: 30,
+      intensity: 'normaal',
+      distanceKm: 5,
+    })
+    const html = render(createElement(Today, { onOpenSession: () => {} }))
+
+    expect(html).toContain('Hardlopen 30 min · 5 km')
+    expect(html).toContain('6:00 min/km')
   })
 })
 

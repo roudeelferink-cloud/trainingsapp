@@ -201,6 +201,8 @@ export interface Activity {
   date: string
   type: ActivityType
   minutes: number
+  /** afstand in km bij een afstandsactiviteit; null als hij niet van toepassing is */
+  distanceKm: number | null
   intensity: ActivityIntensity
   /** vrije notitie; leeg veld wordt null */
   note: string | null
