@@ -4,6 +4,13 @@ import type { Coaching } from '../types'
  * Uitleg per oefening. Bewust concreet: geen "houd je rug recht" zonder te zeggen hoe.
  * Tempo staat in de uitvoering, geschreven als excentrisch-pauze-concentrisch.
  */
+/**
+ * Leg curl en leg extension zijn hier één zittende combimachine (incline), geen
+ * losse prone leg curl. Wie van de ene naar de andere gaat, moet dus omstellen.
+ */
+export const LEG_COMBI_NOTE =
+  'Leg curl en leg extension zijn dezelfde combimachine (zittend/incline). Stel het rolkussen om — boven je hielen voor de curl, aan de voorkant boven je enkels voor de extension — en zet de rugsteun en het heupkussen opnieuw goed.'
+
 export const COACHING: Record<string, Coaching> = {
   /* ---------------- knee_dominant ---------------- */
   leg_press: {
@@ -67,13 +74,14 @@ export const COACHING: Record<string, Coaching> = {
   },
   leg_extension: {
     setup:
-      'Draaipunt van de machine op één lijn met je knie. Rugsteun zo dat je knieholte tegen de zitting rust, rolkussen net boven je enkel.',
+      'Zitten met je rug tegen de leuning, draaipunt van de machine op je kniegewricht, rolkussen net boven je enkels aan de voorkant.',
     execution: [
-      'Strek in 1 tel volledig en knijp je quadriceps 1 tel aan bovenin.',
-      'Laat in 3 tellen gecontroleerd zakken tot net voor de gewichten elkaar raken.',
-      'Houd je bekken op de zitting, niet meeveren.',
+      'Strek in 1 tel je knieën tot bijna volledig gestrekt en knijp 1 tel aan.',
+      'Laat in 3 tellen zakken tot net voor de startpositie; leg de schijven niet af.',
+      'Houd je bekken op de zitting en je rug tegen de leuning.',
     ],
-    mistake: 'Met een zwaai omhoog schoppen en het gewicht daarna laten vallen.',
+    mistake: 'Met een zwaai omhoog trappen of je billen van de stoel laten komen.',
+    note: LEG_COMBI_NOTE,
   },
   squat_bw: {
     setup: 'Voeten schouderbreed, tenen licht naar buiten, armen recht vooruit als tegenwicht.',
@@ -118,13 +126,14 @@ export const COACHING: Record<string, Coaching> = {
   },
   leg_curl: {
     setup:
-      'Draaipunt van de machine op je kniegewricht, rolkussen net boven je hielen. Heupen tegen het kussen.',
+      'Zitten met je rug tegen de leuning, draaipunt van de machine op je kniegewricht, rolkussen net boven je hielen, heupkussen strak aangezet.',
     execution: [
-      'Buig in 1 tel je knieën zo ver mogelijk en knijp 1 tel aan.',
-      'Laat in 3 tellen zakken tot net voor gestrekt.',
-      'Houd je heupen op de bank; laat je bekken niet omhoog komen.',
+      'Druk in 1 tel het kussen zo ver mogelijk naar beneden en knijp 1 tel aan.',
+      'Laat in 3 tellen terugkomen tot net voor gestrekt.',
+      'Rug tegen de leuning; duw niet mee met je romp.',
     ],
-    mistake: 'De heupen omhoog laten komen om er meer kracht bij te zetten.',
+    mistake: 'Je bekken naar voren rollen of omhoog schuiven uit de stoel.',
+    note: LEG_COMBI_NOTE,
   },
   hip_thrust_smith: {
     setup:

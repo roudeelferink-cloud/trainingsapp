@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { EXERCISES } from '../src/data/exercises'
-import { COACHING } from '../src/data/coaching'
+import { EXERCISES, getExercise } from '../src/data/exercises'
+import { COACHING, LEG_COMBI_NOTE } from '../src/data/coaching'
+import { getFigure } from '../src/data/figures'
 
 describe('uitleg per oefening', () => {
   it.each(EXERCISES.map((e) => [e.id, e] as const))('%s heeft een volledige uitleg', (_id, ex) => {
@@ -27,6 +28,45 @@ describe('uitleg per oefening', () => {
   it('dekt alle 93 oefeningen', () => {
     expect(EXERCISES).toHaveLength(93)
     expect(Object.keys(COACHING)).toHaveLength(93)
+  })
+
+  it('beschrijft leg curl en leg extension als zittende combimachine', () => {
+    const curl = getExercise('leg_curl').coaching
+    const ext = getExercise('leg_extension').coaching
+
+    // beide starten zittend met de rug tegen de leuning en het draaipunt op de knie
+    for (const c of [curl, ext]) {
+      expect(c.setup).toMatch(/zitten/i)
+      expect(c.setup).toMatch(/leuning/i)
+      expect(c.setup).toMatch(/draaipunt/i)
+      expect(c.note).toBe(LEG_COMBI_NOTE)
+    }
+
+    // geen restanten van de liggende (prone) variant
+    const curlTekst = [curl.setup, curl.mistake, ...curl.execution].join(' ')
+    expect(curlTekst).not.toMatch(/op de bank|liggen|buik/i)
+    expect(curl.setup).toMatch(/hielen/)
+    expect(curl.execution[0]).toMatch(/naar beneden/)
+    expect(curl.mistake).toMatch(/bekken|stoel/i)
+
+    expect(ext.setup).toMatch(/enkels/)
+    expect(ext.execution[0]).toMatch(/strek/i)
+    expect(ext.execution[1]).toMatch(/schijven niet af/i)
+    expect(ext.mistake).toMatch(/zwaai|billen/i)
+  })
+
+  it('noemt in de notitie dat rolkussen en rugsteun omgesteld moeten worden', () => {
+    expect(LEG_COMBI_NOTE).toMatch(/dezelfde combimachine/i)
+    expect(LEG_COMBI_NOTE).toMatch(/rolkussen/i)
+    expect(LEG_COMBI_NOTE).toMatch(/rugsteun/i)
+  })
+
+  it('heeft voor deze twee geen lijntekening die de oude houding laat zien', () => {
+    // ze zijn isolatie en hebben dus nooit een poppetje gehad; er valt niets om te tekenen
+    for (const id of ['leg_curl', 'leg_extension']) {
+      expect(getExercise(id).hasFigure, id).toBe(false)
+      expect(getFigure(id), id).toBeNull()
+    }
   })
 
   it('verwijst nergens naar externe bronnen', () => {

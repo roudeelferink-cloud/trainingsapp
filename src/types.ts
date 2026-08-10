@@ -60,6 +60,8 @@ export interface Coaching {
   execution: string[]
   /** 1 zin: de meest gemaakte fout */
   mistake: string
+  /** optionele korte opmerking over het apparaat, bijvoorbeeld bij een combimachine */
+  note?: string
 }
 
 /**

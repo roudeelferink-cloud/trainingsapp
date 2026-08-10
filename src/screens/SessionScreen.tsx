@@ -461,6 +461,7 @@ function Explanation({ exercise }: { exercise: Exercise }) {
           </ul>
         </Block>
         <Block label="Fout">{c.mistake}</Block>
+        {c.note && <Block label="Apparaat">{c.note}</Block>}
       </div>
       {exercise.loads.length > 0 && (
         <p className="text-xs text-slate-500">
