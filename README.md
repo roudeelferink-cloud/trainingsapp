@@ -51,7 +51,11 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
 | `users.test.ts` | twee gebruikers: eigen schema, eigen logs en instellingen, en de bevestiging dat progressie, gewichtsadvies, 1RM en weekvolume strikt per gebruiker blijven; plus het full body-schema van Anouc (dagen, duur, materiaal, rustiger opbouw, lichter startpunt) |
 | `sync.test.ts` | offline loggen en later syncen, bundelen per gebruiker, botsingen op tijdstempel, half-kapotte documenten, en de migratie van bestaande localStorage-data naar gebruiker Rob |
-| `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, migratie v4 → v5, en de bevestiging dat ze de krachtprogressie, 1RM-grafiek en loopvolume niet raken |
+| `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, afstand en gemiddeld tempo, migratie v4 → v5, en de bevestiging dat ze de krachtprogressie, 1RM-grafiek en loopvolume niet raken |
+| `setRow.test.tsx` | de invoervelden in een setrij: minimumbreedte, 16px tekst, vaste knopbreedte en wrappen in plaats van samenknijpen — voor elke setrij van elke sessie |
+| `barWeight.test.ts` | welke oefening een stang gebruikt, het instelbare stanggewicht, schijven ↔ totaal en de migratie naar v7 |
+| `dumbbell.test.ts` | de dumbbell-conventie: gewicht per dumbbell, reps per zijde, de interne ×2 in volume en advies, en de labels in de UI |
+| `moveRun.test.tsx` | loopsessies verplaatsen: ruilen, ongedaan maken, geen ketens, los van de krachtsessie, en hetzelfde voor de tweede gebruiker |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
 laden van de module.
@@ -213,17 +217,43 @@ Zodra er één set gelogd is, verdwijnt het advies definitief en neemt de progre
 het over. Wijzigt je lichaamsgewicht in Instellingen, dan schuiven alleen nog niet gelogde
 adviezen mee; bestaande historie blijft ongemoeid.
 
+## Gewicht invoeren
+
+Wat je in het kg-veld zet, hangt af van het materiaal. Het veld zegt het er zelf bij.
+
+- **Stang** (smith, trap bar, olympische stang, deadliftstang, curlstang): je vult alleen
+  de **schijven** in. De app telt het eigen gewicht van de stang erbij en zet het totaal
+  eronder: *40 kg totaal — 20 kg stang + 20 kg schijven*. De stanggewichten staan bij
+  Instellingen → Stanggewicht en zijn per gebruiker aan te passen; elke sportschool heeft
+  andere stangen, vooral bij de smith. In de log staat altijd het totaal, dus progressie,
+  1RM en startgewichtadvies rekenen ongewijzigd door.
+- **Dumbbells**: het gewicht is **per dumbbell**, niet het totaal van twee. Twee van 12,5
+  kg log je als 12,5. Reps tel je **per zijde**: 10 links en 10 rechts tegelijk is 10 reps,
+  niet 20. Bij eenzijdige oefeningen staat het er expliciet bij ("reps per zijde").
+  Intern telt een tweezijdige dumbbell-oefening dubbel — je tilt er immers twee — en bij
+  eenzijdig werk tellen beide kanten. Zo levert 12,5 kg × 10 reps hetzelfde volume op of je
+  nu twee dumbbells tegelijk tilt of één per kant. Die regels staan in
+  `src/logic/dumbbell.ts` en worden vandaaruit overal toegepast: labels, volume en advies.
+- **Machines en kabels**: gewoon wat er op de pin of de stapel staat.
+
+Op Voortgang staat naast het loopvolume ook het **tilvolume per week** (gewicht × reps over
+alle sets), berekend met dezelfde conventie.
+
 ## Aanpassen tijdens de rit
 
 - **Ochtend-check-in** (1-5, optioneel): 4-5 normaal · 3 geen nieuwe gewichtsverhogingen ·
   1-2 automatisch afschalen (loop −30% of fietsen, 1 set minder, zwaar kuitwerk eruit,
   zaterdag uit).
 - **Per sessie:** korte versie (alleen `core`-oefeningen, ~25 min), verplaatsen naar een
-  andere dag, overslaan met reden. Loopdagen verplaatsen niet, maar kunnen wel vervangen
-  worden door 30 min fietsen — dat telt als voltooid.
-- **Verplaatsen:** woensdag kan nooit. Is de doeldag bezet, dan ruilen de twee sessies van
+  andere dag, overslaan met reden. Een loop kan daarnaast vervangen worden door 30 min
+  fietsen — dat telt als voltooid.
+- **Verplaatsen:** kracht én loop kunnen naar een andere dag, onafhankelijk van elkaar. Op
+  een dag met allebei verzet je dus alleen wat je wilt verzetten. Woensdag kan nooit (bij
+  Anouc maandag). Is de doeldag bezet met hetzelfde soort sessie, dan ruilen de twee van
   plek (ma ↔ vr bijvoorbeeld). Een beensessie kan nooit op zaterdag landen, ook niet via
   een ruil, omdat zondag de duurloop is; de app toont die dag geblokkeerd met de reden.
+  Voor loopdagen geldt die blokkade niet: hij gaat over zware beenbelasting vlak vóór de
+  duurloop, niet over de loop zelf.
 - **Per oefening:** eenmalig wisselen, permanent vervangen (rouleert dan niet meer mee),
   of overslaan.
 - **Gevoelige gebieden** (Instellingen): per belast gebied ok / let op / gevoelig. Op
@@ -241,7 +271,9 @@ sessie al afgerond is, en meerdere keren per dag.
 
 De invoer blijft licht: type (fietsen, wandelen, zwemmen, hardlopen, spinning, overig),
 duur in minuten, intensiteit (rustig / normaal / intensief) en een optionele notitie. Geen
-sets of reps. In het formulier staat ook de datum, dus achteraf invullen op een eerdere dag
+sets of reps. Bij hardlopen, fietsen en wandelen staat er ook een **afstand in km**; de app
+zet het gemiddelde tempo erbij — min/km bij lopen en wandelen, km/u bij fietsen. Zwemmen,
+spinning en overig blijven op tijd, want daar zegt een afstand niets. In het formulier staat ook de datum, dus achteraf invullen op een eerdere dag
 kan. Bewerken en verwijderen gaat via dezelfde weg: tik op *Bewerk* bij de activiteit, op
 Vandaag of in de historie onder Voortgang.
 
@@ -283,7 +315,7 @@ zodra de laatste export ouder is dan 30 dagen (of er nog nooit een was).
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **6**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **7**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -315,6 +347,11 @@ Bestaande stappen:
   krijgt een lege; bestaande sessies, loops en oefeningstanden blijven ongemoeid.
   Activiteiten uit een handgeschreven bestand worden gerepareerd: een onbekend type wordt
   `overig`, een onleesbare duur 0, en records zonder `id` vervallen.
+- **v6 → v7** — drie toevoegingen per gebruiker: de instelbare stanggewichten (standaard
+  trap bar 20, smith 15, olympische stang 20, deadliftstang 20, curlstang 7,5), een
+  `distanceKm` bij losse activiteiten (bestaande krijgen `null`) en een eigen `runMoves`
+  voor verplaatste loopsessies. Gelogde gewichten blijven ongemoeid: daar stond en staat
+  het totaal in.
 
 ## Structuur
 
@@ -333,6 +370,9 @@ src/
   logic/startWeight.ts geschat startgewicht zonder historie
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
   logic/activities.ts losse activiteiten naast het schema
+  logic/barWeight.ts  stanggewicht: schijven invullen, totaal opslaan
+  logic/dumbbell.ts   de dumbbell-conventie op één plek
+  logic/load.ts       hoe de belasting boven een invoerveld heet
   data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
   store/sync.ts       Firestore-sync per huishouden, offline wachtrij
   store/store.ts      localStorage-store, export/import
