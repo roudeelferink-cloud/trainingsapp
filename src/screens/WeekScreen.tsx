@@ -84,9 +84,16 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                         </p>
                       )}
                       {plan.movedTo && (
-                        <p className="text-sm text-slate-400">verplaatst naar {formatShort(plan.movedTo)}</p>
+                        <p className="text-sm text-slate-400">
+                          kracht verplaatst naar {formatShort(plan.movedTo)}
+                        </p>
                       )}
-                      {!plan.run && !plan.strength && !plan.movedTo && (
+                      {plan.runMovedTo && (
+                        <p className="text-sm text-slate-400">
+                          loop verplaatst naar {formatShort(plan.runMovedTo)}
+                        </p>
+                      )}
+                      {!plan.run && !plan.strength && !plan.movedTo && !plan.runMovedTo && (
                         <p className="text-slate-400">Niets ingepland</p>
                       )}
                     </div>

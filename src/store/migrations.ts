@@ -197,6 +197,8 @@ function v5_to_v6(state: RawState): RawState {
  *    in, en dat is precies wat de app nu ook opslaat.
  * 2. Losse activiteiten kunnen een afstand hebben. Bestaande activiteiten krijgen
  *    `distanceKm: null`; ze zijn destijds zonder afstand gelogd.
+ * 3. Loopsessies zijn verplaatsbaar en krijgen daarvoor hun eigen `runMoves`,
+ *    naast de bestaande `moves` voor krachtsessies. Die blijft ongemoeid.
  *
  * Vanaf v6 zit alles onder `users`, dus deze stap loopt de gebruikers langs.
  */
@@ -220,6 +222,7 @@ function v6_to_v7(state: RawState): RawState {
       ...user,
       settings: { ...settings, barWeights },
       activities: normalizeActivities(user.activities),
+      runMoves: user.runMoves && typeof user.runMoves === 'object' ? user.runMoves : {},
     }
   }
 

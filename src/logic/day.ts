@@ -18,6 +18,8 @@ export interface RunBlock {
   done: boolean
   log: RunLog | null
   skipped: SkipReason | null
+  /** deze loop stond oorspronkelijk op die datum */
+  movedFrom: string | null
 }
 
 export interface StrengthBlock {
@@ -44,7 +46,10 @@ export interface DayPlan {
   checkin: number | undefined
   run: RunBlock | null
   strength: StrengthBlock | null
+  /** krachtsessie van deze dag staat nu op die datum */
   movedTo: string | null
+  /** loop van deze dag staat nu op die datum */
+  runMovedTo: string | null
   notes: string[]
 }
 
@@ -64,7 +69,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
   if (wd === program.restWeekday) {
     return {
       date: iso, weekday: wd, isRest: true, cycle, checkin,
-      run: null, strength: null, movedTo: null,
+      run: null, strength: null, movedTo: null, runMovedTo: null,
       notes: ['Rustdag. Hier plant de app nooit iets.'],
     }
   }
@@ -73,16 +78,35 @@ export function buildDay(state: UserState, iso: string): DayPlan {
   const override = state.overrides[iso]
 
   /* ---- loop ---- */
+  // een verplaatste loop werkt hetzelfde als een verplaatste krachtsessie: hij is
+  // hier weg en staat op de doeldag, met de soort loop van zijn oorspronkelijke dag
+  let runKind: RunKind | null = spec.run
+  let runMovedFrom: string | null = null
+  const runMovedTo = state.runMoves[iso] ?? null
+  if (runMovedTo) runKind = null
+
+  if (!runKind) {
+    const incoming = Object.entries(state.runMoves).find(([, to]) => to === iso)
+    if (incoming) {
+      const origin = incoming[0]
+      const originKind = program.week[weekday(origin) - 1].run
+      if (originKind) {
+        runKind = originKind
+        runMovedFrom = origin
+      }
+    }
+  }
+
   let run: RunBlock | null = null
-  if (spec.run) {
+  if (runKind) {
     const log = state.runs[iso] ?? null
     const bike = override?.bike ?? log?.bike ?? false
     const skip = state.skips[`${iso}:run`]
     const free = program.runMode === 'free'
-    const planned = free ? { km: 0, capped: false } : plannedRunKm(state, iso, spec.run)
+    const planned = free ? { km: 0, capped: false } : plannedRunKm(state, iso, runKind)
     const scaled = free ? 0 : scaledRunKm(planned.km, checkin)
     run = {
-      kind: spec.run,
+      kind: runKind,
       plannedKm: planned.km,
       km: override?.runScale ? Math.round(planned.km * override.runScale * 2) / 2 : scaled,
       bike,
@@ -92,6 +116,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       done: !!log?.completedAt,
       log,
       skipped: skip?.what === 'run' ? skip.reason : null,
+      movedFrom: runMovedFrom,
     }
     if (planned.capped) notes.push('Loopvolume automatisch teruggeschaald: max +10% t.o.v. vorige week.')
     if (run.scaledDown) notes.push('Check-in laag: loop 30% korter, of vervang door 30 min fietsen.')
@@ -178,7 +203,10 @@ export function buildDay(state: UserState, iso: string): DayPlan {
     }
   }
 
-  return { date: iso, weekday: wd, isRest: false, cycle, checkin, run, strength, movedTo, notes }
+  return {
+    date: iso, weekday: wd, isRest: false, cycle, checkin,
+    run, strength, movedTo, runMovedTo, notes,
+  }
 }
 
 export interface MoveTarget {
@@ -213,27 +241,40 @@ export function moveBlockReason(state: UserState, iso: string, target: string): 
   return null
 }
 
+/** Wat er verplaatst wordt. Kracht en loop verhuizen los van elkaar. */
+export type MoveWhat = 'strength' | 'run'
+
 /**
- * Dagen waarheen een krachtsessie verplaatst mag worden. Nooit woensdag.
- * Staat er op de doeldag al een sessie, dan ruilen de twee van plek.
+ * Dagen waarheen een sessie verplaatst mag worden. Nooit de vaste rustdag.
+ * Staat er op de doeldag al zo'n sessie, dan ruilen de twee van plek.
  * Geblokkeerde dagen komen wél terug, met reden, zodat de UI kan uitleggen waarom.
+ *
+ * Voor loopsessies gelden geen blokkades: de zaterdagregel gaat over zware
+ * beenbelasting vlak voor de duurloop, niet over de loop zelf.
  */
-export function moveTargets(state: UserState, iso: string): MoveTarget[] {
+export function moveTargets(state: UserState, iso: string, what: MoveWhat = 'strength'): MoveTarget[] {
   const rest = programFor(state).restWeekday
+  const moves = what === 'run' ? state.runMoves : state.moves
   const out: MoveTarget[] = []
   for (let d = 1; d <= 6; d++) {
     const target = shift(iso, d)
     if (weekday(target) === rest) continue
-    if (state.moves[target]) continue // al verplaatst, geen ketens
+    if (moves[target]) continue // al verplaatst, geen ketens
     const plan = buildDay(state, target)
-    if (plan.strength?.movedFrom) continue
+    const bezet = what === 'run' ? plan.run : plan.strength
+    if (bezet?.movedFrom) continue
     out.push({
       date: target,
-      swapWith: plan.strength ? plan.strength.naam : null,
-      blocked: moveBlockReason(state, iso, target),
+      swapWith: bezet ? blockName(bezet) : null,
+      blocked: what === 'run' ? null : moveBlockReason(state, iso, target),
     })
   }
   return out
+}
+
+function blockName(block: RunBlock | StrengthBlock): string {
+  if ('naam' in block) return block.naam
+  return block.kind === 'long' ? 'Duurloop' : 'Korte loop'
 }
 
 function shift(iso: string, n: number): string {

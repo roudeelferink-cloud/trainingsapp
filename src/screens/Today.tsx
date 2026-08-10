@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ActivityList, ActivitySheet } from '../components/Activities'
 import { Bar, Card, Chip, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
 import { activitiesOn } from '../logic/activities'
-import { buildDay, moveTargets, type DayPlan } from '../logic/day'
+import { buildDay, moveTargets, type DayPlan, type MoveTarget } from '../logic/day'
 import { formatLong, formatShort, today } from '../logic/dates'
 import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
@@ -51,6 +51,17 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
             Krachtsessie verplaatst naar <b>{formatShort(plan.movedTo)}</b>.
           </p>
           <button className="btn-quiet btn-sm mt-3 w-full" onClick={() => A.undoMove(iso)}>
+            Verplaatsing ongedaan maken
+          </button>
+        </Card>
+      )}
+
+      {plan.runMovedTo && !plan.run && (
+        <Card>
+          <p className="text-sm text-slate-300">
+            Loop verplaatst naar <b>{formatShort(plan.runMovedTo)}</b>.
+          </p>
+          <button className="btn-quiet btn-sm mt-3 w-full" onClick={() => A.undoRunMove(iso)}>
             Verplaatsing ongedaan maken
           </button>
         </Card>
@@ -170,11 +181,14 @@ function CheckIn({ iso, value }: { iso: string; value: number | undefined }) {
 }
 
 function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
+  const state = useStore()
   const run = plan.run!
   const [logOpen, setLogOpen] = useState(false)
   const [skipOpen, setSkipOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
   const [km, setKm] = useState(run.km)
   const [min, setMin] = useState(Math.round(run.km * 6))
+  const targets = moveTargets(state, iso, 'run')
 
   if (run.skipped) {
     return (
@@ -211,7 +225,10 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
             <p className="text-sm text-slate-400">Gepland was {run.plannedKm} km</p>
           )}
         </div>
-        {run.done && <Chip tone="ok">Gedaan</Chip>}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {run.done && <Chip tone="ok">Gedaan</Chip>}
+          {run.movedFrom && <Chip tone="neutral">van {formatShort(run.movedFrom)}</Chip>}
+        </div>
       </div>
 
       {run.done ? (
@@ -230,9 +247,16 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
           >
             {run.bike ? 'Fietsen afvinken' : 'Loop afvinken'}
           </button>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button className="btn-ghost btn-sm" onClick={() => A.setBike(iso, !run.bike)}>
-              {run.bike ? 'Toch hardlopen' : 'Vervang door fiets'}
+              {run.bike ? 'Toch lopen' : 'Fiets'}
+            </button>
+            <button
+              className="btn-ghost btn-sm disabled:opacity-40"
+              disabled={targets.length === 0}
+              onClick={() => setMoveOpen(true)}
+            >
+              Verplaatsen
             </button>
             <button className="btn-quiet btn-sm" onClick={() => setSkipOpen(true)}>
               Overslaan
@@ -270,6 +294,17 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
         </div>
       </Sheet>
 
+      <MoveSheet
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        targets={targets}
+        hint="De krachtsessie van vandaag blijft staan. Woensdag blijft altijd vrij."
+        onPick={(target) => {
+          A.moveRun(iso, target)
+          setMoveOpen(false)
+        }}
+      />
+
       <SkipSheet
         open={skipOpen}
         onClose={() => setSkipOpen(false)}
@@ -279,6 +314,51 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
         }}
       />
     </Card>
+  )
+}
+
+/** Keuzelijst met dagen om naartoe te verplaatsen; kracht en loop delen hem. */
+function MoveSheet({
+  open,
+  onClose,
+  targets,
+  hint,
+  onPick,
+}: {
+  open: boolean
+  onClose: () => void
+  targets: MoveTarget[]
+  hint: string
+  onPick: (date: string) => void
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title="Verplaats naar">
+      <p className="text-sm text-slate-400 mb-3">{hint}</p>
+      <div className="space-y-2">
+        {targets.map((t) =>
+          t.blocked ? (
+            <div
+              key={t.date}
+              className="w-full rounded-xl border border-ink-600 bg-ink-900/40 px-4 py-3 opacity-60"
+            >
+              <p className="font-semibold text-slate-400">{formatShort(t.date)}</p>
+              <p className="text-xs text-slate-400">{t.blocked}</p>
+            </div>
+          ) : (
+            <button
+              key={t.date}
+              className="btn-ghost w-full flex-col !items-start py-2"
+              onClick={() => onPick(t.date)}
+            >
+              <span>{formatShort(t.date)}</span>
+              {t.swapWith && (
+                <span className="text-xs font-normal text-slate-400">ruilt met {t.swapWith}</span>
+              )}
+            </button>
+          ),
+        )}
+      </div>
+    </Sheet>
   )
 }
 
@@ -363,38 +443,16 @@ function StrengthCard({
         </button>
       </div>
 
-      <Sheet open={moveOpen} onClose={() => setMoveOpen(false)} title="Verplaats naar">
-        <p className="text-sm text-slate-400 mb-3">
-          Loopdagen verplaatsen niet mee. Woensdag blijft altijd vrij.
-        </p>
-        <div className="space-y-2">
-          {targets.map((t) =>
-            t.blocked ? (
-              <div
-                key={t.date}
-                className="w-full rounded-xl border border-ink-600 bg-ink-900/40 px-4 py-3 opacity-60"
-              >
-                <p className="font-semibold text-slate-400">{formatShort(t.date)}</p>
-                <p className="text-xs text-slate-400">{t.blocked}</p>
-              </div>
-            ) : (
-              <button
-                key={t.date}
-                className="btn-ghost w-full flex-col !items-start py-2"
-                onClick={() => {
-                  A.moveSession(iso, t.date)
-                  setMoveOpen(false)
-                }}
-              >
-                <span>{formatShort(t.date)}</span>
-                {t.swapWith && (
-                  <span className="text-xs font-normal text-slate-400">ruilt met {t.swapWith}</span>
-                )}
-              </button>
-            ),
-          )}
-        </div>
-      </Sheet>
+      <MoveSheet
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        targets={targets}
+        hint="De loop van vandaag blijft staan; die verplaats je apart. Woensdag blijft altijd vrij."
+        onPick={(target) => {
+          A.moveSession(iso, target)
+          setMoveOpen(false)
+        }}
+      />
 
       <SkipSheet
         open={skipOpen}

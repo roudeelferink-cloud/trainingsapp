@@ -256,8 +256,11 @@ export interface UserState {
   activities: Activity[]
   /** datum -> reden (overgeslagen krachtsessie of loop) */
   skips: Record<string, { reason: SkipReason; what: 'strength' | 'run' }>
-  /** originele datum -> nieuwe datum (alleen krachtsessies) */
+  /** originele datum -> nieuwe datum, krachtsessies */
   moves: Record<string, string>
+  /** originele datum -> nieuwe datum, loopsessies; los van `moves` zodat een dag
+   * met loop én kracht ze onafhankelijk kan verplaatsen */
+  runMoves: Record<string, string>
   /** datum -> tijdelijke aanpassingen */
   overrides: Record<string, DayOverride>
   exerciseState: Record<string, ExerciseState>

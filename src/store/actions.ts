@@ -2,7 +2,7 @@ import { getExercise } from '../data/exercises'
 import { supportsDistance } from '../logic/activities'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
-import { buildDay, moveBlockReason, sessionKeyFor } from '../logic/day'
+import { buildDay, moveBlockReason, moveTargets, sessionKeyFor } from '../logic/day'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, stateFor } from '../logic/progression'
 import type {
@@ -105,6 +105,39 @@ export function undoMove(iso: string): void {
     delete moves[iso]
     if (target && moves[target] === iso) delete moves[target]
     return { ...s, moves }
+  })
+}
+
+/**
+ * Verplaatst een loopsessie. Werkt hetzelfde als bij kracht, maar met een eigen
+ * lijst: een dag met loop én krachtsessie kan ze onafhankelijk verzetten. Staat er
+ * op de doeldag al een loop, dan ruilen ze van plek.
+ *
+ * Loopdagen kennen geen blokkades — de zaterdagregel gaat over zware beenbelasting
+ * vlak voor de duurloop, niet over de loop zelf.
+ */
+export function moveRun(iso: string, target: string): { ok: boolean; reason?: string } {
+  const from = buildDay(getState(), iso)
+  if (!from.run) return { ok: false, reason: 'Er staat op deze dag geen loop.' }
+  if (!moveTargets(getState(), iso, 'run').some((t) => t.date === target && !t.blocked)) {
+    return { ok: false, reason: 'Die dag kan niet.' }
+  }
+  setState((s) => {
+    const occupied = !!buildDay(s, target).run
+    const runMoves = { ...s.runMoves, [iso]: target }
+    if (occupied) runMoves[target] = iso
+    return { ...s, runMoves }
+  })
+  return { ok: true }
+}
+
+export function undoRunMove(iso: string): void {
+  setState((s) => {
+    const runMoves = { ...s.runMoves }
+    const target = runMoves[iso]
+    delete runMoves[iso]
+    if (target && runMoves[target] === iso) delete runMoves[target]
+    return { ...s, runMoves }
   })
 }
 
