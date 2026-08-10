@@ -4,6 +4,7 @@ import { RestTimer } from '../components/RestTimer'
 import { Card, Chip, Sheet, Stepper } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
+import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '../logic/barWeight'
 import { buildDay } from '../logic/day'
 import { formatShort } from '../logic/dates'
 import { CALIBRATION_TEXT, fmt, targetFor } from '../logic/progression'
@@ -207,6 +208,10 @@ export function SessionScreen({
           const sets = entries[r.slot.key] ?? []
           const filled = sets.filter((s) => s.done).length
           const advice = adviceFor(r, state, plan.cycle.calibration)
+          // stanggewicht: de gebruiker vult schijven in, de log bewaart het totaal
+          const bar = barWeightFor(r.exercise, state.settings)
+          const advicePlates =
+            advice === null ? undefined : bar > 0 ? platesFromTotal(advice.weight, bar) : advice.weight
 
           return (
             <div
@@ -256,7 +261,7 @@ export function SessionScreen({
                 <div className="px-3 pb-3 space-y-3">
                   {advice && (
                     <p className="text-xs text-slate-400">
-                      Schatting {advice.weight} kg —{' '}
+                      Schatting {advice.weight} kg{bar > 0 ? ' totaal (stang inbegrepen)' : ''} —{' '}
                       {advice.source === 'related'
                         ? `afgeleid van ${advice.relatedName}`
                         : 'op basis van je lichaamsgewicht'}
@@ -290,15 +295,30 @@ export function SessionScreen({
                         </button>
                       </div>
                       <div className="mb-2">
-                        <p className="label mb-0.5">kg</p>
+                        <p className="label mb-0.5">{bar > 0 ? 'kg schijven' : 'kg'}</p>
                         <Stepper
                           ariaLabel={`Gewicht set ${si + 1}`}
-                          value={s.weight}
-                          onChange={(v) => updateSet(r.slot.key, si, { weight: v })}
+                          value={bar > 0 ? platesFromTotal(s.weight, bar) : s.weight}
+                          onChange={(v) =>
+                            updateSet(r.slot.key, si, {
+                              weight: bar > 0 ? totalFromPlates(v, bar) : v,
+                            })
+                          }
                           step={r.exercise.minIncrement || 2.5}
                           max={400}
-                          placeholder={advice?.weight}
+                          // alleen zolang er niets ingevuld is; anders zou 0 schijven
+                          // (de kale stang) weer als schatting worden weergegeven
+                          placeholder={s.weight === 0 ? advicePlates : undefined}
                         />
+                        {bar > 0 && (s.weight > 0 || advicePlates !== undefined) && (
+                          <p className="text-xs text-slate-400 mt-1 tabular-nums">
+                            {barTotalLabel(
+                              s.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(s.weight, bar),
+                              bar,
+                            )}
+                            {s.weight === 0 && ' (schatting)'}
+                          </p>
+                        )}
                       </div>
                       <div className="mb-2">
                         <p className="label mb-0.5">reps</p>

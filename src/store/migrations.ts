@@ -1,4 +1,5 @@
 import { TEMPLATES } from '../data/plan'
+import { DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 
 /**
  * Migratiepad voor opgeslagen data.
@@ -177,12 +178,43 @@ function v5_to_v6(state: RawState): RawState {
   }
 }
 
+/**
+ * v6 -> v7: stangen hebben een eigen gewicht. Je voert vanaf nu alleen de schijven
+ * in en de app telt de stang erbij, dus krijgt elke gebruiker de standaardgewichten
+ * in zijn instellingen. Bestaande logs blijven zoals ze zijn: daar staat het totaal
+ * in, en dat is precies wat de app nu ook opslaat.
+ *
+ * Vanaf v6 zit alles onder `users`, dus deze stap loopt de gebruikers langs.
+ */
+function v6_to_v7(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!raw || typeof raw !== 'object') {
+      next[id] = raw
+      continue
+    }
+    const user = raw as Record<string, unknown>
+    const settings = (user.settings ?? {}) as Record<string, unknown>
+    const bars = (settings.barWeights ?? {}) as Record<string, unknown>
+    const barWeights: Record<string, number> = { ...DEFAULT_BAR_WEIGHTS }
+    for (const [bar, kg] of Object.entries(bars)) {
+      if (bar in barWeights && num(kg) > 0) barWeights[bar] = num(kg)
+    }
+    next[id] = { ...user, settings: { ...settings, barWeights } }
+  }
+
+  return { ...state, users: next }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
   3: v3_to_v4,
   4: v4_to_v5,
   5: v5_to_v6,
+  6: v6_to_v7,
 }
 
 /**

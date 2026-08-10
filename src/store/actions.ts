@@ -8,6 +8,7 @@ import type {
   Activity,
   ActivityIntensity,
   ActivityType,
+  BarId,
   DayKind,
   LoggedSet,
   RunKind,
@@ -310,6 +311,21 @@ export function setSensitivity(area: keyof UserState['settings']['sensitive'], v
   setState((s) => ({
     ...s,
     settings: { ...s.settings, sensitive: { ...s.settings.sensitive, [area]: value } },
+  }))
+}
+
+/**
+ * Eigen gewicht van een stang. 0 of minder wordt geweigerd: een stang zonder
+ * gewicht bestaat niet en zou het getoonde totaal stilletjes fout maken.
+ */
+export function setBarWeight(bar: BarId, kg: number): void {
+  if (!Number.isFinite(kg) || kg <= 0) return
+  setState((s) => ({
+    ...s,
+    settings: {
+      ...s.settings,
+      barWeights: { ...s.settings.barWeights, [bar]: Math.round(kg * 100) / 100 },
+    },
   }))
 }
 

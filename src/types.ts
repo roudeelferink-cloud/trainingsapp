@@ -139,12 +139,17 @@ export interface MaintenanceItem {
   label: string
 }
 
+/** Stangen met een eigen gewicht. De schijven komen daar bovenop. */
+export type BarId = 'smith' | 'trap_bar' | 'barbell' | 'deadlift_bar' | 'curl_bar'
+
 export interface Settings {
   bodyweightKg: number | null
   sensitive: Record<LoadArea, Sensitivity>
   travelMode: boolean
   maintenanceItems: MaintenanceItem[]
   proteinFactor: number
+  /** eigen gewicht per stang in kg; per sportschool anders, dus instelbaar */
+  barWeights: Record<BarId, number>
 }
 
 export interface LoggedSet {

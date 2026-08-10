@@ -11,6 +11,7 @@ import { SettingsScreen } from '../src/screens/SettingsScreen'
 import { Today } from '../src/screens/Today'
 import { WeekScreen } from '../src/screens/WeekScreen'
 import { getExercise } from '../src/data/exercises'
+import * as A from '../src/store/actions'
 import { getFigure } from '../src/data/figures'
 import { ANOUC, ROB, getState, resetState, setCurrentUser, setState } from '../src/store/store'
 
@@ -129,6 +130,24 @@ describe('schermen renderen', () => {
     // 82 kg × 0,5 -> 40 kg, voorgevuld als overschrijfbare waarde
     expect(html).toContain('value="40"')
     expect(html).toContain('Voelt dit te licht?')
+  })
+
+  it('laat bij een stangoefening alleen de schijven invullen en toont het totaal', () => {
+    setState((s) => ({ ...s, startDate: addDays(mondayOf(today()), -21) })) // voorbij de kalibratie
+    const monday = mondayOf(today())
+    // smith squat naar voren halen: die staat standaard op plek 2 en is dus niet open
+    A.replacePermanently(monday, 'legs_a:0', 'smith_squat')
+    A.setBarWeight('smith', 15)
+
+    const plan = buildDay(getState(), monday)
+    expect(plan.strength!.slots[0].exercise.id).toBe('smith_squat')
+
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+    expect(html).toContain('kg schijven')
+    expect(html).toContain('kg stang +')
+    expect(html).toContain('kg totaal')
   })
 
   it('toont per oefening een klaar-knop en de afrondvoortgang', () => {

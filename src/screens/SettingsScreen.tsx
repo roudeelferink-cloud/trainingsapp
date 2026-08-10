@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, Chip, SectionTitle, Toggle } from '../components/ui'
+import { Card, Chip, SectionTitle, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
+import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { TEMPLATES } from '../data/plan'
 import { programById } from '../data/programs'
 import { exportReminder, proteinGoal } from '../logic/stats'
@@ -119,6 +120,31 @@ export function SettingsScreen() {
                   </button>
                 ))}
               </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle>Stanggewicht</SectionTitle>
+        <p className="text-sm text-slate-400 mb-3">
+          Bij een oefening met een stang vul je alleen de schijven in. De app telt het gewicht van de
+          stang erbij en toont het totaal.
+        </p>
+        <div className="space-y-3">
+          {BAR_IDS.map((bar) => (
+            <div key={bar}>
+              <p className="label mb-1">{BAR_LABEL[bar]}</p>
+              <Stepper
+                ariaLabel={`Gewicht ${BAR_LABEL[bar]}`}
+                value={state.settings.barWeights[bar] ?? DEFAULT_BAR_WEIGHTS[bar]}
+                onChange={(v) => A.setBarWeight(bar, v)}
+                step={0.5}
+                min={1}
+                max={40}
+                decimals={1}
+                suffix="kg"
+              />
             </div>
           ))}
         </div>

@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react'
 import type { AppState, LoadArea, ProgramId, Sensitivity, UserState } from '../types'
 import { mondayOf, today } from '../logic/dates'
+import { DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
@@ -41,6 +42,7 @@ export function defaultUser(id: string, naam: string, programId: ProgramId): Use
       sensitive,
       travelMode: false,
       proteinFactor: 1.8,
+      barWeights: { ...DEFAULT_BAR_WEIGHTS },
       maintenanceItems: [
         { id: 'heeldrops', label: 'Excentrische heel drops (3x15 per been)' },
         { id: 'heupmobiliteit', label: 'Mobiliteit heup 5 min' },
@@ -87,6 +89,7 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
   const s = raw as Partial<UserState>
   const settings = { ...base.settings, ...(s.settings ?? {}) }
   settings.sensitive = { ...base.settings.sensitive, ...(s.settings?.sensitive ?? {}) }
+  settings.barWeights = { ...base.settings.barWeights, ...(s.settings?.barWeights ?? {}) }
   if (!Array.isArray(settings.maintenanceItems)) {
     settings.maintenanceItems = base.settings.maintenanceItems
   }
