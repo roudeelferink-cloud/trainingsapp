@@ -1,5 +1,6 @@
 import type { UserState, Exercise } from '../types'
 import { BY_ID } from '../data/exercises'
+import { loadFactor, totalLoadKg } from './dumbbell'
 
 export interface StartAdvice {
   weight: number
@@ -35,6 +36,11 @@ export function hasLoggedHistory(state: UserState, exerciseId: string): boolean 
  *
  * `scale` komt uit het programma: een beginnersprogramma start bewust lichter.
  *
+ * Het advies is uitgedrukt in de eenheid waarin je invult: per dumbbell bij
+ * dumbbell-werk, en inclusief het stanggewicht bij een stang. Onderweg door de
+ * keten wordt met de werkelijke belasting gerekend (zie `loadFactor`), zodat een
+ * verhouding tussen twee soorten materiaal blijft kloppen.
+ *
  * De keten is per opzet acyclisch en eindigt bij een anker zonder verwijzing; de
  * `seen`-set hieronder is puur een veiligheidsklep voor handmatig aangepaste data.
  */
@@ -57,7 +63,12 @@ export function startWeightAdvice(ex: Exercise, state: UserState, scale = 1): St
 
     const relWeight = state.exerciseState[next.id]?.targetWeight
     if (relWeight !== null && relWeight !== undefined && relWeight > 0) {
-      const weight = floorToStep(relWeight * ratio * scale, ex.minIncrement)
+      // via de werkelijke belasting rekenen: een tweezijdige dumbbell-oefening
+      // telt intern dubbel, zodat de verhouding klopt zodra de keten van
+      // dumbbells naar ander materiaal loopt (of andersom). Blijft de keten
+      // binnen dezelfde soort, dan valt de factor tegen elkaar weg.
+      const relTotal = totalLoadKg(next, relWeight)
+      const weight = floorToStep((relTotal * ratio * scale) / loadFactor(ex), ex.minIncrement)
       if (weight > 0) return { weight, source: 'related', relatedName: next.naam }
     }
     current = next

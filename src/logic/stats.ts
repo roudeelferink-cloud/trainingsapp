@@ -1,7 +1,8 @@
 import { BY_ID } from '../data/exercises'
-import type { UserState } from '../types'
+import type { SessionLog, UserState } from '../types'
 import { buildDay } from './day'
 import { addDays, mondayOf, today } from './dates'
+import { setVolumeKg } from './dumbbell'
 import { estimate1RM } from './progression'
 import { cycleInfo } from './cycle'
 
@@ -78,6 +79,48 @@ export function weeklyRunVolume(state: UserState, weeks = 12): WeekVolume[] {
     }
     const info = cycleInfo(state.startDate, weekStart)
     out.push({ weekStart, week: info.week, km: Math.round(km * 10) / 10, deload: info.deload })
+  }
+  return out
+}
+
+/**
+ * Getild gewicht van één sessie: per set gewicht × reps, met de dumbbell-conventie
+ * erin verwerkt (zie `setVolumeKg`). Een afgeronde sessie bevat alleen afgevinkte
+ * sets, dus alles wat erin staat telt mee.
+ */
+export function sessionVolumeKg(log: SessionLog): number {
+  let kg = 0
+  for (const [slotKey, sets] of Object.entries(log.entries)) {
+    const ex = BY_ID[log.exercises?.[slotKey] ?? '']
+    if (!ex) continue
+    for (const set of sets) {
+      if (set.done === false) continue
+      kg += setVolumeKg(ex, set)
+    }
+  }
+  return Math.round(kg)
+}
+
+export interface WeekTonnage {
+  weekStart: string
+  week: number
+  kg: number
+  deload: boolean
+}
+
+/** Tilvolume per week, oudste eerst. Zelfde vorm als het loopvolume. */
+export function weeklyStrengthVolume(state: UserState, weeks = 12): WeekTonnage[] {
+  const out: WeekTonnage[] = []
+  const start = mondayOf(today())
+  for (let w = weeks - 1; w >= 0; w--) {
+    const weekStart = addDays(start, -7 * w)
+    const days = new Set(Array.from({ length: 7 }, (_, d) => addDays(weekStart, d)))
+    let kg = 0
+    for (const log of Object.values(state.sessions)) {
+      if (log.completedAt && days.has(log.date)) kg += sessionVolumeKg(log)
+    }
+    const info = cycleInfo(state.startDate, weekStart)
+    out.push({ weekStart, week: info.week, kg, deload: info.deload })
   }
   return out
 }

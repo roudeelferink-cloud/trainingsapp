@@ -10,6 +10,7 @@ import {
   completedSessions,
   oneRmSeries,
   weeklyRunVolume,
+  weeklyStrengthVolume,
 } from '../logic/stats'
 import { useStore } from '../store/store'
 import type { Activity } from '../types'
@@ -18,6 +19,7 @@ export function ProgressScreen() {
   const state = useStore()
   const series = oneRmSeries(state)
   const volume = weeklyRunVolume(state, 12)
+  const tonnage = weeklyStrengthVolume(state, 12)
   const [open, setOpen] = useState<string | null>(series[0]?.exerciseId ?? null)
 
   return (
@@ -49,6 +51,23 @@ export function ProgressScreen() {
             <p className="text-xs text-slate-400 mt-2">
               Oranje = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven de
               vorige zou uitkomen.
+            </p>
+          </>
+        )}
+      </Card>
+
+      <Card>
+        <SectionTitle>Tilvolume per week</SectionTitle>
+        {tonnage.every((v) => v.kg === 0) ? (
+          <Empty>Nog geen krachtsessie afgerond.</Empty>
+        ) : (
+          <>
+            <BarChart
+              bars={tonnage.map((v) => ({ label: `w${v.week}`, value: v.kg, highlight: v.deload }))}
+            />
+            <p className="text-xs text-slate-400 mt-2">
+              Gewicht × reps over alle sets. Bij dumbbells telt het gewicht van beide dumbbells mee,
+              en bij werk per kant beide kanten.
             </p>
           </>
         )}

@@ -7,6 +7,8 @@ import { getFigure } from '../data/figures'
 import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '../logic/barWeight'
 import { buildDay } from '../logic/day'
 import { formatShort } from '../logic/dates'
+import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
+import { loadHint, repsInputLabel, weightInputLabel } from '../logic/load'
 import { CALIBRATION_TEXT, fmt, targetFor } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
 import {
@@ -259,9 +261,18 @@ export function SessionScreen({
 
               {isActive && (
                 <div className="px-3 pb-3 space-y-3">
+                  {loadHint(r.exercise, state.settings) && (
+                    <p className="text-xs text-slate-400">{loadHint(r.exercise, state.settings)}</p>
+                  )}
                   {advice && (
                     <p className="text-xs text-slate-400">
-                      Schatting {advice.weight} kg{bar > 0 ? ' totaal (stang inbegrepen)' : ''} —{' '}
+                      Schatting {advice.weight} kg
+                      {bar > 0
+                        ? ' totaal (stang inbegrepen)'
+                        : isDumbbell(r.exercise)
+                          ? ` ${DUMBBELL_WEIGHT_UNIT}`
+                          : ''}{' '}
+                      —{' '}
                       {advice.source === 'related'
                         ? `afgeleid van ${advice.relatedName}`
                         : 'op basis van je lichaamsgewicht'}
@@ -295,7 +306,7 @@ export function SessionScreen({
                         </button>
                       </div>
                       <div className="mb-2">
-                        <p className="label mb-0.5">{bar > 0 ? 'kg schijven' : 'kg'}</p>
+                        <p className="label mb-0.5">{weightInputLabel(r.exercise, state.settings)}</p>
                         <Stepper
                           ariaLabel={`Gewicht set ${si + 1}`}
                           value={bar > 0 ? platesFromTotal(s.weight, bar) : s.weight}
@@ -321,7 +332,7 @@ export function SessionScreen({
                         )}
                       </div>
                       <div className="mb-2">
-                        <p className="label mb-0.5">reps</p>
+                        <p className="label mb-0.5">{repsInputLabel(r.exercise)}</p>
                         <Stepper
                           ariaLabel={`Reps set ${si + 1}`}
                           value={s.reps}
