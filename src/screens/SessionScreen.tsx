@@ -270,35 +270,17 @@ export function SessionScreen({
                         s.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-900/40'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold text-slate-400 w-10">Set {si + 1}</span>
-                        <div className="flex-1 grid grid-cols-2 gap-2">
-                          <div>
-                            <p className="label mb-0.5">kg</p>
-                            <Stepper
-                              ariaLabel={`Gewicht set ${si + 1}`}
-                              value={s.weight}
-                              onChange={(v) => updateSet(r.slot.key, si, { weight: v })}
-                              step={r.exercise.minIncrement || 2.5}
-                              max={400}
-                              placeholder={advice?.weight}
-                            />
-                          </div>
-                          <div>
-                            <p className="label mb-0.5">reps</p>
-                            <Stepper
-                              ariaLabel={`Reps set ${si + 1}`}
-                              value={s.reps}
-                              onChange={(v) => updateSet(r.slot.key, si, { reps: v })}
-                              step={1}
-                              max={100}
-                            />
-                          </div>
-                        </div>
+                      {/*
+                        kg en reps staan onder elkaar, elk over de volle breedte. Naast
+                        elkaar houdt een setrij op een 320px-scherm te weinig ruimte over
+                        en knijpen de invoervelden dicht.
+                      */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs font-bold text-slate-400">Set {si + 1}</span>
                         <button
                           aria-label={`Set ${si + 1} ${s.done ? 'weer openzetten' : 'afvinken'}`}
                           onClick={() => setSetDone(r.slot.key, si, !s.done)}
-                          className={`shrink-0 w-11 h-11 self-end rounded-lg border text-lg font-bold ${
+                          className={`flex-none w-11 h-11 rounded-lg border text-lg font-bold ${
                             s.done
                               ? 'bg-emerald-500 text-ink-900 border-emerald-500'
                               : 'bg-ink-700 border-ink-600 text-slate-400'
@@ -306,6 +288,27 @@ export function SessionScreen({
                         >
                           ✓
                         </button>
+                      </div>
+                      <div className="mb-2">
+                        <p className="label mb-0.5">kg</p>
+                        <Stepper
+                          ariaLabel={`Gewicht set ${si + 1}`}
+                          value={s.weight}
+                          onChange={(v) => updateSet(r.slot.key, si, { weight: v })}
+                          step={r.exercise.minIncrement || 2.5}
+                          max={400}
+                          placeholder={advice?.weight}
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <p className="label mb-0.5">reps</p>
+                        <Stepper
+                          ariaLabel={`Reps set ${si + 1}`}
+                          value={s.reps}
+                          onChange={(v) => updateSet(r.slot.key, si, { reps: v })}
+                          step={1}
+                          max={100}
+                        />
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-bold text-slate-400 w-10">RIR</span>

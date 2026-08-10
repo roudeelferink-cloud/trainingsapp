@@ -87,6 +87,13 @@ export function Toggle({
   )
 }
 
+/**
+ * Minimale breedte van een getalveld in pixels. Daaronder knijpt het veld op een
+ * smalle telefoon dicht tot een streepje en is het getal niet meer te lezen of te
+ * bewerken. De klasse hieronder moet hiermee overeenkomen; de test bewaakt dat.
+ */
+export const NUMBER_INPUT_MIN_PX = 56
+
 export function Stepper({
   value,
   onChange,
@@ -114,20 +121,24 @@ export function Stepper({
   const basis = empty ? placeholder : value
 
   return (
-    <div className="flex items-stretch gap-1">
+    // flex-wrap: op een heel smal scherm (320px) wipt het veld naar een eigen regel
+    // in plaats van dat het tussen de knoppen wordt platgedrukt.
+    <div className="flex flex-wrap items-stretch gap-1">
       <button
-        className="btn-ghost btn-sm w-11 shrink-0 text-xl"
+        className="btn-ghost btn-sm w-11 flex-none text-xl"
         onClick={() => onChange(clamp(basis - step))}
         aria-label="Minder"
       >
         −
       </button>
-      <div className="flex-1 min-w-0 flex items-center rounded-lg bg-ink-900 border border-ink-600 px-1 focus-within:border-accent">
+      {/* min-w houdt het veld leesbaar; de knoppen ernaast mogen het nooit wegdrukken */}
+      <div className="flex-1 min-w-[64px] flex items-center rounded-lg bg-ink-900 border border-ink-600 px-1 focus-within:border-accent">
         <input
           type="number"
           inputMode="decimal"
           aria-label={ariaLabel}
-          className="w-full min-w-0 bg-transparent text-center tabular-nums font-bold focus:outline-none placeholder:text-slate-500 placeholder:font-normal"
+          // text-base = 16px: kleiner laat iOS bij focus inzoomen op het veld
+          className="w-full min-w-[56px] bg-transparent text-center text-base tabular-nums font-bold focus:outline-none placeholder:text-slate-500 placeholder:font-normal"
           value={empty ? '' : decimals ? value.toFixed(decimals) : String(value)}
           placeholder={placeholder === undefined ? undefined : String(placeholder)}
           onChange={(e) => onChange(e.target.value === '' ? 0 : clamp(Number(e.target.value)))}
@@ -135,7 +146,7 @@ export function Stepper({
         {suffix && <span className="text-xs text-slate-400 pr-1">{suffix}</span>}
       </div>
       <button
-        className="btn-ghost btn-sm w-11 shrink-0 text-xl"
+        className="btn-ghost btn-sm w-11 flex-none text-xl"
         onClick={() => onChange(clamp(basis + step))}
         aria-label="Meer"
       >
