@@ -4,7 +4,7 @@ import { mondayOf, today } from '../logic/dates'
 import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
@@ -49,6 +49,7 @@ export function defaultRoot(): AppState {
   return {
     schemaVersion: SCHEMA_VERSION,
     currentUser: '',
+    pin: null,
     users: Object.fromEntries(
       USER_SEEDS.map((u) => [u.id, defaultUser(u.id, u.naam, u.programId)]),
     ),
@@ -110,8 +111,9 @@ export function migrate(raw: unknown): AppState {
   }
 
   const currentUser = typeof s.currentUser === 'string' && users[s.currentUser] ? s.currentUser : ''
+  const pin = isPin(s.pin) ? s.pin : null
 
-  return { schemaVersion: SCHEMA_VERSION, currentUser, users }
+  return { schemaVersion: SCHEMA_VERSION, currentUser, pin, users }
 }
 
 /* ---------------- opslag ---------------- */
@@ -191,9 +193,61 @@ export function resetState(): void {
   replaceRoot(defaultRoot())
 }
 
+/**
+ * Wisselen van profiel. Dit raakt alleen de keuze "wie gebruikt dit toestel": de
+ * gegevens van beide gebruikers blijven staan, precies zoals ze waren.
+ */
 export function setCurrentUser(id: string): void {
   if (!root.users[id]) return
   replaceRoot({ ...root, currentUser: id })
+}
+
+/* ---------------- pincode en wissen ---------------- */
+
+/**
+ * Pincode voor "alles wissen". Zie `AppState.pin`: misklikbeveiliging, geen echte
+ * beveiliging — hij staat leesbaar in localStorage.
+ */
+export function isPin(code: unknown): code is string {
+  return typeof code === 'string' && /^[0-9]{4}$/.test(code)
+}
+
+export function hasPin(): boolean {
+  return isPin(root.pin)
+}
+
+export function setPin(code: string): boolean {
+  if (!isPin(code)) return false
+  replaceRoot({ ...root, pin: code })
+  return true
+}
+
+/** Wijzigen kan alleen met de oude code erbij. */
+export function changePin(oud: string, nieuw: string): boolean {
+  if (!verifyPin(oud) || !isPin(nieuw)) return false
+  return setPin(nieuw)
+}
+
+export function verifyPin(code: string): boolean {
+  return isPin(root.pin) && code === root.pin
+}
+
+/**
+ * Wist de gegevens van de opgegeven gebruikers: die krijgen een verse staat, de
+ * andere blijven onaangeroerd. Daarna staat het toestel weer op de eerste-start-keuze,
+ * zodat er geen leeg scherm overblijft.
+ *
+ * De pincode blijft staan: die hoort bij het toestel, niet bij de historie, en zonder
+ * code zou de volgende wisactie helemaal niet meer kunnen.
+ */
+export function wipeUsers(ids: string[]): void {
+  const users = { ...root.users }
+  for (const id of ids) {
+    const seed = USER_SEEDS.find((u) => u.id === id)
+    if (!seed || !users[id]) continue
+    users[id] = defaultUser(seed.id, users[id].naam, seed.programId)
+  }
+  replaceRoot({ ...root, users, currentUser: '' })
 }
 
 export function setUserName(id: string, naam: string): void {
@@ -250,7 +304,11 @@ export function importJSON(text: string): { ok: true } | { ok: false; error: str
   }
   // ouder bestand: migrate() hoogt het op naar de huidige versie
   const next = migrate(parsed)
-  // een bestand zonder gekozen gebruiker mag de keuze van dit toestel niet wissen
-  replaceRoot({ ...next, currentUser: next.currentUser || root.currentUser })
+  // een bestand zonder gekozen gebruiker of pincode mag die van dit toestel niet wissen
+  replaceRoot({
+    ...next,
+    currentUser: next.currentUser || root.currentUser,
+    pin: next.pin ?? root.pin,
+  })
   return { ok: true }
 }

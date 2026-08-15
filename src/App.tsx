@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
-import { OtherScreen } from './screens/OtherScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
 import { SessionScreen } from './screens/SessionScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
@@ -10,7 +9,12 @@ import { WeekScreen } from './screens/WeekScreen'
 import { useRoot } from './store/store'
 import type { DayKind } from './types'
 
-type Tab = 'vandaag' | 'week' | 'voortgang' | 'ander' | 'instellingen'
+/**
+ * De onderbalk is van de dagelijkse handelingen. Wisselen van profiel hoort daar niet
+ * bij: dit toestel is van één gebruiker, en omzetten doe je hooguit een keer. Die knop
+ * staat daarom onderaan bij Instellingen, samen met meekijken bij de ander.
+ */
+type Tab = 'vandaag' | 'week' | 'voortgang' | 'instellingen'
 
 export default function App() {
   const root = useRoot()
@@ -32,13 +36,10 @@ export default function App() {
     )
   }
 
-  const ander = Object.values(root.users).find((u) => u.id !== root.currentUser)
-
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'vandaag', label: 'Vandaag', icon: '●' },
     { id: 'week', label: 'Week', icon: '▦' },
     { id: 'voortgang', label: 'Voortgang', icon: '↗' },
-    { id: 'ander', label: ander?.naam ?? 'Ander', icon: '👥' },
     { id: 'instellingen', label: 'Instellingen', icon: '⚙' },
   ]
 
@@ -54,13 +55,12 @@ export default function App() {
           {tab === 'vandaag' && <Today onOpenSession={open} />}
           {tab === 'week' && <WeekScreen onOpenSession={open} />}
           {tab === 'voortgang' && <ProgressScreen />}
-          {tab === 'ander' && <OtherScreen />}
           {tab === 'instellingen' && <SettingsScreen />}
         </ErrorBoundary>
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-ink-800/95 backdrop-blur border-t border-ink-600 safe-bottom">
-        <div className="max-w-md mx-auto grid grid-cols-5">
+        <div className="max-w-md mx-auto grid grid-cols-4">
           {tabs.map((t) => (
             <button
               key={t.id}

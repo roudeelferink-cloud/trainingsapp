@@ -194,6 +194,47 @@ export function exportReminder(state: UserState, now = new Date()): ExportRemind
   return { daysAgo, text: `Laatste back-up was ${daysAgo} dagen geleden. Tijd om te exporteren.` }
 }
 
+/**
+ * Waarschuwing vóór het wissen: er is nooit geëxporteerd, of de laatste export is
+ * ouder dan een week. Strenger dan de herinnering van 30 dagen op het instellingen-
+ * scherm, want hierna is de historie echt weg.
+ */
+export const EXPORT_WARNING_DAYS = 7
+
+export function exportWarning(state: UserState, now = new Date()): string | null {
+  if (!state.lastExportAt) return 'Je hebt nog nooit een back-up gemaakt.'
+  const then = new Date(state.lastExportAt).getTime()
+  if (Number.isNaN(then)) return 'Onbekend wanneer je voor het laatst geëxporteerd hebt.'
+  const days = Math.floor((now.getTime() - then) / 86400000)
+  if (days < EXPORT_WARNING_DAYS) return null
+  return `Je laatste back-up is ${days} dagen oud.`
+}
+
+export interface DataSummary {
+  /** gelogde krachtsessies, inclusief nog lopende concepten */
+  sessions: number
+  runs: number
+  activities: number
+  /** datum van de oudste log; null als er niets is */
+  oldest: string | null
+}
+
+/** Wat er precies verdwijnt als deze gebruiker gewist wordt. */
+export function dataSummary(state: UserState): DataSummary {
+  const datums = [
+    ...Object.values(state.sessions).map((x) => x.date),
+    ...Object.values(state.runs).map((x) => x.date),
+    ...state.activities.map((x) => x.date),
+  ].filter((d) => typeof d === 'string' && d)
+
+  return {
+    sessions: Object.keys(state.sessions).length,
+    runs: Object.keys(state.runs).length,
+    activities: state.activities.length,
+    oldest: datums.length ? datums.reduce((a, b) => (a < b ? a : b)) : null,
+  }
+}
+
 export function proteinGoal(state: UserState): number | null {
   const kg = state.settings?.bodyweightKg
   if (!kg || kg <= 0) return null

@@ -342,6 +342,15 @@ export interface AppState {
   schemaVersion: number
   /** id van de gebruiker die dit toestel gebruikt; leeg = nog niet gekozen */
   currentUser: string
+  /**
+   * Pincode van 4 cijfers voor het wissen van gegevens; null = nog niet ingesteld.
+   *
+   * Dit is misklikbeveiliging, geen echte beveiliging: de code staat als platte tekst
+   * in localStorage en is met de ontwikkelaarsconsole zo te lezen. Hij is er om te
+   * voorkomen dat "alles wissen" per ongeluk in twee tikken gebeurt, niet om data
+   * tegen iemand anders te beschermen.
+   */
+  pin: string | null
   /** gebruikersid -> gebruiker */
   users: Record<string, UserState>
 }

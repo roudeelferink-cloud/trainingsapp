@@ -63,12 +63,11 @@ describe('schermen renderen', () => {
     expect(html).toContain('enige manier om je gegevens naar een ander toestel te verplaatsen')
   })
 
-  it('laat in Instellingen wel het profiel kiezen, maar niets over koppelen of syncen', () => {
+  it('houdt het profiel in Instellingen, maar niets over koppelen of syncen', () => {
     const html = render(createElement(SettingsScreen))
-    expect(html).toContain('Wie ben je?')
-    expect(html).toContain('Rob')
-    expect(html).toContain('Anouc')
+    expect(html).toContain('Profiel')
     expect(html).toContain('Jouw naam')
+    expect(html).toContain('Ander profiel gebruiken')
     for (const weg of ['Huishoudcode', 'Koppel', 'gesynchroniseerd', 'huishoudcode']) {
       expect(html, weg).not.toContain(weg)
     }

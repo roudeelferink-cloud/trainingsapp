@@ -49,6 +49,7 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `startWeight.test.ts` | startgewichtadvies: met en zonder lichaamsgewicht, met en zonder vergelijkbare data, afronding, verdwijnen na de eerste set, en de verwijzingen bestaan en zijn niet circulair |
 | `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion`, aanvullen van ontbrekende instellingen in v7 → v8 |
 | `settingsScreen.test.tsx` | het instellingenscherm op data die niet uit deze versie komt: lege staat, v5-data, ontbrekende stanggewichten, een tweede gebruiker zonder settings, de import van een oude export en onleesbare waarden |
+| `gegevensbeheer.test.tsx` | de eerste-start-keuze, de onderbalk zonder profielschakelaar, wisselen zonder dataverlies, de pincode (instellen, wijzigen, knop blijft uit bij een foute code, blokkade na drie pogingen), de exportwaarschuwing en het wissen per profiel |
 | `errorBoundary.test.tsx` | het vangnet rond de schermen: doorlaten als er niets misgaat, leesbare melding met de knop terug naar Vandaag, en loggen naar de console |
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
 | `users.test.ts` | twee gebruikers: eigen schema, eigen logs en instellingen, en de bevestiging dat progressie, gewichtsadvies, 1RM en weekvolume strikt per gebruiker blijven; plus het full body-schema van Anouc (dagen, duur, materiaal, rustiger opbouw, lichter startpunt) |
@@ -93,18 +94,22 @@ Na de eerste keer openen: in Chrome/Safari *Toevoegen aan beginscherm*. Daarna s
 hij als losse app en werkt hij offline. Updates worden automatisch opgehaald
 (`autoUpdate`) en zijn actief na het sluiten en heropenen van de app.
 
-## Twee gebruikers
+## Eén gebruiker per toestel
 
-Bij de eerste start vraagt de app één ding: **wie je bent**. Die keuze wordt op het
-toestel onthouden en is later te wijzigen bij Instellingen → Wie ben je?
+Bij de eerste start vraagt de app één ding: **wie je bent**. Die keuze bepaalt schema,
+oefeningen, logs en instellingen, en wordt op het toestel onthouden. Daarna is het klaar:
+in de onderbalk staan alleen nog Vandaag, Week, Voortgang en Instellingen. Wisselen van
+profiel is geen dagelijkse handeling, dus het staat er niet.
 
-- **Wie ben je** — bepaalt alles wat je ziet en logt. Elke gebruiker heeft een eigen
-  schema, eigen oefeningen, eigen sessielogs, eigen hardloopregistratie, eigen losse
-  activiteiten, eigen streefgewichten en eigen voortgang.
-- **Meekijken** — het tabblad met de naam van de ander toont diens streak, afgelopen
-  sessies en kilometers per week. Puur om te kijken: **loggen kan alleen voor jezelf.**
+Onderaan **Instellingen → Profiel** kan het toestel alsnog omgezet worden:
 
-Beide gebruikers staan naast elkaar op hetzelfde toestel, elk met een eigen historie.
+- **Ander profiel gebruiken** — zet om wie dit toestel gebruikt. Er wordt niets gewist: de
+  gegevens van beide profielen blijven in `localStorage` staan en terugwisselen brengt
+  alles terug zoals het was.
+- **Meekijken met de ander** — klapt de voortgang van het andere profiel open: streak,
+  afgelopen sessies en kilometers per week. Puur om te kijken: **loggen kan alleen voor
+  jezelf.**
+
 Progressie en gewichtsadvies worden altijd over precies één gebruiker berekend. Dat zit in
 de vorm van de data: de logica krijgt een `UserState` en kan de ander domweg niet zien. De
 enige actie die buiten je eigen gebruiker komt is "wie ben je".
@@ -379,6 +384,28 @@ en de enige back-up.
   ouder is dan 30 dagen (of er nog nooit een was). Zonder export ben je bij het wissen van
   je browserdata alles kwijt.
 
+### Gegevens wissen
+
+Wissen is de enige actie die niet terug te draaien is en staat daarom apart onderaan
+Instellingen, in een dichtgeklapte sectie **Gegevensbeheer**.
+
+- **Pincode** — vier cijfers, in te stellen en te wijzigen in diezelfde sectie (wijzigen
+  vraagt de oude code en de nieuwe twee keer). Zonder ingestelde code kan er niets gewist
+  worden; de eerste keer dat je op de wisknop tikt vraagt de app er een in te stellen. Dit
+  is **misklikbeveiliging, geen echte beveiliging**: de code staat leesbaar in
+  `localStorage`, net als de rest van de gegevens. Hij is er tegen een verdwaalde tik, niet
+  tegen iemand die je telefoon in handen heeft.
+- **De dialoog** toont eerst wat er verdwijnt: aantal gelogde krachtsessies,
+  hardloopsessies en losse activiteiten, en de datum van de oudste log. Is er nooit
+  geëxporteerd of is de laatste export ouder dan 7 dagen, dan staat er bovenaan een
+  waarschuwing met een knop **Eerst exporteren** die de download meteen start.
+- **De bevestigknop blijft uit** tot de juiste pincode ingevuld is. Na drie foute codes
+  sluit de dialoog en is wissen 60 seconden geblokkeerd; die blokkade zit op moduleniveau
+  (`src/logic/wipeGuard.ts`), dus opnieuw openen helpt niet.
+- **Alleen het actieve profiel** wordt gewist, tenzij je in de dialoog aanvinkt dat het
+  andere profiel ook mee moet. Na afloop staat het toestel weer op de eerste-start-keuze
+  in plaats van op een leeg scherm. De pincode blijft staan: die hoort bij het toestel.
+
 Er was tot v8 een Firestore-sync per huishoudcode. Die is eruit, inclusief de
 firebase-dependency, de web-config en `firestore.rules`; migratie v8 → v9 ruimt de
 huishoudcode en de synctijdstempels op uit bestaande data. Het Firebase-project
@@ -386,7 +413,7 @@ huishoudcode en de synctijdstempels op uit bestaande data. Het Firebase-project
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **9**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **10**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -433,6 +460,9 @@ Bestaande stappen:
   twee toestellen bepaalden wie won (`updatedAt`, en het Firestore-veld `bijgewerkt`).
   Sessies, loops, activiteiten, instellingen, wie je bent en welke gebruikers er zijn
   blijven onaangeroerd.
+- **v9 → v10** — één veld erbij: `pin`, de viercijferige code voor het wissen van
+  gegevens. Bestaande data krijgt `null`, en dan is wissen simpelweg niet mogelijk tot er
+  in de instellingen een code is ingesteld. Verder verandert er niets.
 
 Niet elke toevoeging heeft een stap nodig. Het warming-upblok (`warmup` op het sessielog)
 en de eigen oefeningvolgorde (`order` op de dagoverride) zijn allebei optioneel: ontbreken
@@ -466,6 +496,7 @@ src/
   logic/barWeight.ts  stanggewicht: schijven invullen, totaal opslaan
   logic/dumbbell.ts   de dumbbell-conventie en het dumbbellrek op één plek
   logic/band.ts       bandniveaus: kleuren, grenzen en labels
+  logic/wipeGuard.ts  pincode en pogingenteller voor het wissen
   logic/load.ts       hoe de belasting boven een invoerveld heet
   data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
   store/store.ts      localStorage-store, export/import
@@ -477,5 +508,6 @@ src/
   components/Activities.tsx  invoer en weergave van losse activiteiten
   components/MoveSheet.tsx   dagkeuze bij verplaatsen, gedeeld door Vandaag en Week
   screens/            Welkom, Vandaag, Sessie, Week, Voortgang, Meekijken, Instellingen
+                      (Meekijken zit onder Instellingen → Profiel, niet in de onderbalk)
 tests/                vitest-suite, draait zonder browser
 ```

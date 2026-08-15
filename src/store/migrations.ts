@@ -283,6 +283,18 @@ function v8_to_v9(state: RawState): RawState {
   return { ...rest, users: next }
 }
 
+/**
+ * v9 -> v10: er komt één veld bij, `pin`: de viercijferige code die "alles wissen"
+ * achter een drempel zet. Bestaande data heeft hem niet en krijgt `null` — dan is
+ * wissen simpelweg niet mogelijk tot er in de instellingen een code is ingesteld.
+ *
+ * Verder verandert er niets: gebruikers, historie en instellingen blijven zoals ze zijn.
+ */
+function v9_to_v10(state: RawState): RawState {
+  const pin = typeof state.pin === 'string' && /^[0-9]{4}$/.test(state.pin) ? state.pin : null
+  return { ...state, pin }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
@@ -292,6 +304,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   6: v6_to_v7,
   7: v7_to_v8,
   8: v8_to_v9,
+  9: v9_to_v10,
 }
 
 /**

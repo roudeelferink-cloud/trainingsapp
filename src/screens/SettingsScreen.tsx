@@ -1,21 +1,36 @@
-import { useRef, useState } from 'react'
-import { Card, Chip, SectionTitle, Stepper, Toggle } from '../components/ui'
+import { useEffect, useRef, useState } from 'react'
+import { Card, Chip, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { TEMPLATES } from '../data/plan'
 import { programById } from '../data/programs'
-import { exportReminder, proteinGoal } from '../logic/stats'
+import { dataSummary, exportReminder, exportWarning, proteinGoal } from '../logic/stats'
+import { formatShort } from '../logic/dates'
+import {
+  MAX_ATTEMPTS,
+  PIN_LENGTH,
+  blockSecondsLeft,
+  canConfirm,
+  currentGuard,
+  isValidPin,
+  registerAttempt,
+  sanitizePin,
+} from '../logic/wipeGuard'
+import { OtherScreen } from './OtherScreen'
 import * as A from '../store/actions'
 import {
+  changePin,
   defaultState,
   exportJSON,
+  hasPin,
   importJSON,
-  resetState,
   SCHEMA_VERSION,
   setCurrentUser,
+  setPin,
   setUserName,
   useRoot,
   useStore,
+  wipeUsers,
 } from '../store/store'
 import { normalizeSettings } from '../store/settings'
 import type { LoadArea, Sensitivity, UserState } from '../types'
@@ -51,24 +66,28 @@ function safeUser(user: UserState | undefined | null): UserState {
   }
 }
 
+/** Downloadt de volledige export. Ook de wisdialoog gebruikt dit. */
+function downloadExport(): void {
+  const blob = new Blob([exportJSON()], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `trainingsapp-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function SettingsScreen() {
   const state = safeUser(useStore())
   const settings = state.settings
   const [newItem, setNewItem] = useState('')
   const [message, setMessage] = useState<string | null>(null)
-  const [confirmReset, setConfirmReset] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const goal = proteinGoal(state)
   const reminder = exportReminder(state)
 
   function doExport() {
-    const blob = new Blob([exportJSON()], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `trainingsapp-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadExport()
     setMessage('Export gedownload. De herinnering staat weer op 30 dagen.')
   }
 
@@ -85,8 +104,6 @@ export function SettingsScreen() {
       {message && (
         <div className="rounded-xl bg-ink-700 border border-ink-600 p-3 text-sm">{message}</div>
       )}
-
-      <ProfielCard />
 
       <Card>
         <SectionTitle>Lichaamsgewicht</SectionTitle>
@@ -270,67 +287,44 @@ export function SettingsScreen() {
         </div>
       </Card>
 
-      <Card>
-        <SectionTitle>Reset</SectionTitle>
-        {confirmReset ? (
-          <div className="space-y-2">
-            <p className="text-sm text-rose-300">
-              Alles wissen: historie, instellingen en voortgang. Dit kan niet ongedaan gemaakt worden.
-            </p>
-            <button
-              className="btn w-full bg-rose-500 text-ink-900"
-              onClick={() => {
-                resetState()
-                setConfirmReset(false)
-                setMessage('Alles gewist.')
-              }}
-            >
-              Ja, wis alles
-            </button>
-            <button className="btn-quiet w-full" onClick={() => setConfirmReset(false)}>
-              Annuleren
-            </button>
-          </div>
-        ) : (
-          <button className="btn-quiet w-full" onClick={() => setConfirmReset(true)}>
-            Alles wissen
-          </button>
-        )}
-        <p className="text-xs text-slate-500 mt-3">
-          Startdatum programma: {state.startDate}. Alles blijft lokaal op dit toestel.
-        </p>
-      </Card>
+      <p className="text-xs text-slate-500 px-1">
+        Startdatum programma: {state.startDate}. Alles blijft lokaal op dit toestel.
+      </p>
+
+      <ProfielCard />
+
+      <GegevensbeheerCard />
     </div>
   )
 }
 
-/** Wie dit toestel gebruikt, en hoe die persoon heet. */
+/**
+ * Wie dit toestel gebruikt, en hoe die persoon heet.
+ *
+ * Wisselen is geen dagelijkse handeling meer — het staat daarom hier onderaan en niet
+ * in de onderbalk. Het zet alleen om wie je ziet en voor wie je logt: de gegevens van
+ * beide profielen blijven staan waar ze staan.
+ */
 function ProfielCard() {
   const root = useRoot()
   const [naam, setNaam] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
+  const [wisselen, setWisselen] = useState(false)
+  const [meekijken, setMeekijken] = useState(false)
 
   const users = Object.values(root.users ?? {})
   const huidige = root.users?.[root.currentUser]
+  const ander = users.find((u) => u.id !== root.currentUser)
 
   return (
     <Card>
-      <SectionTitle>Wie ben je?</SectionTitle>
+      <SectionTitle right={<Chip tone="off">dit toestel</Chip>}>Profiel</SectionTitle>
 
-      <div className="grid grid-cols-2 gap-2 mb-1">
-        {users.map((u) => (
-          <button
-            key={u.id}
-            onClick={() => setCurrentUser(u.id)}
-            className={`btn btn-sm ${
-              u.id === root.currentUser ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-            }`}
-          >
-            {u.naam}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-slate-400 mb-3">
+      <p className="text-sm text-slate-300">
+        <b>{huidige?.naam ?? 'Niemand'}</b>
+        {huidige && ` — ${programById(huidige.programId).naam}`}
+      </p>
+      <p className="text-xs text-slate-400 mt-1 mb-3">
         {huidige ? programById(huidige.programId).omschrijving : 'Kies wie dit toestel gebruikt.'}
       </p>
 
@@ -356,11 +350,406 @@ function ProfielCard() {
         </button>
       </div>
       {msg && <p className="text-sm text-slate-300 mt-2">{msg}</p>}
-      <p className="text-xs text-slate-500 mt-3">
-        Beide gebruikers staan los van elkaar op dit toestel: eigen schema, eigen logs en eigen
-        instellingen. Wisselen verandert alleen wie je ziet en voor wie je logt.
-      </p>
+
+      <div className="mt-4 pt-3 border-t border-ink-700 space-y-2">
+        {wisselen ? (
+          <>
+            <p className="text-sm text-slate-400">
+              Wie gebruikt dit toestel vanaf nu? Er wordt niets gewist: de gegevens van allebei
+              blijven staan en je kunt altijd terugwisselen.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {users.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => {
+                    setCurrentUser(u.id)
+                    setWisselen(false)
+                    setMeekijken(false)
+                    setMsg(`Dit toestel staat nu op ${u.naam}.`)
+                  }}
+                  className={`btn btn-sm ${
+                    u.id === root.currentUser
+                      ? 'bg-accent text-ink-900'
+                      : 'bg-ink-700 border border-ink-600'
+                  }`}
+                >
+                  {u.naam}
+                </button>
+              ))}
+            </div>
+            <button className="btn-quiet btn-sm w-full" onClick={() => setWisselen(false)}>
+              Annuleren
+            </button>
+          </>
+        ) : (
+          <button className="btn-quiet btn-sm w-full" onClick={() => setWisselen(true)}>
+            Ander profiel gebruiken
+          </button>
+        )}
+
+        {ander && (
+          <button className="btn-quiet btn-sm w-full" onClick={() => setMeekijken((v) => !v)}>
+            {meekijken ? 'Meekijken sluiten' : `Meekijken met ${ander.naam}`}
+          </button>
+        )}
+      </div>
+
+      {meekijken && (
+        <div className="mt-4 pt-4 border-t border-ink-700">
+          <OtherScreen />
+        </div>
+      )}
     </Card>
+  )
+}
+
+/**
+ * Gegevensbeheer: de enige plek waar gegevens verdwijnen.
+ *
+ * Staat onderaan, apart van de rest en standaard dichtgeklapt — wissen is geen
+ * instelling maar een ingreep. De pincode ervoor is misklikbeveiliging, geen echte
+ * beveiliging: hij staat leesbaar in localStorage. Zie `src/logic/wipeGuard.ts`.
+ */
+function GegevensbeheerCard() {
+  const root = useRoot()
+  const state = safeUser(useStore())
+  const [open, setOpen] = useState(false)
+  const [wissen, setWissen] = useState(false)
+  const [pinVorm, setPinVorm] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [seconden, setSeconden] = useState(() => blockSecondsLeft(currentGuard()))
+
+  // tijdens een blokkade elke seconde bijwerken, zodat de teller echt loopt
+  useEffect(() => {
+    if (seconden <= 0) return
+    const t = setInterval(() => setSeconden(blockSecondsLeft(currentGuard())), 1000)
+    return () => clearInterval(t)
+  }, [seconden])
+
+  const geblokkeerd = seconden > 0
+  const pinGezet = hasPin()
+
+  function probeerWissen() {
+    if (geblokkeerd) return
+    if (!pinGezet) {
+      setPinVorm(true)
+      setMsg('Stel eerst een pincode in. Zonder code kan er niets gewist worden.')
+      return
+    }
+    setMsg(null)
+    setWissen(true)
+  }
+
+  return (
+    <div className="mt-8 pt-5 border-t-2 border-ink-700">
+      <button
+        className="w-full flex items-center justify-between gap-2 py-2 px-1 text-left"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>
+          <span className="block font-bold text-slate-300">Gegevensbeheer</span>
+          <span className="block text-xs text-slate-500">
+            Pincode en het wissen van gegevens. Dichtgeklapt, want hier gaat het mis.
+          </span>
+        </span>
+        <span className="text-slate-500 text-lg shrink-0" aria-hidden>
+          {open ? '▴' : '▾'}
+        </span>
+      </button>
+
+      {open && (
+        <Card className="mt-2">
+          <PincodeVorm
+            open={pinVorm}
+            onOpen={() => setPinVorm(true)}
+            onClose={() => setPinVorm(false)}
+            onDone={(t) => {
+              setPinVorm(false)
+              setMsg(t)
+            }}
+          />
+
+          <div className="mt-4 pt-4 border-t border-ink-700">
+            <p className="text-sm text-slate-400 mb-2">
+              Wissen kan niet ongedaan gemaakt worden en geldt voor {state.naam}, tenzij je in de
+              dialoog aangeeft dat het andere profiel ook mee moet.
+            </p>
+            <button
+              className="btn w-full bg-rose-500/90 text-ink-900 disabled:opacity-40"
+              disabled={geblokkeerd}
+              onClick={probeerWissen}
+            >
+              Gegevens wissen
+            </button>
+            {geblokkeerd && (
+              <p className="text-sm text-rose-300 mt-2" role="alert">
+                Te vaak een verkeerde pincode. Nog {seconden} seconden geblokkeerd.
+              </p>
+            )}
+            {msg && <p className="text-sm text-slate-300 mt-2">{msg}</p>}
+          </div>
+        </Card>
+      )}
+
+      <WisDialoog
+        open={wissen}
+        onClose={() => setWissen(false)}
+        onBlocked={() => {
+          setWissen(false)
+          setSeconden(blockSecondsLeft(currentGuard()))
+        }}
+        onDone={(t) => {
+          setWissen(false)
+          setMsg(t)
+        }}
+        gebruikerId={root.currentUser}
+      />
+    </div>
+  )
+}
+
+/** Pincode instellen of wijzigen. Wijzigen kan alleen met de oude code erbij. */
+function PincodeVorm({
+  open,
+  onOpen,
+  onClose,
+  onDone,
+}: {
+  open: boolean
+  onOpen: () => void
+  onClose: () => void
+  onDone: (bericht: string) => void
+}) {
+  const [oud, setOud] = useState('')
+  const [nieuw, setNieuw] = useState('')
+  const [herhaal, setHerhaal] = useState('')
+  const [fout, setFout] = useState<string | null>(null)
+  const gezet = hasPin()
+
+  function opslaan() {
+    if (!isValidPin(nieuw)) return setFout(`Een pincode is ${PIN_LENGTH} cijfers.`)
+    if (nieuw !== herhaal) return setFout('De twee nieuwe codes zijn niet gelijk.')
+    const ok = gezet ? changePin(oud, nieuw) : setPin(nieuw)
+    if (!ok) return setFout('De oude pincode klopt niet.')
+    setOud('')
+    setNieuw('')
+    setHerhaal('')
+    setFout(null)
+    onDone(gezet ? 'Pincode gewijzigd.' : 'Pincode ingesteld.')
+  }
+
+  if (!open) {
+    return (
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm">
+          Pincode
+          <span className="block text-xs text-slate-500">
+            {gezet ? 'Ingesteld' : 'Nog niet ingesteld — wissen is nu niet mogelijk'}
+          </span>
+        </span>
+        <button className="btn-quiet btn-sm shrink-0" onClick={onOpen}>
+          {gezet ? 'Wijzigen' : 'Instellen'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="label">{gezet ? 'Pincode wijzigen' : 'Pincode instellen'}</p>
+      {gezet && (
+        <PinInput label="Oude pincode" value={oud} onChange={setOud} />
+      )}
+      <PinInput label="Nieuwe pincode" value={nieuw} onChange={setNieuw} />
+      <PinInput label="Nieuwe pincode herhalen" value={herhaal} onChange={setHerhaal} />
+      {fout && (
+        <p className="text-sm text-rose-300" role="alert">
+          {fout}
+        </p>
+      )}
+      <p className="text-xs text-slate-500">
+        De code staat gewoon op dit toestel opgeslagen. Hij is er tegen een misklik, niet
+        tegen iemand die je telefoon in handen heeft.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button className="btn-ghost btn-sm" onClick={opslaan}>
+          Opslaan
+        </button>
+        <button className="btn-quiet btn-sm" onClick={onClose}>
+          Annuleren
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PinInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div>
+      <p className="label mb-0.5">{label}</p>
+      <input
+        className="field font-mono tracking-[0.4em] text-center"
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        aria-label={label}
+        placeholder={'0'.repeat(PIN_LENGTH)}
+        value={value}
+        onChange={(e) => onChange(sanitizePin(e.target.value))}
+      />
+    </div>
+  )
+}
+
+/**
+ * De wisdialoog. Toont eerst wat er precies verdwijnt, dan pas de pincode. De
+ * bevestigknop blijft uit tot de juiste code er staat; drie fouten sluiten de dialoog
+ * en zetten de actie een minuut op slot.
+ *
+ * Geëxporteerd zodat de test hem los kan renderen; in de app komt hij alleen via
+ * Gegevensbeheer op het scherm.
+ */
+export function WisDialoog({
+  open,
+  onClose,
+  onBlocked,
+  onDone,
+  gebruikerId,
+}: {
+  open: boolean
+  onClose: () => void
+  onBlocked: () => void
+  onDone: (bericht: string) => void
+  gebruikerId: string
+}) {
+  const root = useRoot()
+  const state = safeUser(useStore())
+  const [code, setCode] = useState('')
+  const [ookAnder, setOokAnder] = useState(false)
+  const [fout, setFout] = useState<string | null>(null)
+
+  const ander = Object.values(root.users ?? {}).find((u) => u.id !== gebruikerId)
+  const samenvatting = dataSummary(state)
+  const waarschuwing = exportWarning(state)
+  const codeOk = canConfirm(root.pin, code)
+
+  function controleer(waarde: string) {
+    setCode(waarde)
+    setFout(null)
+    if (!isValidPin(waarde)) return
+
+    const res = registerAttempt(root.pin, waarde)
+    if (res.ok) return
+    setCode('')
+    if (res.blocked) {
+      setFout(null)
+      onBlocked()
+      return
+    }
+    setFout(`Verkeerde pincode. Nog ${res.left} ${res.left === 1 ? 'poging' : 'pogingen'}.`)
+  }
+
+  function wis() {
+    if (!codeOk) return
+    const ids = ookAnder && ander ? [gebruikerId, ander.id] : [gebruikerId]
+    wipeUsers(ids)
+    setCode('')
+    setOokAnder(false)
+    onDone('Gegevens gewist. Kies wie dit toestel gebruikt.')
+  }
+
+  if (!open) return null
+
+  return (
+    <Sheet open onClose={onClose} title="Gegevens wissen">
+      <div className="space-y-3">
+        {waarschuwing && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+            <p className="text-sm font-semibold text-amber-200">
+              {waarschuwing} Hierna is deze historie weg.
+            </p>
+            <button className="btn-ghost btn-sm w-full mt-2" onClick={downloadExport}>
+              Eerst exporteren
+            </button>
+          </div>
+        )}
+
+        <div className="rounded-xl bg-ink-900 border border-ink-600 p-3">
+          <p className="text-sm font-semibold mb-1">Dit verdwijnt van {state.naam}:</p>
+          <ul className="text-sm text-slate-300 space-y-0.5 tabular-nums">
+            <li>{samenvatting.sessions} gelogde krachtsessies</li>
+            <li>{samenvatting.runs} hardloopsessies</li>
+            <li>{samenvatting.activities} losse activiteiten</li>
+            <li>
+              {samenvatting.oldest
+                ? `oudste log: ${formatShort(samenvatting.oldest)}`
+                : 'nog geen logs'}
+            </li>
+          </ul>
+          <p className="text-xs text-slate-500 mt-2">
+            Ook de instellingen en streefgewichten van dit profiel gaan mee.
+          </p>
+        </div>
+
+        {ander && (
+          <button
+            className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
+            onClick={() => setOokAnder((v) => !v)}
+            role="checkbox"
+            aria-checked={ookAnder}
+          >
+            <span
+              className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
+                ookAnder ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
+              }`}
+              aria-hidden
+            >
+              ✓
+            </span>
+            <span className="text-sm">
+              Ook het profiel van {ander.naam} wissen
+              <span className="block text-xs text-slate-500">
+                Standaard blijft dat staan; alleen {state.naam} wordt gewist.
+              </span>
+            </span>
+          </button>
+        )}
+
+        <div>
+          <PinInput label="Pincode" value={code} onChange={controleer} />
+          {fout && (
+            <p className="text-sm text-rose-300 mt-1" role="alert">
+              {fout}
+            </p>
+          )}
+          <p className="text-xs text-slate-500 mt-1">
+            De knop hieronder gaat pas aan bij de juiste code. Na {MAX_ATTEMPTS} fouten sluit dit
+            venster en is wissen een minuut geblokkeerd.
+          </p>
+        </div>
+
+        <button
+          className="btn w-full bg-rose-500 text-ink-900 disabled:opacity-40"
+          disabled={!codeOk}
+          onClick={wis}
+        >
+          Definitief wissen
+        </button>
+        <button className="btn-quiet w-full" onClick={onClose}>
+          Annuleren
+        </button>
+      </div>
+    </Sheet>
   )
 }
 
