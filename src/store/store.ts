@@ -4,7 +4,7 @@ import { mondayOf, today } from '../logic/dates'
 import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
@@ -37,7 +37,6 @@ export function defaultUser(id: string, naam: string, programId: ProgramId): Use
     exerciseState: {},
     notices: [],
     lastExportAt: null,
-    updatedAt: null,
   }
 }
 
@@ -49,7 +48,6 @@ export function defaultState(): UserState {
 export function defaultRoot(): AppState {
   return {
     schemaVersion: SCHEMA_VERSION,
-    household: '',
     currentUser: '',
     users: Object.fromEntries(
       USER_SEEDS.map((u) => [u.id, defaultUser(u.id, u.naam, u.programId)]),
@@ -89,7 +87,6 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     exerciseState: s.exerciseState ?? {},
     notices: Array.isArray(s.notices) ? s.notices : [],
     lastExportAt: typeof s.lastExportAt === 'string' ? s.lastExportAt : null,
-    updatedAt: typeof s.updatedAt === 'string' ? s.updatedAt : null,
   }
 }
 
@@ -112,12 +109,9 @@ export function migrate(raw: unknown): AppState {
     users[seed.id] = migrateUser(rawUsers[seed.id], seed.id, seed.naam, seed.programId)
   }
 
-  const household = typeof s.household === 'string' && /^[0-9a-f]{16}$/.test(s.household)
-    ? s.household
-    : ''
   const currentUser = typeof s.currentUser === 'string' && users[s.currentUser] ? s.currentUser : ''
 
-  return { schemaVersion: SCHEMA_VERSION, household, currentUser, users }
+  return { schemaVersion: SCHEMA_VERSION, currentUser, users }
 }
 
 /* ---------------- opslag ---------------- */
@@ -134,8 +128,6 @@ function load(): AppState {
 
 let root: AppState = load()
 const listeners = new Set<() => void>()
-/** Wordt door de synclaag gezet; krijgt elke lokale wijziging binnen. */
-let onLocalChange: ((userId: string, user: UserState) => void) | null = null
 
 function emit() {
   for (const l of listeners) l()
@@ -176,36 +168,9 @@ export function getUser(id: string): UserState | null {
  */
 export function setState(updater: (s: UserState) => UserState): void {
   const id = currentUserId()
-  const next = { ...updater(root.users[id]), id, updatedAt: new Date().toISOString() }
-  root = { ...root, users: { ...root.users, [id]: next } }
+  root = { ...root, users: { ...root.users, [id]: { ...updater(root.users[id]), id } } }
   persist()
   emit()
-  onLocalChange?.(id, next)
-}
-
-/**
- * Alleen voor de synclaag: staat van de ander overnemen zonder terug te pushen.
- *
- * Dit is de enige plek waar data binnenkomt die niet langs `migrate()` is geweest: het
- * andere toestel kan een oudere versie draaien en dus instellingen sturen zonder de
- * velden die deze versie kent. Daarom gaan ze hier alsnog door de normalisatie.
- */
-export function applyRemoteUser(id: string, user: UserState): void {
-  if (!root.users[id]) return
-  root = {
-    ...root,
-    users: {
-      ...root.users,
-      // de lokale instellingen als terugval: een half document wist niets
-      [id]: { ...user, id, settings: normalizeSettings(user.settings, root.users[id].settings) },
-    },
-  }
-  persist()
-  emit()
-}
-
-export function setLocalChangeHandler(fn: ((userId: string, user: UserState) => void) | null): void {
-  onLocalChange = fn
 }
 
 export function replaceRoot(next: AppState): void {
@@ -226,12 +191,6 @@ export function resetState(): void {
   replaceRoot(defaultRoot())
 }
 
-export function setHousehold(code: string): void {
-  const clean = code.trim().toLowerCase()
-  if (!/^[0-9a-f]{16}$/.test(clean)) return
-  replaceRoot({ ...root, household: clean })
-}
-
 export function setCurrentUser(id: string): void {
   if (!root.users[id]) return
   replaceRoot({ ...root, currentUser: id })
@@ -240,18 +199,9 @@ export function setCurrentUser(id: string): void {
 export function setUserName(id: string, naam: string): void {
   const clean = naam.trim()
   if (!root.users[id] || !clean) return
-  const next = { ...root.users[id], naam: clean, updatedAt: new Date().toISOString() }
-  root = { ...root, users: { ...root.users, [id]: next } }
+  root = { ...root, users: { ...root.users, [id]: { ...root.users[id], naam: clean } } }
   persist()
   emit()
-  onLocalChange?.(id, next)
-}
-
-/** 16 hex-tekens, zoals de huishoudcode van camper-app. */
-export function randomHouseholdCode(): string {
-  const bytes = new Uint8Array(8)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 function subscribe(cb: () => void) {
@@ -266,7 +216,7 @@ export function useStore(): UserState {
   return useSyncExternalStore(subscribe, getState, getState)
 }
 
-/** De volledige staat (huishouden, wie je bent, beide gebruikers), reactief. */
+/** De volledige staat (wie je bent en beide gebruikers), reactief. */
 export function useRoot(): AppState {
   return useSyncExternalStore(subscribe, getRoot, getRoot)
 }
@@ -300,11 +250,7 @@ export function importJSON(text: string): { ok: true } | { ok: false; error: str
   }
   // ouder bestand: migrate() hoogt het op naar de huidige versie
   const next = migrate(parsed)
-  // een import zonder huishoudcode mag de koppeling van dit toestel niet wissen
-  replaceRoot({
-    ...next,
-    household: next.household || root.household,
-    currentUser: next.currentUser || root.currentUser,
-  })
+  // een bestand zonder gekozen gebruiker mag de keuze van dit toestel niet wissen
+  replaceRoot({ ...next, currentUser: next.currentUser || root.currentUser })
   return { ok: true }
 }

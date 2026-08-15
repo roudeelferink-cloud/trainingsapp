@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
 import { OtherScreen } from './screens/OtherScreen'
@@ -8,7 +8,6 @@ import { SettingsScreen } from './screens/SettingsScreen'
 import { Today } from './screens/Today'
 import { WeekScreen } from './screens/WeekScreen'
 import { useRoot } from './store/store'
-import { initSync } from './store/sync'
 import type { DayKind } from './types'
 
 type Tab = 'vandaag' | 'week' | 'voortgang' | 'ander' | 'instellingen'
@@ -17,11 +16,7 @@ export default function App() {
   const root = useRoot()
   const [tab, setTab] = useState<Tab>('vandaag')
   const [session, setSession] = useState<{ date: string; kind: DayKind } | null>(null)
-  const klaar = !!root.household && !!root.currentUser
-
-  useEffect(() => {
-    if (klaar) void initSync()
-  }, [klaar])
+  const klaar = !!root.currentUser
 
   const open = (date: string, kind: DayKind) => setSession({ date, kind })
 

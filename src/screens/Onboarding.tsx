@@ -1,38 +1,22 @@
 import { useState } from 'react'
 import { Card } from '../components/ui'
 import { programById } from '../data/programs'
-import {
-  USER_SEEDS,
-  randomHouseholdCode,
-  setCurrentUser,
-  setHousehold,
-  useRoot,
-} from '../store/store'
+import { USER_SEEDS, setCurrentUser, useRoot } from '../store/store'
 
 /**
- * Eerste start: welke huishoudcode en wie ben je. Beide worden lokaal onthouden
- * en zijn later te wijzigen bij Instellingen. Geen account, geen wachtwoord — de
- * code is het gedeelde geheim tussen de twee toestellen.
+ * Eerste start: wie ben je. Die keuze wordt lokaal onthouden en is later te wijzigen
+ * bij Instellingen. Geen account, geen code, geen cloud — alles staat op dit toestel.
  */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const root = useRoot()
-  const [code, setCode] = useState(root.household)
   const [user, setUser] = useState(root.currentUser)
   const [error, setError] = useState<string | null>(null)
 
-  const clean = code.trim().toLowerCase()
-  const codeOk = /^[0-9a-f]{16}$/.test(clean)
-
   function start() {
-    if (!codeOk) {
-      setError('Een huishoudcode is 16 tekens: de cijfers 0-9 en de letters a-f.')
-      return
-    }
     if (!user) {
       setError('Kies wie je bent.')
       return
     }
-    setHousehold(clean)
     setCurrentUser(user)
     onDone()
   }
@@ -42,43 +26,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <div>
         <h1 className="text-2xl font-bold">Welkom</h1>
         <p className="text-slate-400 mt-1">
-          Twee dingen instellen, daarna kun je loggen. Allebei later te wijzigen bij Instellingen.
+          Eén ding instellen, daarna kun je loggen. Later te wijzigen bij Instellingen.
         </p>
       </div>
 
       <Card>
-        <h2 className="font-bold mb-1">1 · Huishoudcode</h2>
-        <p className="text-sm text-slate-400 mb-3">
-          Dezelfde code op beide toestellen betekent: dezelfde gedeelde gegevens. Heeft de ander al
-          een code, neem die dan over. Anders maak je er hier een.
-        </p>
-        <input
-          className="field font-mono"
-          value={code}
-          inputMode="text"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          placeholder="16 tekens"
-          aria-label="Huishoudcode"
-          onChange={(e) => {
-            setCode(e.target.value)
-            setError(null)
-          }}
-        />
-        <button
-          className="btn-ghost btn-sm w-full mt-2"
-          onClick={() => {
-            setCode(randomHouseholdCode())
-            setError(null)
-          }}
-        >
-          Nieuwe code maken
-        </button>
-      </Card>
-
-      <Card>
-        <h2 className="font-bold mb-1">2 · Wie ben je?</h2>
+        <h2 className="font-bold mb-1">Wie ben je?</h2>
         <p className="text-sm text-slate-400 mb-3">
           Je logt alleen voor jezelf. De voortgang van de ander kun je wel bekijken.
         </p>
@@ -116,9 +69,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       </button>
 
       <p className="text-xs text-slate-500">
-        Je gegevens staan op dit toestel en onder deze code in de cloud, zodat je ze op je telefoon
-        én tablet hebt. Zonder internet werkt alles gewoon door; het synct zodra je weer verbinding
-        hebt.
+        Alles blijft op dit toestel staan: er gaat niets naar internet en er is geen account
+        nodig. Naar een ander toestel verhuizen gaat via Exporteer alles bij Instellingen, en daar
+        het bestand importeren.
       </p>
     </div>
   )

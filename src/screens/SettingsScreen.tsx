@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Card, Chip, SectionTitle, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
@@ -13,13 +13,11 @@ import {
   resetState,
   SCHEMA_VERSION,
   setCurrentUser,
-  setHousehold,
   setUserName,
   useRoot,
   useStore,
 } from '../store/store'
 import { normalizeSettings } from '../store/settings'
-import { connectHousehold, syncInfo, watchSync, type SyncInfo } from '../store/sync'
 import type { LoadArea, Sensitivity, UserState } from '../types'
 
 const AREAS: LoadArea[] = [
@@ -40,8 +38,8 @@ const SENS_LABEL: Record<Sensitivity, string> = {
 
 /**
  * Een gebruiker waar dit scherm veilig op kan lezen. De store levert genormaliseerde
- * instellingen aan, maar het scherm gaat daar niet vanuit: een half opgeslagen of
- * binnengesynct object mag hooguit een standaardwaarde tonen, nooit het hele scherm
+ * instellingen aan, maar het scherm gaat daar niet vanuit: een half opgeslagen object
+ * of een oude JSON-export mag hooguit een standaardwaarde tonen, nooit het hele scherm
  * zwart maken.
  */
 function safeUser(user: UserState | undefined | null): UserState {
@@ -88,7 +86,7 @@ export function SettingsScreen() {
         <div className="rounded-xl bg-ink-700 border border-ink-600 p-3 text-sm">{message}</div>
       )}
 
-      <HouseholdCard />
+      <ProfielCard />
 
       <Card>
         <SectionTitle>Lichaamsgewicht</SectionTitle>
@@ -246,6 +244,11 @@ export function SettingsScreen() {
             </p>
           </div>
         )}
+        <p className="text-sm text-slate-400 mb-3">
+          Alles staat op dit toestel; er gaat niets naar internet. Een export is daarmee ook de
+          enige manier om je gegevens naar een ander toestel te verplaatsen: exporteer hier, en
+          importeer het bestand daar. Een import vervangt alles wat er op dat toestel staat.
+        </p>
         <div className="space-y-2">
           <button className="btn-ghost w-full" onClick={doExport}>
             Exporteer alles
@@ -301,55 +304,19 @@ export function SettingsScreen() {
   )
 }
 
-const SYNC_LABEL: Record<SyncInfo['status'], string> = {
-  uit: 'nog niet gekoppeld',
-  starten: 'verbinden…',
-  verbonden: 'gesynchroniseerd',
-  offline: 'offline',
-  fout: 'fout',
-}
-
-/** Huishoudcode, wie je bent, en wat de sync aan het doen is. */
-function HouseholdCard() {
+/** Wie dit toestel gebruikt, en hoe die persoon heet. */
+function ProfielCard() {
   const root = useRoot()
-  const [sync, setSync] = useState<SyncInfo>(syncInfo)
-  const [code, setCode] = useState('')
   const [naam, setNaam] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
-
-  useEffect(() => watchSync(setSync), [])
 
   const users = Object.values(root.users ?? {})
   const huidige = root.users?.[root.currentUser]
 
-  function koppel() {
-    const clean = code.trim().toLowerCase()
-    if (!/^[0-9a-f]{16}$/.test(clean)) {
-      setMsg('Een code is 16 tekens: 0-9 en a-f.')
-      return
-    }
-    setHousehold(clean)
-    connectHousehold(clean)
-    setCode('')
-    setMsg('Gekoppeld. De gegevens onder deze code worden opgehaald.')
-  }
-
   return (
     <Card>
-      <SectionTitle
-        right={
-          <Chip tone={sync.status === 'fout' ? 'warn' : sync.status === 'verbonden' ? 'ok' : 'off'}>
-            {SYNC_LABEL[sync.status]}
-            {sync.pending > 0 ? ` · ${sync.pending} wacht` : ''}
-          </Chip>
-        }
-      >
-        Huishouden
-      </SectionTitle>
+      <SectionTitle>Wie ben je?</SectionTitle>
 
-      {sync.detail && <p className="text-sm text-slate-400 mb-3">{sync.detail}</p>}
-
-      <p className="label mb-1">Wie ben je?</p>
       <div className="grid grid-cols-2 gap-2 mb-1">
         {users.map((u) => (
           <button
@@ -368,7 +335,7 @@ function HouseholdCard() {
       </p>
 
       <p className="label mb-1">Jouw naam</p>
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2">
         <input
           className="field"
           placeholder={huidige?.naam ?? ''}
@@ -388,33 +355,11 @@ function HouseholdCard() {
           Opslaan
         </button>
       </div>
-
-      <p className="label mb-1">Huishoudcode</p>
-      <input
-        className="field font-mono mb-2"
-        readOnly
-        value={root.household ?? ''}
-        aria-label="Huidige huishoudcode"
-      />
-      <p className="text-xs text-slate-400 mb-2">
-        Zelfde code op het andere toestel = zelfde gedeelde gegevens. Deel hem alleen met elkaar: wie
-        de code heeft, kan erbij.
-      </p>
-      <div className="flex gap-2">
-        <input
-          className="field font-mono"
-          placeholder="Andere code"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
-        <button className="btn-ghost btn-sm shrink-0" onClick={koppel}>
-          Koppel
-        </button>
-      </div>
       {msg && <p className="text-sm text-slate-300 mt-2">{msg}</p>}
+      <p className="text-xs text-slate-500 mt-3">
+        Beide gebruikers staan los van elkaar op dit toestel: eigen schema, eigen logs en eigen
+        instellingen. Wisselen verandert alleen wie je ziet en voor wie je logt.
+      </p>
     </Card>
   )
 }

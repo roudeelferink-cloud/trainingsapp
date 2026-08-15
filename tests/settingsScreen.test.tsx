@@ -13,17 +13,15 @@ import { MON } from './helpers'
  */
 
 const KEY = 'trainingsapp.state.v1'
-const CODE = '0123456789abcdef'
 
 async function metOpgeslagenData(stored?: unknown) {
   vi.resetModules()
   localStorage.clear()
   if (stored !== undefined) localStorage.setItem(KEY, JSON.stringify(stored))
   const store = await import('../src/store/store')
-  const sync = await import('../src/store/sync')
   const { SettingsScreen } = await import('../src/screens/SettingsScreen')
   const { Today } = await import('../src/screens/Today')
-  return { store, sync, SettingsScreen, Today }
+  return { store, SettingsScreen, Today }
 }
 
 const render = (el: Parameters<typeof renderToString>[0]) =>
@@ -66,7 +64,6 @@ describe('instellingenscherm met oude of halve data', () => {
   it('rendert met ontbrekende stanggewichten en vult de standaard in', async () => {
     const { store, SettingsScreen } = await metOpgeslagenData({
       schemaVersion: 7,
-      household: CODE,
       currentUser: 'rob',
       users: {
         rob: {
@@ -97,7 +94,6 @@ describe('instellingenscherm met oude of halve data', () => {
   it('houdt één ingesteld stanggewicht overeind terwijl de rest wordt aangevuld', async () => {
     const { store } = await metOpgeslagenData({
       schemaVersion: 7,
-      household: CODE,
       currentUser: 'rob',
       users: { rob: { id: 'rob', settings: { barWeights: { smith: 7 } } } },
     })
@@ -110,7 +106,6 @@ describe('instellingenscherm met oude of halve data', () => {
   it('rendert voor een tweede gebruiker zonder eigen settings-object', async () => {
     const { store, SettingsScreen, Today } = await metOpgeslagenData({
       schemaVersion: 7,
-      household: CODE,
       currentUser: 'anouc',
       users: {
         rob: { id: 'rob', naam: 'Rob', startDate: MON },
@@ -129,18 +124,24 @@ describe('instellingenscherm met oude of halve data', () => {
     expect(render(createElement(Today, { onOpenSession: () => {} })).length).toBeGreaterThan(500)
   })
 
-  it('overleeft een half document dat binnensynct van een ouder toestel', async () => {
-    // dit was de crash in de praktijk: het andere toestel stuurde een settings-object
-    // zonder gevoelige gebieden en zonder stanggewichten, en dat verving de complete
-    // lokale instellingen
-    const { store, sync, SettingsScreen, Today } = await metOpgeslagenData(undefined)
-    const lokaal = store.getUser('rob')!
-    const binnen = sync.docToUser(
-      { settings: { bodyweightKg: 80, travelMode: false, proteinFactor: 1.8 }, updatedAt: '2030-01-01T00:00:00.000Z' },
-      lokaal,
-    )
-    store.applyRemoteUser('rob', binnen)
-    store.setCurrentUser('rob')
+  it('overleeft de import van een oude export zonder gevoelige gebieden of stanggewichten', async () => {
+    // een back-up van maanden geleden kent de velden van nu nog niet; die vult de
+    // import aan in plaats van het scherm te laten vastlopen
+    const { store, SettingsScreen, Today } = await metOpgeslagenData(undefined)
+    const oudeExport = {
+      schemaVersion: 6,
+      currentUser: 'rob',
+      users: {
+        rob: {
+          id: 'rob',
+          naam: 'Rob',
+          startDate: MON,
+          settings: { bodyweightKg: 80, travelMode: false, proteinFactor: 1.8 },
+        },
+      },
+    }
+
+    expect(store.importJSON(JSON.stringify(oudeExport)).ok).toBe(true)
 
     const settings = store.getUser('rob')!.settings
     expect(settings.sensitive.knee_deep).toBe('ok')
@@ -155,7 +156,6 @@ describe('instellingenscherm met oude of halve data', () => {
   it('rendert met onleesbare instellingen zonder de rest mee te slepen', async () => {
     const { store, SettingsScreen } = await metOpgeslagenData({
       schemaVersion: 7,
-      household: CODE,
       currentUser: 'rob',
       users: {
         rob: {

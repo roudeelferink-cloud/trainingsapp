@@ -17,17 +17,13 @@ import {
   migrate,
   resetState,
   setCurrentUser,
-  setHousehold,
   setState,
   setUserName,
 } from '../src/store/store'
 import { DI, DO, MON, VR, WO, ZA, ZO } from './helpers'
 
-const CODE = '00112233445566aa'
-
 beforeEach(() => {
   resetState()
-  setHousehold(CODE)
   setCurrentUser(ROB)
   setState((s) => ({ ...s, startDate: MON }))
 })
@@ -45,21 +41,18 @@ function logSession(iso: string, weight: number) {
   }, false, [key])
 }
 
-describe('twee gebruikers onder één huishoudcode', () => {
+describe('twee gebruikers op één toestel', () => {
   it('start met beide gebruikers, elk met een eigen programma', () => {
     const root = getRoot()
     expect(Object.keys(root.users).sort()).toEqual([ANOUC, ROB])
     expect(root.users[ROB].programId).toBe('kracht_hardlopen')
     expect(root.users[ANOUC].programId).toBe('fullbody_hardlopen')
-    expect(root.household).toBe(CODE)
   })
 
   it('laat de geselecteerde gebruiker bepalen wat je ziet', () => {
     expect(getState().id).toBe(ROB)
     setCurrentUser(ANOUC)
     expect(getState().id).toBe(ANOUC)
-    // huishouden blijft, wisselen is geen nieuwe koppeling
-    expect(getRoot().household).toBe(CODE)
   })
 
   it('houdt de naam los van het id, zodat hernoemen niets breekt', () => {
@@ -153,7 +146,6 @@ describe('data van de twee gebruikers blijft gescheiden', () => {
     const herladen = migrate(JSON.parse(opgeslagen!))
 
     expect(herladen.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(herladen.household).toBe(CODE)
     expect(herladen.currentUser).toBe(ANOUC)
     expect(herladen.users[ROB].protein[MON]).toBe(175)
     expect(herladen.users[ANOUC].protein[MON]).toBe(95)

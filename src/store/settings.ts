@@ -10,9 +10,10 @@ import type { LoadArea, MaintenanceItem, Sensitivity, Settings } from '../types'
  * schermen lezen er zonder omhaal op door (`settings.sensitive[gebied]`), dus een
  * ontbrekend veld sloopt de hele render.
  *
- * Daarom gaat alles wat van buiten binnenkomt hier eerst doorheen: de migratie, de
- * store bij het laden, en de synclaag bij een binnengekomen document. Ontbrekende of
- * onleesbare velden krijgen de standaard, ingevulde waarden blijven staan.
+ * Daarom gaat alles wat van buiten binnenkomt hier eerst doorheen: de migratie en de
+ * store bij het laden, en daarmee ook elk importbestand — een export van maanden
+ * geleden mist de velden van nu. Ontbrekende of onleesbare velden krijgen de
+ * standaard, ingevulde waarden blijven staan.
  */
 
 export const ALL_AREAS: LoadArea[] = [

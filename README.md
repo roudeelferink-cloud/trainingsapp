@@ -1,9 +1,9 @@
 # Trainingsschema
 
-PWA voor twee gebruikers, elk met een eigen trainingsschema, gedeeld binnen één
-huishouden. Offline-first, installeerbaar, donker thema. Geen accounts en geen
-wachtwoorden: een gedeelde huishoudcode koppelt de toestellen, Firestore synct en
-`localStorage` is de offline cache.
+PWA voor twee gebruikers, elk met een eigen trainingsschema, samen op één toestel.
+Offline-first, installeerbaar, donker thema. Geen accounts, geen wachtwoorden en geen
+cloud: alles staat in `localStorage` op het toestel zelf. Verhuizen naar een ander
+toestel gaat via export en import.
 
 - **Rob** — doorlopend krachtschema met nadruk op benen, naast 3x per week hardlopen.
 - **Anouc** — 2x full body (woensdag en zaterdag) van 45-60 min, naast haar eigen 3x
@@ -48,11 +48,11 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `figure.test.tsx` | elke oefening met `hasFigure` heeft twee complete hoekensets die binnen beeld blijven en foutloos renderen |
 | `startWeight.test.ts` | startgewichtadvies: met en zonder lichaamsgewicht, met en zonder vergelijkbare data, afronding, verdwijnen na de eerste set, en de verwijzingen bestaan en zijn niet circulair |
 | `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion`, aanvullen van ontbrekende instellingen in v7 → v8 |
-| `settingsScreen.test.tsx` | het instellingenscherm op data die niet uit deze versie komt: lege staat, v5-data, ontbrekende stanggewichten, een tweede gebruiker zonder settings, een half binnengesynct document en onleesbare waarden |
+| `settingsScreen.test.tsx` | het instellingenscherm op data die niet uit deze versie komt: lege staat, v5-data, ontbrekende stanggewichten, een tweede gebruiker zonder settings, de import van een oude export en onleesbare waarden |
 | `errorBoundary.test.tsx` | het vangnet rond de schermen: doorlaten als er niets misgaat, leesbare melding met de knop terug naar Vandaag, en loggen naar de console |
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
 | `users.test.ts` | twee gebruikers: eigen schema, eigen logs en instellingen, en de bevestiging dat progressie, gewichtsadvies, 1RM en weekvolume strikt per gebruiker blijven; plus het full body-schema van Anouc (dagen, duur, materiaal, rustiger opbouw, lichter startpunt) |
-| `sync.test.ts` | offline loggen en later syncen, bundelen per gebruiker, botsingen op tijdstempel, half-kapotte documenten, en de migratie van bestaande localStorage-data naar gebruiker Rob |
+| `migratie.test.ts` | opgeslagen data van eerdere versies: bestaande data naar gebruiker Rob, een v1-bestand in één keer door, herhaald migreren, kapotte gebruikersdata, en het opruimen van de syncvelden in v8 → v9 zonder de historie te raken |
 | `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, afstand en gemiddeld tempo, migratie v4 → v5, en de bevestiging dat ze de krachtprogressie, 1RM-grafiek en loopvolume niet raken |
 | `setRow.test.tsx` | de invoervelden in een setrij: minimumbreedte, 16px tekst, vaste knopbreedte en wrappen in plaats van samenknijpen — voor elke setrij van elke sessie |
 | `barWeight.test.ts` | welke oefening een stang gebruikt, het instelbare stanggewicht, schijven ↔ totaal en de migratie naar v7 |
@@ -94,22 +94,19 @@ hij als losse app en werkt hij offline. Updates worden automatisch opgehaald
 
 ## Twee gebruikers
 
-Bij de eerste start vraagt de app om twee dingen: een **huishoudcode** en **wie je bent**.
-Beide worden op het toestel onthouden en zijn later te wijzigen bij Instellingen →
-Huishouden.
+Bij de eerste start vraagt de app één ding: **wie je bent**. Die keuze wordt op het
+toestel onthouden en is later te wijzigen bij Instellingen → Wie ben je?
 
-- **Huishoudcode** — 16 tekens (0-9, a-f). Dezelfde code op beide toestellen betekent
-  dezelfde gedeelde gegevens. Nog geen code? De app maakt er een. Wie de code heeft kan
-  erbij, dus deel hem alleen met elkaar.
 - **Wie ben je** — bepaalt alles wat je ziet en logt. Elke gebruiker heeft een eigen
   schema, eigen oefeningen, eigen sessielogs, eigen hardloopregistratie, eigen losse
   activiteiten, eigen streefgewichten en eigen voortgang.
 - **Meekijken** — het tabblad met de naam van de ander toont diens streak, afgelopen
   sessies en kilometers per week. Puur om te kijken: **loggen kan alleen voor jezelf.**
 
+Beide gebruikers staan naast elkaar op hetzelfde toestel, elk met een eigen historie.
 Progressie en gewichtsadvies worden altijd over precies één gebruiker berekend. Dat zit in
 de vorm van de data: de logica krijgt een `UserState` en kan de ander domweg niet zien. De
-enige acties die buiten je eigen gebruiker komen zijn "wie ben je" en "welke huishoudcode".
+enige actie die buiten je eigen gebruiker komt is "wie ben je".
 
 ## Hoe het schema werkt
 
@@ -175,7 +172,7 @@ Elke krachtsessie ziet er hetzelfde uit: eerst warm worden, daarna van zwaar naa
 **Warming-up.** Bovenaan het sessiescherm staat een blok met 5-10 min **loopband** of
 **losfietsen** (spinningfiets). Het type is te kiezen, de duur instelbaar en het blok is
 af te vinken, net als een oefening. De keuze hoort bij die ene sessie en wordt met het
-sessielog meegeschreven, dus hij synct mee en staat er na een herlaadbeurt nog. Het
+sessielog meegeschreven, dus hij staat er na een herlaadbeurt nog. Het
 sessieoverzicht op Vandaag begint er ook mee.
 
 **Daarna de oefeningen, in deze volgorde:**
@@ -323,38 +320,30 @@ veranderen niets aan het schema of de rustdaglogica.
 
 ## Waar de data staat
 
-**Firestore is de bron van waarheid, `localStorage` is de offline cache.** Elke wijziging
-gaat eerst lokaal (onder de sleutel `trainingsapp.state.v1`) en daarna gebufferd naar de
-cloud. Zonder internet werkt alles gewoon door; wat nog niet weg is blijft in de wachtrij
-staan en gaat alsnog zodra er verbinding is. Instellingen → Huishouden toont de status en
-hoeveel er nog wacht.
+**Alles staat lokaal, in `localStorage` onder de sleutel `trainingsapp.state.v1`.** Er
+gaat niets naar internet: geen account, geen server, geen sync. Elk toestel houdt dus zijn
+eigen gebruikers en zijn eigen historie bij, en de app werkt overal offline.
 
-Opzet, gelijk aan camper-app:
+Dat betekent ook: **export is de enige manier om data tussen toestellen te verplaatsen**,
+en de enige back-up.
 
-- **Geen login.** De app meldt zich anoniem aan bij Firebase, puur zodat de rules een
-  auth-token kunnen eisen. De niet-te-raden huishoudcode is het gedeelde geheim.
-- **Eén document per gebruiker**, onder `trainingsapp/{code}/gebruikers/{id}`. Bewust geen
-  gezamenlijk document: twee toestellen die tegelijk loggen schrijven zo nooit over elkaar
-  heen, en de data van de ander kan niet in je eigen berekening belanden.
-- **Botsingen**: het jongste `updatedAt` wint, per gebruiker.
-- **Eigen Firebase-project** (`trainingsapp-c87cf`), los van de andere apps. De
-  huishoudcode van camper-app wordt hier niet hergebruikt.
+- **Exporteer alles** geeft een JSON met beide gebruikers, hun instellingen en de volledige
+  historie.
+- **Importeer** leest zo'n bestand terug en vervangt daarmee wat er op dat toestel staat.
+  Een oudere export wordt onderweg opgehoogd naar de huidige `schemaVersion`, dus een
+  back-up van maanden geleden werkt gewoon.
+- Zodra er data is, herinnert het instellingenscherm je eraan zodra de laatste export
+  ouder is dan 30 dagen (of er nog nooit een was). Zonder export ben je bij het wissen van
+  je browserdata alles kwijt.
 
-Wat er in de repo staat is de gewone Firebase web-config — geen geheim, die hoort in de
-client. De afscherming komt van `firestore.rules`.
-
-**Rules publiceren** (Firebase-console → Firestore → Rules): plak `firestore.rules` in zijn
-geheel; rules vervangen altijd het hele bestand. Zet daarnaast onder Authentication →
-Sign-in method **Anonymous** aan, anders geeft elke lees- of schrijfpoging
-`permission-denied`.
-
-Back-up blijft verstandig: **Exporteer alles** geeft een JSON met beide gebruikers,
-**Importeer** leest die terug. Sinds er data is herinnert het instellingenscherm je eraan
-zodra de laatste export ouder is dan 30 dagen (of er nog nooit een was).
+Er was tot v8 een Firestore-sync per huishoudcode. Die is eruit, inclusief de
+firebase-dependency, de web-config en `firestore.rules`; migratie v8 → v9 ruimt de
+huishoudcode en de synctijdstempels op uit bestaande data. Het Firebase-project
+`trainingsapp-c87cf` wordt door deze app niet meer gebruikt en kan in de console weg.
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **8**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **9**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -381,7 +370,7 @@ Bestaande stappen:
 - **v5 → v6** — meerdere gebruikers. Tot en met v5 was de opgeslagen staat één platte
   gebruiker, en die was van Rob: hij verhuist ongewijzigd naar `users.rob` en het toestel
   staat meteen op Rob, zodat er na de update niets verandert aan wat je ziet. Anouc komt
-  er leeg bij. De huishoudcode blijft leeg tot je hem invult bij de eerste start.
+  er leeg bij.
 - **v4 → v5** — losse activiteiten naast het schema. Oude data kent die lijst nog niet en
   krijgt een lege; bestaande sessies, loops en oefeningstanden blijven ongemoeid.
   Activiteiten uit een handgeschreven bestand worden gerepareerd: een onbekend type wordt
@@ -396,6 +385,11 @@ Bestaande stappen:
   standaard; wat er al stond blijft staan. Dit repareert data die langs de sync of een
   handgeschreven bestand binnenkwam: een `settings` zonder die velden liet het
   instellingenscherm vastlopen, en daarmee bleef er een zwart scherm over.
+- **v8 → v9** — de Firestore-sync is eruit. Wat daarvan in de data achterbleef wordt
+  opgeruimd: de gedeelde huishoudcode bovenin en per gebruiker de tijdstempels waarmee
+  twee toestellen bepaalden wie won (`updatedAt`, en het Firestore-veld `bijgewerkt`).
+  Sessies, loops, activiteiten, instellingen, wie je bent en welke gebruikers er zijn
+  blijven onaangeroerd.
 
 Niet elke toevoeging heeft een stap nodig. Het warming-upblok (`warmup` op het sessielog)
 en de eigen oefeningvolgorde (`order` op de dagoverride) zijn allebei optioneel: ontbreken
@@ -403,9 +397,9 @@ ze, dan vult de app het standaardblok en de automatische volgorde in. Oude data 
 dus niets voor nodig en `schemaVersion` blijft daarvoor gelijk.
 
 Instellingen die van buiten binnenkomen gaan altijd door `normalizeSettings`
-(`src/store/settings.ts`): bij het laden, bij een import, en bij elk document dat
-binnensynct. Een toestel dat nog een oudere versie draait kan zo geen half
-instellingenobject over de complete lokale instellingen heen zetten.
+(`src/store/settings.ts`): bij het laden én bij een import. Een export van vóór de
+gevoelige gebieden of de stanggewichten kan zo geen half instellingenobject achterlaten
+waar de schermen op vastlopen; wat ontbreekt krijgt de standaard, wat er staat blijft.
 
 ## Structuur
 
@@ -430,7 +424,6 @@ src/
   logic/dumbbell.ts   de dumbbell-conventie op één plek
   logic/load.ts       hoe de belasting boven een invoerveld heet
   data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
-  store/sync.ts       Firestore-sync per huishouden, offline wachtrij
   store/store.ts      localStorage-store, export/import
   store/settings.ts   standaardinstellingen en het heel maken van halve settings
   store/migrations.ts migratiepad tussen schemaVersions
@@ -440,6 +433,5 @@ src/
   components/Activities.tsx  invoer en weergave van losse activiteiten
   components/MoveSheet.tsx   dagkeuze bij verplaatsen, gedeeld door Vandaag en Week
   screens/            Welkom, Vandaag, Sessie, Week, Voortgang, Meekijken, Instellingen
-firestore.rules       security rules; publiceer dit bestand in zijn geheel
 tests/                vitest-suite, draait zonder browser
 ```

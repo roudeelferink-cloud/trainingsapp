@@ -267,7 +267,8 @@ export interface DayOverride {
 /**
  * Alles van één gebruiker. Dit is wat de logica leest: progressie, streefgewichten
  * en voortgang worden altijd over precies één `UserState` berekend, nooit over twee.
- * In Firestore is dit één document onder `trainingsapp/{code}/gebruikers/{id}`.
+ * Alles staat lokaal op dit toestel; verplaatsen naar een ander toestel gaat via
+ * export en import.
  */
 export interface UserState {
   /** stabiel id; blijft gelijk als de naam verandert */
@@ -303,20 +304,18 @@ export interface UserState {
   notices: { date: string; text: string }[]
   /** ISO-tijdstip van de laatste export; null = nog nooit geëxporteerd */
   lastExportAt: string | null
-  /** ISO-tijdstip van de laatste lokale wijziging; bepaalt wie wint bij sync */
-  updatedAt: string | null
 }
 
 /**
- * De volledige opgeslagen staat: welk huishouden, wie je bent, en de gebruikers.
- * Alleen de store en de synclaag werken hierop. Schermen en logica krijgen de
- * `UserState` van de geselecteerde gebruiker, zodat data van de ander per
- * constructie niet in een berekening kan meelopen.
+ * De volledige opgeslagen staat: wie dit toestel gebruikt en de gebruikers zelf.
+ * Alleen de store werkt hierop. Schermen en logica krijgen de `UserState` van de
+ * geselecteerde gebruiker, zodat data van de ander per constructie niet in een
+ * berekening kan meelopen.
+ *
+ * Deze staat is lokaal: elk toestel houdt zijn eigen gebruikers en historie bij.
  */
 export interface AppState {
   schemaVersion: number
-  /** gedeelde huishoudcode (16 hex); leeg = nog niet ingesteld */
-  household: string
   /** id van de gebruiker die dit toestel gebruikt; leeg = nog niet gekozen */
   currentUser: string
   /** gebruikersid -> gebruiker */

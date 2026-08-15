@@ -55,10 +55,23 @@ describe('schermen renderen', () => {
     expect(render(createElement(ProgressScreen)).length).toBeGreaterThan(200)
   })
 
-  it('rendert Instellingen met de back-upknoppen', () => {
+  it('rendert Instellingen met de back-upknoppen en de uitleg dat data lokaal is', () => {
     const html = render(createElement(SettingsScreen))
     expect(html).toContain('Exporteer alles')
     expect(html).toContain('Importeer')
+    // export/import is de enige weg tussen twee toestellen
+    expect(html).toContain('enige manier om je gegevens naar een ander toestel te verplaatsen')
+  })
+
+  it('laat in Instellingen wel het profiel kiezen, maar niets over koppelen of syncen', () => {
+    const html = render(createElement(SettingsScreen))
+    expect(html).toContain('Wie ben je?')
+    expect(html).toContain('Rob')
+    expect(html).toContain('Anouc')
+    expect(html).toContain('Jouw naam')
+    for (const weg of ['Huishoudcode', 'Koppel', 'gesynchroniseerd', 'huishoudcode']) {
+      expect(html, weg).not.toContain(weg)
+    }
   })
 
   it('rendert elke krachtsessie van de week met ingevulde setvelden', () => {
@@ -202,12 +215,14 @@ describe('schermen renderen', () => {
     expect(html).toContain('Loopband 5 min')
   })
 
-  it('rendert het startscherm met code en gebruikerskeuze', () => {
+  it('rendert het startscherm met alleen de gebruikerskeuze', () => {
     const html = render(createElement(Onboarding, { onDone: noop }))
-    expect(html).toContain('Huishoudcode')
     expect(html).toContain('Wie ben je?')
     expect(html).toContain('Rob')
     expect(html).toContain('Anouc')
+    // alles blijft lokaal: geen code, geen koppeling, geen cloud
+    expect(html).toContain('Alles blijft op dit toestel')
+    expect(html).not.toContain('Huishoudcode')
   })
 
   it('rendert de voortgang van de ander als kijkscherm, zonder logknoppen', () => {

@@ -173,17 +173,16 @@ function normalizeActivities(raw: unknown): unknown[] {
  * v5 -> v6: meerdere gebruikers. Tot en met v5 was de opgeslagen staat één platte
  * gebruiker; die was van Rob. Hij verhuist daarom ongewijzigd naar `users.rob`, en
  * dit toestel staat meteen op Rob ingesteld zodat er na de update niets verandert
- * aan wat je ziet. De huishoudcode blijft leeg: die vraagt de app bij de eerste
- * start, waarna Rob's historie onder die code komt te staan.
+ * aan wat je ziet.
  *
  * Er gaat niets verloren: elk veld van de oude staat gaat mee, alleen `schemaVersion`
- * schuift naar het niveau erboven.
+ * schuift naar het niveau erboven. (Deze stap zette destijds ook een huishoudcode klaar
+ * voor de sync; die is er sinds v9 niet meer.)
  */
 function v5_to_v6(state: RawState): RawState {
   if (state.users && typeof state.users === 'object') return state
   const { schemaVersion: _versie, ...user } = state
   return {
-    household: typeof state.household === 'string' ? state.household : '',
     currentUser: 'rob',
     users: { rob: { ...user, id: 'rob', naam: 'Rob', programId: 'kracht_hardlopen' } },
   }
@@ -256,6 +255,34 @@ function v7_to_v8(state: RawState): RawState {
   return { ...state, users: next }
 }
 
+/**
+ * v8 -> v9: de Firestore-sync is eruit; alles staat lokaal op dit toestel.
+ *
+ * Wat er van die sync in de opgeslagen data achterbleef, ruimen we hier op: de
+ * gedeelde huishoudcode bovenin, en per gebruiker de tijdstempels waarmee twee
+ * toestellen bepaalden wie won (`updatedAt` en het Firestore-veld `bijgewerkt`).
+ *
+ * Verder blijft alles staan. Sessies, loops, activiteiten, instellingen, wie je bent
+ * en welke gebruikers er zijn: daar raakt deze stap niets van aan. Data verplaatsen
+ * tussen toestellen gaat vanaf nu via export en import.
+ */
+function v8_to_v9(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!raw || typeof raw !== 'object') {
+      next[id] = raw
+      continue
+    }
+    const { updatedAt: _gewijzigd, bijgewerkt: _bijgewerkt, ...user } = raw as Record<string, unknown>
+    next[id] = user
+  }
+
+  const { household: _code, ...rest } = state
+  return { ...rest, users: next }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
@@ -264,6 +291,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   5: v5_to_v6,
   6: v6_to_v7,
   7: v7_to_v8,
+  8: v8_to_v9,
 }
 
 /**

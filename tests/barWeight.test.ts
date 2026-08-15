@@ -113,7 +113,6 @@ describe('opslag', () => {
   it('geeft data van vóór deze versie de standaardgewichten', () => {
     const v6 = {
       schemaVersion: 6,
-      household: '',
       currentUser: 'rob',
       users: { rob: { id: 'rob', naam: 'Rob', startDate: MON, settings: { bodyweightKg: 80 } } },
     }
