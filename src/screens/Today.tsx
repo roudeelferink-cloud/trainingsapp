@@ -6,6 +6,7 @@ import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn } from '../logic/activities'
 import { buildDay, moveTargets, type DayPlan } from '../logic/day'
 import { formatLong, formatShort, today } from '../logic/dates'
+import { warmupLabel } from '../logic/warmup'
 import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
 import * as A from '../store/actions'
@@ -367,6 +368,11 @@ function StrengthCard({
       </div>
 
       <ul className="mt-3 mb-4 space-y-1">
+        {/* de sessie begint altijd met de warming-up, dus die staat hier ook bovenaan */}
+        <li className="flex justify-between text-sm text-slate-400">
+          <span className="truncate pr-2">Warming-up</span>
+          <span className="tabular-nums shrink-0">{warmupLabel(s.warmup)}</span>
+        </li>
         {s.slots.map((r) => (
           <li key={r.slot.key} className="flex justify-between text-sm">
             <span className="truncate pr-2">

@@ -55,7 +55,9 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `setRow.test.tsx` | de invoervelden in een setrij: minimumbreedte, 16px tekst, vaste knopbreedte en wrappen in plaats van samenknijpen — voor elke setrij van elke sessie |
 | `barWeight.test.ts` | welke oefening een stang gebruikt, het instelbare stanggewicht, schijven ↔ totaal en de migratie naar v7 |
 | `dumbbell.test.ts` | de dumbbell-conventie: gewicht per dumbbell, reps per zijde, de interne ×2 in volume en advies, en de labels in de UI |
-| `moveRun.test.tsx` | loopsessies verplaatsen: ruilen, ongedaan maken, geen ketens, los van de krachtsessie, en hetzelfde voor de tweede gebruiker |
+| `moveRun.test.tsx` | loopsessies verplaatsen: ruilen, ongedaan maken, geen ketens, los van de krachtsessie, de knop per loopregel op de weekpagina, en de scheiding per gebruiker over een herlaadbeurt heen |
+| `order.test.ts` | de vaste volgorde: `orderCategory` op elke oefening, sorteren en de sjabloonvolgorde binnen een groep, geen enkele sessie die van licht naar zwaar loopt, zelf herordenen en terugzetten |
+| `warmup.test.ts` | het warming-upblok: standaardwaarde, type en duur instellen, afvinken, meeschrijven met concept en afgeronde sessie, per gebruiker, en oude logs zonder blok |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
 laden van de module.
@@ -164,6 +166,38 @@ duw- en schouderwerk loopt via kabel (chest press, laag roeien, pull-through), b
 (overhead press, abductie) of lichaamsgewicht (glute bridge, step-up, kuitheffing,
 dead bug). Leg press en smith laten zich vanaf de laagste stand belasten.
 
+## Vaste volgorde binnen een sessie
+
+Elke krachtsessie ziet er hetzelfde uit: eerst warm worden, daarna van zwaar naar licht.
+
+**Warming-up.** Bovenaan het sessiescherm staat een blok met 5-10 min **loopband** of
+**losfietsen** (spinningfiets). Het type is te kiezen, de duur instelbaar en het blok is
+af te vinken, net als een oefening. De keuze hoort bij die ene sessie en wordt met het
+sessielog meegeschreven, dus hij synct mee en staat er na een herlaadbeurt nog. Het
+sessieoverzicht op Vandaag begint er ook mee.
+
+**Daarna de oefeningen, in deze volgorde:**
+
+1. de zwaarste samengestelde beenoefening — squat, leg press, deadlift/RDL
+2. overig samengesteld werk — bankdrukken, roeien, lat pulldown, overhead press
+3. isolatie — leg extension, leg curl, biceps, kuiten
+4. romp, als afsluiter — ab roller, plank
+
+De reden staat in de app achter het `?` bij *Volgorde*: zwaar en technisch werk vóór licht
+en vermoeiend werk. Zo gaat je beste energie naar de oefeningen die je progressie bepalen
+en train je de technische bewegingen niet met een vermoeide romp — dat scheelt
+blessurerisico.
+
+De rangorde zit als veld **`orderCategory`** op de oefening zelf (`src/data/exercises.ts`),
+niet als lijstje in de UI. Een nieuwe oefening in de bibliotheek valt daardoor vanzelf op
+zijn plek, en TypeScript weigert een oefening zonder categorie. Binnen dezelfde categorie
+blijft de volgorde van het sjabloon staan.
+
+**Het is de standaard, geen slot.** Onder `⋯` bij een oefening staan *↑ Eerder* en
+*↓ Later*; zodra je zelf schuift, legt de app de volgorde van die dag vast (`order` in de
+dagoverride) en houdt zich daaraan. *Standaardvolgorde* zet hem weer terug. Overslaan van
+een oefening werkt zoals het werkte: de rest schuift gewoon door.
+
 ## Uitleg en poppetjes
 
 Elke oefening heeft een korte uitleg in het Nederlands: **Start** (stand, greep,
@@ -248,6 +282,9 @@ alle sets), berekend met dezelfde conventie.
   andere dag, overslaan met reden. Een loop kan daarnaast vervangen worden door 30 min
   fietsen — dat telt als voltooid.
 - **Verplaatsen:** kracht én loop kunnen naar een andere dag, onafhankelijk van elkaar. Op
+  Vandaag zit de knop bij de sessie zelf; op de weekpagina heeft elke regel zijn eigen knop
+  — *Open* bij de krachtsessie, *Verplaatsen* bij de loop — zodat ook een loop van morgen of
+  overmorgen te verzetten is. Op
   een dag met allebei verzet je dus alleen wat je wilt verzetten. Woensdag kan nooit (bij
   Anouc maandag). Is de doeldag bezet met hetzelfde soort sessie, dan ruilen de twee van
   plek (ma ↔ vr bijvoorbeeld). Een beensessie kan nooit op zaterdag landen, ook niet via
@@ -255,7 +292,7 @@ alle sets), berekend met dezelfde conventie.
   Voor loopdagen geldt die blokkade niet: hij gaat over zware beenbelasting vlak vóór de
   duurloop, niet over de loop zelf.
 - **Per oefening:** eenmalig wisselen, permanent vervangen (rouleert dan niet meer mee),
-  of overslaan.
+  een plek naar voren of naar achteren schuiven, of overslaan.
 - **Gevoelige gebieden** (Instellingen): per belast gebied ok / let op / gevoelig. Op
   *gevoelig* filtert de app alle oefeningen met dat label eruit en kiest een alternatief
   uit hetzelfde patroon. `lateral_hip` staat standaard op *let op*.
@@ -353,6 +390,11 @@ Bestaande stappen:
   voor verplaatste loopsessies. Gelogde gewichten blijven ongemoeid: daar stond en staat
   het totaal in.
 
+Niet elke toevoeging heeft een stap nodig. Het warming-upblok (`warmup` op het sessielog)
+en de eigen oefeningvolgorde (`order` op de dagoverride) zijn allebei optioneel: ontbreken
+ze, dan vult de app het standaardblok en de automatische volgorde in. Oude data heeft er
+dus niets voor nodig en `schemaVersion` blijft op 7.
+
 ## Structuur
 
 ```
@@ -365,6 +407,8 @@ src/
   logic/cycle.ts      weeknummer, cyclusweek, deload, kalibratie, rotatie
   logic/select.ts     welke oefening je vandaag krijgt (rotatie, gevoelig, reismodus, wissels)
   logic/day.ts        wat er vandaag te doen is
+  logic/order.ts      de vaste volgorde binnen een sessie, en zelf herordenen
+  logic/warmup.ts     het warming-upblok waar elke krachtsessie mee begint
   logic/progression.ts streefwaarden en progressie
   logic/running.ts    loopvolume en de +10%-bewaking
   logic/startWeight.ts geschat startgewicht zonder historie
@@ -380,6 +424,7 @@ src/
   store/actions.ts    alle mutaties
   components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
   components/Activities.tsx  invoer en weergave van losse activiteiten
+  components/MoveSheet.tsx   dagkeuze bij verplaatsen, gedeeld door Vandaag en Week
   screens/            Welkom, Vandaag, Sessie, Week, Voortgang, Meekijken, Instellingen
 firestore.rules       security rules; publiceer dit bestand in zijn geheel
 tests/                vitest-suite, draait zonder browser

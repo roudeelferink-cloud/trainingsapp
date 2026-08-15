@@ -3,8 +3,10 @@ import { supportsDistance } from '../logic/activities'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
 import { buildDay, moveBlockReason, moveTargets, sessionKeyFor } from '../logic/day'
+import { moveKey } from '../logic/order'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, stateFor } from '../logic/progression'
+import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
 import type {
   Activity,
   ActivityIntensity,
@@ -13,8 +15,11 @@ import type {
   DayKind,
   LoggedSet,
   RunKind,
+  SessionLog,
   SkipReason,
   UserState,
+  Warmup,
+  WarmupType,
 } from '../types'
 import { getState, setState } from './store'
 
@@ -80,6 +85,71 @@ export function skipSlot(iso: string, slotKey: string): void {
     if (list.includes(slotKey)) return s
     return patchOverride(s, iso, { skippedSlots: [...list, slotKey] })
   })
+}
+
+/* ---- volgorde van de oefeningen ---- */
+
+/**
+ * Schuift één oefening een plek naar voren of naar achteren. De sortering op
+ * `orderCategory` is de standaard, geen slot: zodra je zelf schuift, legt de app
+ * de hele volgorde van die dag vast en houdt zich daaraan.
+ */
+export function moveSlot(iso: string, slotKey: string, direction: -1 | 1): void {
+  setState((s) => {
+    const slots = buildDay(s, iso).strength?.slots ?? []
+    const current = s.overrides[iso]?.order ?? slots.map((r) => r.slot.key)
+    const next = moveKey(current, slotKey, direction)
+    if (next === current) return s
+    return patchOverride(s, iso, { order: next })
+  })
+}
+
+/** Terug naar de automatische volgorde van die dag. */
+export function resetSlotOrder(iso: string): void {
+  setState((s) => {
+    const override = s.overrides[iso]
+    if (!override?.order) return s
+    const { order: _eigen, ...rest } = override
+    return { ...s, overrides: { ...s.overrides, [iso]: rest } }
+  })
+}
+
+/* ---- warming-up ---- */
+
+/**
+ * Zet iets van de warming-up van deze sessie. Bestaat het sessielog nog niet —
+ * je hebt nog niets gelogd — dan wordt het hier aangemaakt; de sessie geldt
+ * daarmee nog niet als afgerond.
+ */
+function patchWarmup(iso: string, kind: DayKind, patch: Partial<Warmup>): void {
+  const key = sessionKeyFor(iso, kind)
+  setState((s) => {
+    const cur = s.sessions[key]
+    const warmup = { ...warmupOf(cur), ...patch }
+    const base: SessionLog = cur ?? {
+      date: iso,
+      kind,
+      short: s.overrides[iso]?.short ?? false,
+      entries: {},
+      exercises: {},
+      skippedSlots: s.overrides[iso]?.skippedSlots ?? [],
+      completedSlots: [],
+      completedAt: null,
+    }
+    return { ...s, sessions: { ...s.sessions, [key]: { ...base, warmup } } }
+  })
+}
+
+export function setWarmupType(iso: string, kind: DayKind, type: WarmupType): void {
+  patchWarmup(iso, kind, { type })
+}
+
+export function setWarmupMinutes(iso: string, kind: DayKind, minutes: number): void {
+  patchWarmup(iso, kind, { minutes: clampWarmupMinutes(minutes) })
+}
+
+export function setWarmupDone(iso: string, kind: DayKind, done: boolean): void {
+  patchWarmup(iso, kind, { done })
 }
 
 /**
@@ -273,6 +343,8 @@ export function saveSessionDraft(
         skippedSlots: s.overrides[iso]?.skippedSlots ?? [],
         completedSlots,
         completedAt: s.sessions[key]?.completedAt ?? null,
+        // de warming-up hoort bij de sessie en mag niet door een setwijziging vervallen
+        warmup: s.sessions[key]?.warmup,
       },
     },
   }))
@@ -335,6 +407,7 @@ export function completeSession(
           skippedSlots: s.overrides[iso]?.skippedSlots ?? [],
           completedSlots,
           completedAt: new Date().toISOString(),
+          warmup: s.sessions[key]?.warmup,
         },
       },
     }

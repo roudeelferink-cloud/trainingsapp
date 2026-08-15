@@ -160,6 +160,48 @@ describe('schermen renderen', () => {
     expect(html).toContain(`0 van ${plan.strength!.slots.length} afgerond`)
   })
 
+  it('opent de sessie met het warming-upblok, boven de eerste oefening', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+
+    expect(html).toContain('Warming-up')
+    expect(html).toContain('Loopband')
+    expect(html).toContain('Losfietsen')
+    expect(html).toContain('Loopband 5 min')
+    expect(html).toContain('Duur warming-up')
+    expect(html).toContain('Warming-up afvinken')
+    // het blok staat vóór de eerste oefening
+    expect(html.indexOf('Warming-up')).toBeLessThan(html.indexOf('Leg press'))
+  })
+
+  it('houdt de uitleg bij de volgorde achter het vraagteken', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+
+    expect(html).toContain('Volgorde')
+    expect(html).toContain('Uitleg volgorde')
+    // de knop is er, de uitleg zelf staat pas open als je erop tikt
+    expect(html).not.toContain('Zwaar en technisch')
+    // en zonder eigen volgorde is er niets om terug te zetten
+    expect(html).not.toContain('Standaardvolgorde')
+  })
+
+  it('zet de warming-up ook bovenaan het sessieoverzicht van Vandaag', () => {
+    const monday = mondayOf(today())
+    setState((s) => ({ ...s, startDate: monday }))
+    const html = render(createElement(Today, { onOpenSession: noop }))
+
+    if (!buildDay(getState(), today()).strength) return
+    expect(html).toContain('Warming-up')
+    expect(html).toContain('Loopband 5 min')
+  })
+
   it('rendert het startscherm met code en gebruikerskeuze', () => {
     const html = render(createElement(Onboarding, { onDone: noop }))
     expect(html).toContain('Huishoudcode')

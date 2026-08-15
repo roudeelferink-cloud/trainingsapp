@@ -9,6 +9,8 @@ import { buildDay } from '../logic/day'
 import { formatShort } from '../logic/dates'
 import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
 import { loadHint, repsInputLabel, weightInputLabel } from '../logic/load'
+import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
+import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
 import { CALIBRATION_TEXT, fmt, targetFor } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
 import {
@@ -22,7 +24,7 @@ import { programFor } from '../data/programs'
 import { ADVICE_HINT, startWeightAdvice } from '../logic/startWeight'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
-import type { UserState, DayKind, Exercise, LoggedSet } from '../types'
+import type { UserState, DayKind, Exercise, LoggedSet, Warmup } from '../types'
 
 export function SessionScreen({
   date,
@@ -44,6 +46,7 @@ export function SessionScreen({
   const [helpOpen, setHelpOpen] = useState<string[]>([]) // uitleg staat standaard dicht
   const [optionsFor, setOptionsFor] = useState<ResolvedSlot | null>(null)
   const [doneOpen, setDoneOpen] = useState(false)
+  const [orderHelp, setOrderHelp] = useState(false) // uitleg bij de volgorde, standaard dicht
   const [messages, setMessages] = useState<string[] | null>(null)
   const [completed, setCompleted] = useState<string[]>(() => strength?.log?.completedSlots ?? [])
   const [justDone, setJustDone] = useState<string | null>(null)
@@ -201,6 +204,25 @@ export function SessionScreen({
       {plan.cycle.calibration && (
         <p className="text-sm text-rose-300 mb-3">Kalibratieweek: {CALIBRATION_TEXT}.</p>
       )}
+
+      <WarmupBlock date={date} kind={kind} warmup={strength.warmup} />
+
+      <div className="flex items-center gap-2 mb-2">
+        <span className="label flex-1">Volgorde</span>
+        {strength.manualOrder && (
+          <button className="btn-quiet btn-sm" onClick={() => A.resetSlotOrder(date)}>
+            Standaardvolgorde
+          </button>
+        )}
+        <RoundButton
+          label="Uitleg volgorde"
+          active={orderHelp}
+          onClick={() => setOrderHelp((x) => !x)}
+        >
+          ?
+        </RoundButton>
+      </div>
+      {orderHelp && <p className="text-sm text-slate-300 mb-2">{ORDER_RATIONALE}</p>}
 
       <div className="rounded-2xl border border-ink-600 bg-ink-800 overflow-hidden">
         {slots.map((r, i) => {
@@ -446,6 +468,80 @@ function adviceFor(r: ResolvedSlot, state: UserState, calibration: boolean) {
   return startWeightAdvice(r.exercise, state, programFor(state).startScale)
 }
 
+/**
+ * Het blok waar elke krachtsessie mee begint. Staat bewust boven de oefeningen en
+ * niet ertussen: het is de opwarming, geen zevende oefening. Type en duur zijn
+ * instelbaar en het vinkje wordt bij de sessie opgeslagen.
+ */
+function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warmup: Warmup }) {
+  const [help, setHelp] = useState(false)
+
+  return (
+    <div
+      className={`rounded-2xl border p-3 mb-3 ${
+        warmup.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-800'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold">
+            {warmup.done && (
+              <span className="text-emerald-400 mr-1" aria-hidden>
+                ✓
+              </span>
+            )}
+            Warming-up
+          </span>
+          <span className="block text-xs text-slate-400 tabular-nums">{warmupLabel(warmup)}</span>
+        </span>
+        <RoundButton label="Uitleg warming-up" active={help} onClick={() => setHelp((x) => !x)}>
+          ?
+        </RoundButton>
+        <button
+          aria-label={`Warming-up ${warmup.done ? 'weer openzetten' : 'afvinken'}`}
+          onClick={() => A.setWarmupDone(date, kind, !warmup.done)}
+          className={`shrink-0 w-11 h-11 rounded-lg border text-lg font-bold ${
+            warmup.done
+              ? 'bg-emerald-500 text-ink-900 border-emerald-500'
+              : 'bg-ink-700 border-ink-600 text-slate-400'
+          }`}
+        >
+          ✓
+        </button>
+      </div>
+
+      {help && <p className="text-sm text-slate-300 mt-2">{WARMUP_HINT}</p>}
+
+      <div className="grid grid-cols-2 gap-2 mt-3">
+        {WARMUP_TYPES.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => A.setWarmupType(date, kind, t.id)}
+            className={`btn min-h-[44px] text-sm ${
+              warmup.type === t.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2">
+        <p className="label mb-0.5">Duur</p>
+        <Stepper
+          ariaLabel="Duur warming-up"
+          value={warmup.minutes}
+          onChange={(v) => A.setWarmupMinutes(date, kind, v)}
+          step={1}
+          min={1}
+          max={60}
+          suffix="min"
+        />
+      </div>
+    </div>
+  )
+}
+
 function RoundButton({
   children,
   onClick,
@@ -534,6 +630,9 @@ function SlotOptions({
     calibration: false,
     deload: false,
   })
+  // plek in de sessie, zodat "eerder" en "later" alleen aanstaan als ze kunnen
+  const slots = buildDay(state, date).strength?.slots ?? []
+  const index = slots.findIndex((r) => r.slot.key === resolved.slot.key)
 
   return (
     <Sheet open onClose={onClose} title={resolved.exercise.naam}>
@@ -541,6 +640,7 @@ function SlotOptions({
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5 mb-2">
             {!target.byFeel && <Chip tone="lift">streef {fmt(target.weight)} kg</Chip>}
+            <Chip tone="off">{ORDER_CATEGORY_LABEL[resolved.exercise.orderCategory]}</Chip>
             {resolved.reasons.map((x) => (
               <Chip key={x} tone="off">
                 {x}
@@ -548,6 +648,22 @@ function SlotOptions({
             ))}
           </div>
           {resolved.warning && <p className="text-sm text-rose-300">{resolved.warning}</p>}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="btn-ghost disabled:opacity-40"
+              disabled={index <= 0}
+              onClick={() => A.moveSlot(date, resolved.slot.key, -1)}
+            >
+              ↑ Eerder
+            </button>
+            <button
+              className="btn-ghost disabled:opacity-40"
+              disabled={index === -1 || index >= slots.length - 1}
+              onClick={() => A.moveSlot(date, resolved.slot.key, 1)}
+            >
+              ↓ Later
+            </button>
+          </div>
           <button className="btn-ghost w-full" onClick={() => setPicking('once')}>
             Wissel eenmalig
           </button>

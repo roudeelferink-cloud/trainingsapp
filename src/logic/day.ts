@@ -1,10 +1,12 @@
 import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
-import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason } from '../types'
+import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
 import { cycleInfo, type CycleInfo } from './cycle'
 import { weekday } from './dates'
+import { orderSlots } from './order'
 import { plannedRunKm, scaledRunKm } from './running'
 import { resolveSlot, type ResolvedSlot } from './select'
+import { warmupOf } from './warmup'
 
 export interface RunBlock {
   kind: RunKind
@@ -27,7 +29,12 @@ export interface StrengthBlock {
   naam: string
   optional: boolean
   duurMin: number
+  /** de oefeningen in de volgorde waarin ze gedaan worden */
   slots: ResolvedSlot[]
+  /** het blok waar de sessie mee begint */
+  warmup: Warmup
+  /** de volgorde is met de hand aangepast; de sortering staat dus even opzij */
+  manualOrder: boolean
   short: boolean
   done: boolean
   sessionKey: string
@@ -178,6 +185,8 @@ export function buildDay(state: UserState, iso: string): DayPlan {
         slots = slots.map((r) => ({ ...r, sets: Math.max(1, r.sets - setDrop) }))
       }
       slots = slots.filter((r) => !(override?.skippedSlots ?? []).includes(r.slot.key))
+      // als laatste: de volgorde staat los van welke oefeningen er overblijven
+      slots = orderSlots(slots, override?.order)
 
       strength = {
         kind,
@@ -185,6 +194,8 @@ export function buildDay(state: UserState, iso: string): DayPlan {
         optional,
         duurMin: short ? 25 : tpl.duurMin,
         slots,
+        warmup: warmupOf(log),
+        manualOrder: (override?.order ?? []).length > 0,
         short,
         done: !!log?.completedAt,
         sessionKey,

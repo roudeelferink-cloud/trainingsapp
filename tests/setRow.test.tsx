@@ -76,8 +76,11 @@ describe('elke setrij, niet alleen de eerste', () => {
     // de laatste setrij staat er ook echt
     expect(html).toContain(`Set ${sets}`)
 
+    // alleen de setvelden; de warming-up heeft ook een getalveld, maar geen setrij
+    const setVelden = inputs(html).filter((i) => /aria-label="(Gewicht|Reps) set/.test(i))
+    expect(setVelden).toHaveLength(sets * 2) // kg + reps per set
+
     const velden = inputs(html).filter((i) => i.includes('type="number"'))
-    expect(velden).toHaveLength(sets * 2) // kg + reps per set
     for (const veld of velden) {
       expect(veld).toContain(MIN_WIDTH_CLASS)
       expect(veld).toContain('text-base')
@@ -108,7 +111,10 @@ describe('elke setrij, niet alleen de eerste', () => {
     const kind = buildDay(getState(), iso).strength!.kind
     const html = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
 
+    // vanaf de eerste setrij: alles daarboven (warming-up, volgorde) is geen setrij
+    const setrijen = html.slice(html.indexOf('Set 1'))
+    expect(setrijen).not.toBe('')
     // geen tweekolomsraster meer om de invoervelden heen
-    expect(html).not.toContain('grid-cols-2 gap-2')
+    expect(setrijen).not.toContain('grid-cols-2 gap-2')
   })
 })

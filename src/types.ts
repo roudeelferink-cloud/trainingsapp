@@ -43,6 +43,19 @@ export type LoadArea =
 export type Role = 'core' | 'accessory'
 export type ProgressionType = 'weight' | 'reps'
 
+/**
+ * Plek in de vaste volgorde van een krachtsessie. Zwaar en technisch werk staat
+ * vooraan, licht en vermoeiend werk achteraan. Dit staat bewust op de oefening
+ * zelf en niet in een lijstje in de UI: een nieuwe oefening loopt zo vanzelf mee
+ * in de sortering, zonder dat er ergens anders iets bijgewerkt hoeft te worden.
+ *
+ * 1. `heavy_legs`  zwaarste samengestelde beenoefening (squat, leg press, RDL)
+ * 2. `compound`    overige samengestelde oefening (bank, roeien, pulldown, press)
+ * 3. `isolation`   isolatie (leg extension, leg curl, biceps, kuiten)
+ * 4. `core`        romp; die sluit de sessie af
+ */
+export type OrderCategory = 'heavy_legs' | 'compound' | 'isolation' | 'core'
+
 /** Fijnere groepering binnen een pattern, zodat "wissel" geen onzin voorstelt. */
 export type MuscleGroup = 'triceps' | 'biceps' | 'delts' | 'abs' | 'quad' | 'ham'
 
@@ -79,6 +92,8 @@ export interface Exercise {
   pattern: Pattern
   equipment: Equipment[]
   role: Role
+  /** plek in de vaste volgorde binnen een sessie */
+  orderCategory: OrderCategory
   progression: ProgressionType
   minIncrement: number
   loads: LoadArea[]
@@ -152,6 +167,19 @@ export interface Settings {
   barWeights: Record<BarId, number>
 }
 
+/** Waarmee je warm wordt: rustig op de loopband of losfietsen op de spinningfiets. */
+export type WarmupType = 'loopband' | 'fiets'
+
+/**
+ * Het warming-upblok waar elke krachtsessie mee begint. Type en duur zijn per
+ * sessie in te stellen en het blok is af te vinken, net als een oefening.
+ */
+export interface Warmup {
+  type: WarmupType
+  minutes: number
+  done: boolean
+}
+
 export interface LoggedSet {
   weight: number
   reps: number
@@ -172,6 +200,8 @@ export interface SessionLog {
   skippedSlots: string[]
   /** slotKeys van oefeningen die als afgerond gemarkeerd zijn */
   completedSlots: string[]
+  /** warming-up van deze sessie; ontbreekt bij logs van vóór dit blok bestond */
+  warmup?: Warmup
 }
 
 export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek'
@@ -222,6 +252,12 @@ export interface DayOverride {
   /** slotKey -> exerciseId, alleen voor vandaag */
   swaps?: Record<string, string>
   skippedSlots?: string[]
+  /**
+   * Eigen volgorde van de oefeningen: slotKeys in de volgorde die jij wilt. De
+   * automatische sortering is de standaard, geen slot — staat dit veld er, dan
+   * wint het. Slots die er niet in staan volgen erachter in de standaardvolgorde.
+   */
+  order?: string[]
   /** loop vervangen door 30 min fietsen */
   bike?: boolean
   /** loopafstand handmatig of automatisch geschaald */
