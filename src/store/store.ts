@@ -1,53 +1,28 @@
 import { useSyncExternalStore } from 'react'
-import type { AppState, LoadArea, ProgramId, Sensitivity, UserState } from '../types'
+import type { AppState, ProgramId, UserState } from '../types'
 import { mondayOf, today } from '../logic/dates'
-import { DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
+import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
 /** Vaste gebruikers van dit huishouden. Ids zijn stabiel; namen mogen wijzigen. */
-export const ROB = 'rob'
-export const ANOUC = 'anouc'
+export { ANOUC, ROB }
 
 export const USER_SEEDS: { id: string; naam: string; programId: ProgramId }[] = [
   { id: ROB, naam: 'Rob', programId: 'kracht_hardlopen' },
   { id: ANOUC, naam: 'Anouc', programId: 'fullbody_hardlopen' },
 ]
 
-const ALL_AREAS: LoadArea[] = [
-  'knee_deep',
-  'hip_deep',
-  'achilles',
-  'calf',
-  'lateral_hip',
-  'lower_back',
-  'shoulder',
-]
-
 export function defaultUser(id: string, naam: string, programId: ProgramId): UserState {
-  const sensitive = Object.fromEntries(
-    ALL_AREAS.map((a) => [a, a === 'lateral_hip' && id === ROB ? 'careful' : 'ok']),
-  ) as Record<LoadArea, Sensitivity>
-
   return {
     id,
     naam,
     programId,
     startDate: mondayOf(today()),
-    settings: {
-      bodyweightKg: null,
-      sensitive,
-      travelMode: false,
-      proteinFactor: 1.8,
-      barWeights: { ...DEFAULT_BAR_WEIGHTS },
-      maintenanceItems: [
-        { id: 'heeldrops', label: 'Excentrische heel drops (3x15 per been)' },
-        { id: 'heupmobiliteit', label: 'Mobiliteit heup 5 min' },
-      ],
-    },
+    settings: defaultSettingsFor(id),
     permanentReplacements: {},
     checkins: {},
     protein: {},
@@ -88,12 +63,8 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
   const base = defaultUser(id, naam, programId)
   if (!raw || typeof raw !== 'object') return base
   const s = raw as Partial<UserState>
-  const settings = { ...base.settings, ...(s.settings ?? {}) }
-  settings.sensitive = { ...base.settings.sensitive, ...(s.settings?.sensitive ?? {}) }
-  settings.barWeights = { ...base.settings.barWeights, ...(s.settings?.barWeights ?? {}) }
-  if (!Array.isArray(settings.maintenanceItems)) {
-    settings.maintenanceItems = base.settings.maintenanceItems
-  }
+  // de startinstellingen van deze gebruiker als terugval, daarna repareren wat er niet klopt
+  const settings = normalizeSettings(s.settings, base.settings)
   return {
     ...base,
     ...s,
@@ -212,10 +183,23 @@ export function setState(updater: (s: UserState) => UserState): void {
   onLocalChange?.(id, next)
 }
 
-/** Alleen voor de synclaag: staat van de ander overnemen zonder terug te pushen. */
+/**
+ * Alleen voor de synclaag: staat van de ander overnemen zonder terug te pushen.
+ *
+ * Dit is de enige plek waar data binnenkomt die niet langs `migrate()` is geweest: het
+ * andere toestel kan een oudere versie draaien en dus instellingen sturen zonder de
+ * velden die deze versie kent. Daarom gaan ze hier alsnog door de normalisatie.
+ */
 export function applyRemoteUser(id: string, user: UserState): void {
   if (!root.users[id]) return
-  root = { ...root, users: { ...root.users, [id]: { ...user, id } } }
+  root = {
+    ...root,
+    users: {
+      ...root.users,
+      // de lokale instellingen als terugval: een half document wist niets
+      [id]: { ...user, id, settings: normalizeSettings(user.settings, root.users[id].settings) },
+    },
+  }
   persist()
   emit()
 }

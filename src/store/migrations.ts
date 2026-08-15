@@ -1,5 +1,6 @@
 import { TEMPLATES } from '../data/plan'
 import { DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
+import { defaultSettingsFor, normalizeSettings } from './settings'
 
 /**
  * Migratiepad voor opgeslagen data.
@@ -229,6 +230,32 @@ function v6_to_v7(state: RawState): RawState {
   return { ...state, users: next }
 }
 
+/**
+ * v7 -> v8: de instellingen van elke gebruiker worden compleet gemaakt.
+ *
+ * Bij v7 kwamen de stanggewichten erbij en eerder de gevoelige gebieden. Data die
+ * langs de sync of een importbestand binnenkwam kon die velden missen, en de schermen
+ * lezen er direct op door — een ontbrekend `sensitive` of `barWeights` gaf dan een
+ * zwart instellingenscherm. Deze stap vult per gebruiker aan wat er niet is en laat
+ * ingevulde waarden staan; een gebruiker helemaal zonder `settings` krijgt de
+ * standaardinstellingen.
+ */
+function v7_to_v8(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!raw || typeof raw !== 'object') {
+      next[id] = raw
+      continue
+    }
+    const user = raw as Record<string, unknown>
+    next[id] = { ...user, settings: normalizeSettings(user.settings, defaultSettingsFor(id)) }
+  }
+
+  return { ...state, users: next }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
@@ -236,6 +263,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   4: v4_to_v5,
   5: v5_to_v6,
   6: v6_to_v7,
+  7: v7_to_v8,
 }
 
 /**

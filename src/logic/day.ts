@@ -174,7 +174,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
         hiddenCalf = kept.length < slots.length
         slots = kept
       }
-      if (state.settings.travelMode && slots.length > 5) {
+      if (state.settings?.travelMode && slots.length > 5) {
         const core = slots.filter((r) => r.slot.role === 'core')
         const rest = slots.filter((r) => r.slot.role !== 'core')
         slots = [...core, ...rest].slice(0, 5)
@@ -210,7 +210,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       if (lowEnergy) notes.push('Check-in laag: 1 set minder en zwaar kuitwerk eruit.')
       if (checkin === 3) notes.push('Check-in 3: normaal programma, maar vandaag geen nieuwe gewichtsverhogingen.')
       if (cycle.calibration) notes.push('Kalibratieweek: train op gevoel, stop bij RIR 2-3. Log wat je doet.')
-      if (state.settings.travelMode) notes.push('Reismodus: lichaamsgewicht en band, max 30 min.')
+      if (state.settings?.travelMode) notes.push('Reismodus: lichaamsgewicht en band, max 30 min.')
     }
   }
 

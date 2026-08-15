@@ -47,7 +47,9 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `coaching.test.ts` | elke oefening heeft een gevulde setup, execution en mistake |
 | `figure.test.tsx` | elke oefening met `hasFigure` heeft twee complete hoekensets die binnen beeld blijven en foutloos renderen |
 | `startWeight.test.ts` | startgewichtadvies: met en zonder lichaamsgewicht, met en zonder vergelijkbare data, afronding, verdwijnen na de eerste set, en de verwijzingen bestaan en zijn niet circulair |
-| `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion` |
+| `store.test.ts` | export/import-roundtrip, afwijzen van onzin en van nieuwere versies, migratie van oudere `schemaVersion`, aanvullen van ontbrekende instellingen in v7 → v8 |
+| `settingsScreen.test.tsx` | het instellingenscherm op data die niet uit deze versie komt: lege staat, v5-data, ontbrekende stanggewichten, een tweede gebruiker zonder settings, een half binnengesynct document en onleesbare waarden |
+| `errorBoundary.test.tsx` | het vangnet rond de schermen: doorlaten als er niets misgaat, leesbare melding met de knop terug naar Vandaag, en loggen naar de console |
 | `screens.test.tsx` | elk scherm rendert (server-side, vangt render-fouten) |
 | `users.test.ts` | twee gebruikers: eigen schema, eigen logs en instellingen, en de bevestiging dat progressie, gewichtsadvies, 1RM en weekvolume strikt per gebruiker blijven; plus het full body-schema van Anouc (dagen, duur, materiaal, rustiger opbouw, lichter startpunt) |
 | `sync.test.ts` | offline loggen en later syncen, bundelen per gebruiker, botsingen op tijdstempel, half-kapotte documenten, en de migratie van bestaande localStorage-data naar gebruiker Rob |
@@ -352,7 +354,7 @@ zodra de laatste export ouder is dan 30 dagen (of er nog nooit een was).
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **7**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **8**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -389,11 +391,21 @@ Bestaande stappen:
   `distanceKm` bij losse activiteiten (bestaande krijgen `null`) en een eigen `runMoves`
   voor verplaatste loopsessies. Gelogde gewichten blijven ongemoeid: daar stond en staat
   het totaal in.
+- **v7 → v8** — de instellingen van elke gebruiker worden compleet gemaakt. Ontbrekende
+  gevoelige gebieden, stanggewichten, onderhoudsitems, reismodus of eiwitfactor krijgen de
+  standaard; wat er al stond blijft staan. Dit repareert data die langs de sync of een
+  handgeschreven bestand binnenkwam: een `settings` zonder die velden liet het
+  instellingenscherm vastlopen, en daarmee bleef er een zwart scherm over.
 
 Niet elke toevoeging heeft een stap nodig. Het warming-upblok (`warmup` op het sessielog)
 en de eigen oefeningvolgorde (`order` op de dagoverride) zijn allebei optioneel: ontbreken
 ze, dan vult de app het standaardblok en de automatische volgorde in. Oude data heeft er
-dus niets voor nodig en `schemaVersion` blijft op 7.
+dus niets voor nodig en `schemaVersion` blijft daarvoor gelijk.
+
+Instellingen die van buiten binnenkomen gaan altijd door `normalizeSettings`
+(`src/store/settings.ts`): bij het laden, bij een import, en bij elk document dat
+binnensynct. Een toestel dat nog een oudere versie draait kan zo geen half
+instellingenobject over de complete lokale instellingen heen zetten.
 
 ## Structuur
 
@@ -420,8 +432,10 @@ src/
   data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
   store/sync.ts       Firestore-sync per huishouden, offline wachtrij
   store/store.ts      localStorage-store, export/import
+  store/settings.ts   standaardinstellingen en het heel maken van halve settings
   store/migrations.ts migratiepad tussen schemaVersions
   store/actions.ts    alle mutaties
+  components/ErrorBoundary.tsx  vangnet per scherm: melding en terug naar Vandaag
   components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
   components/Activities.tsx  invoer en weergave van losse activiteiten
   components/MoveSheet.tsx   dagkeuze bij verplaatsen, gedeeld door Vandaag en Week

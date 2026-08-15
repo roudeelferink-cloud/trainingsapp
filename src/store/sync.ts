@@ -1,5 +1,6 @@
 import type { UserState } from '../types'
 import { applyRemoteUser, getRoot, getUser, setLocalChangeHandler } from './store'
+import { normalizeSettings } from './settings'
 
 /**
  * Sync tussen de toestellen van één huishouden, zelfde opzet als camper-app:
@@ -74,6 +75,11 @@ export function userToDoc(user: UserState): Record<string, unknown> {
 /**
  * Neemt een binnengekomen document over. Alleen de velden die we kennen; de rest
  * valt terug op wat er lokaal al stond, zodat een half document niets wist.
+ *
+ * De instellingen gaan door `normalizeSettings`: het andere toestel kan een oudere
+ * versie draaien en dus een `settings` sturen zonder gevoelige gebieden of
+ * stanggewichten. Zonder die stap verving zo'n document de complete lokale
+ * instellingen door een halve, en liep het instellingenscherm daarop vast.
  */
 export function docToUser(raw: unknown, local: UserState): UserState {
   if (!raw || typeof raw !== 'object') return local
@@ -82,6 +88,7 @@ export function docToUser(raw: unknown, local: UserState): UserState {
     ...local,
     ...d,
     id: local.id,
+    settings: normalizeSettings(d.settings, local.settings),
     naam: typeof d.naam === 'string' && d.naam.trim() ? d.naam : local.naam,
     programId: d.programId === 'fullbody_hardlopen' || d.programId === 'kracht_hardlopen'
       ? d.programId

@@ -7,6 +7,7 @@ import { programById } from '../data/programs'
 import { exportReminder, proteinGoal } from '../logic/stats'
 import * as A from '../store/actions'
 import {
+  defaultState,
   exportJSON,
   importJSON,
   resetState,
@@ -17,8 +18,9 @@ import {
   useRoot,
   useStore,
 } from '../store/store'
+import { normalizeSettings } from '../store/settings'
 import { connectHousehold, syncInfo, watchSync, type SyncInfo } from '../store/sync'
-import type { LoadArea, Sensitivity } from '../types'
+import type { LoadArea, Sensitivity, UserState } from '../types'
 
 const AREAS: LoadArea[] = [
   'knee_deep',
@@ -36,8 +38,24 @@ const SENS_LABEL: Record<Sensitivity, string> = {
   off: 'gevoelig',
 }
 
+/**
+ * Een gebruiker waar dit scherm veilig op kan lezen. De store levert genormaliseerde
+ * instellingen aan, maar het scherm gaat daar niet vanuit: een half opgeslagen of
+ * binnengesynct object mag hooguit een standaardwaarde tonen, nooit het hele scherm
+ * zwart maken.
+ */
+function safeUser(user: UserState | undefined | null): UserState {
+  const base = user ?? defaultState()
+  return {
+    ...base,
+    settings: normalizeSettings(base.settings),
+    permanentReplacements: base.permanentReplacements ?? {},
+  }
+}
+
 export function SettingsScreen() {
-  const state = useStore()
+  const state = safeUser(useStore())
+  const settings = state.settings
   const [newItem, setNewItem] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -80,7 +98,7 @@ export function SettingsScreen() {
             type="number"
             inputMode="decimal"
             placeholder="kg"
-            value={state.settings.bodyweightKg ?? ''}
+            value={settings.bodyweightKg ?? ''}
             onChange={(e) => A.setBodyweight(e.target.value === '' ? null : Number(e.target.value))}
           />
           <span className="text-slate-400">kg</span>
@@ -107,7 +125,7 @@ export function SettingsScreen() {
                     key={v}
                     onClick={() => A.setSensitivity(a, v)}
                     className={`min-h-[44px] px-3 rounded-lg text-xs font-semibold ${
-                      state.settings.sensitive[a] === v
+                      settings.sensitive?.[a] === v
                         ? v === 'off'
                           ? 'bg-rose-500 text-ink-900'
                           : v === 'careful'
@@ -137,7 +155,7 @@ export function SettingsScreen() {
               <p className="label mb-1">{BAR_LABEL[bar]}</p>
               <Stepper
                 ariaLabel={`Gewicht ${BAR_LABEL[bar]}`}
-                value={state.settings.barWeights[bar] ?? DEFAULT_BAR_WEIGHTS[bar]}
+                value={settings.barWeights?.[bar] ?? DEFAULT_BAR_WEIGHTS[bar]}
                 onChange={(v) => A.setBarWeight(bar, v)}
                 step={0.5}
                 min={1}
@@ -153,7 +171,7 @@ export function SettingsScreen() {
       <Card>
         <SectionTitle>Reismodus</SectionTitle>
         <Toggle
-          checked={state.settings.travelMode}
+          checked={settings.travelMode}
           onChange={A.setTravelMode}
           label="Reismodus aan"
           hint="Alles naar lichaamsgewicht en band, max 30 min. Loopdagen blijven ongewijzigd."
@@ -163,7 +181,7 @@ export function SettingsScreen() {
       <Card>
         <SectionTitle>Dagelijks onderhoud</SectionTitle>
         <div className="space-y-2">
-          {state.settings.maintenanceItems.map((m) => (
+          {settings.maintenanceItems.map((m) => (
             <div key={m.id} className="flex items-center gap-2">
               <span className="flex-1 text-sm">{m.label}</span>
               <button
@@ -301,8 +319,8 @@ function HouseholdCard() {
 
   useEffect(() => watchSync(setSync), [])
 
-  const users = Object.values(root.users)
-  const huidige = root.users[root.currentUser]
+  const users = Object.values(root.users ?? {})
+  const huidige = root.users?.[root.currentUser]
 
   function koppel() {
     const clean = code.trim().toLowerCase()
@@ -372,7 +390,12 @@ function HouseholdCard() {
       </div>
 
       <p className="label mb-1">Huishoudcode</p>
-      <input className="field font-mono mb-2" readOnly value={root.household} aria-label="Huidige huishoudcode" />
+      <input
+        className="field font-mono mb-2"
+        readOnly
+        value={root.household ?? ''}
+        aria-label="Huidige huishoudcode"
+      />
       <p className="text-xs text-slate-400 mb-2">
         Zelfde code op het andere toestel = zelfde gedeelde gegevens. Deel hem alleen met elkaar: wie
         de code heeft, kan erbij.

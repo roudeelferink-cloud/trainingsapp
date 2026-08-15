@@ -269,6 +269,36 @@ describe('migratie van oudere data', () => {
     const out = runMigrations({ schemaVersion: 99 }, 99, 200)
     expect(out.schemaVersion).toBe(99)
   })
+
+  it('vult in v7 → v8 de ontbrekende instellingen per gebruiker aan', () => {
+    const out = runMigrations(
+      {
+        schemaVersion: 7,
+        users: {
+          // stanggewichten en gevoelige gebieden ontbreken; dit gaf het zwarte scherm
+          rob: { id: 'rob', settings: { bodyweightKg: 82 } },
+          anouc: { id: 'anouc' }, // helemaal geen settings
+        },
+      },
+      7,
+      8,
+    ) as { schemaVersion: number; users: Record<string, { settings: Record<string, any> }> }
+
+    expect(out.schemaVersion).toBe(8)
+    expect(out.users.rob.settings.barWeights).toEqual({
+      trap_bar: 20,
+      smith: 15,
+      barbell: 20,
+      deadlift_bar: 20,
+      curl_bar: 7.5,
+    })
+    expect(out.users.rob.settings.bodyweightKg).toBe(82)
+    // wat er nooit is geweest krijgt het startpunt van die gebruiker
+    expect(out.users.rob.settings.sensitive.lateral_hip).toBe('careful')
+    expect(out.users.anouc.settings.sensitive.lateral_hip).toBe('ok')
+    expect(out.users.anouc.settings.maintenanceItems).toHaveLength(2)
+    expect(out.users.anouc.settings.travelMode).toBe(false)
+  })
 })
 
 describe('acties op de gedeelde staat', () => {

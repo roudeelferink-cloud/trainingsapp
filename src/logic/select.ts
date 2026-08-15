@@ -20,7 +20,9 @@ export function isTravelSafe(e: Exercise): boolean {
   return e.equipment.every((q) => TRAVEL_EQUIPMENT.has(q))
 }
 
-export function offAreas(sensitive: Record<LoadArea, Sensitivity>): LoadArea[] {
+/** Gebieden die op 'gevoelig' staan. Ontbrekende instellingen tellen als 'ok'. */
+export function offAreas(sensitive: Partial<Record<LoadArea, Sensitivity>> | undefined): LoadArea[] {
+  if (!sensitive) return []
   return (Object.keys(sensitive) as LoadArea[]).filter((a) => sensitive[a] === 'off')
 }
 
@@ -65,8 +67,8 @@ export function resolveSlot(
   rotation: number,
 ): ResolvedSlot {
   const reasons: ReplaceReason[] = []
-  const travel = state.settings.travelMode
-  const off = offAreas(state.settings.sensitive)
+  const travel = state.settings?.travelMode ?? false
+  const off = offAreas(state.settings?.sensitive)
 
   const daily = state.overrides[iso]?.swaps?.[slot.key]
   const perm = state.permanentReplacements[slot.key]
@@ -110,8 +112,8 @@ export function resolveSlot(
 
 /** Kandidaten die de UI aanbiedt bij "wissel". */
 export function swapCandidates(current: Exercise, state: UserState): Exercise[] {
-  const travel = state.settings.travelMode
-  const off = offAreas(state.settings.sensitive)
+  const travel = state.settings?.travelMode ?? false
+  const off = offAreas(state.settings?.sensitive)
   return alternatives(current)
     .filter((c) => c.id !== current.id)
     .filter((c) => !conflicts(c, off))

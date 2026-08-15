@@ -74,7 +74,7 @@ export function startWeightAdvice(ex: Exercise, state: UserState, scale = 1): St
     current = next
   }
 
-  const bw = state.settings.bodyweightKg
+  const bw = state.settings?.bodyweightKg
   if (!bw || bw <= 0 || ex.startFactor <= 0) return null
   const weight = floorToStep(bw * ex.startFactor * scale, ex.minIncrement)
   if (weight <= 0) return null

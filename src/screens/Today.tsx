@@ -149,7 +149,7 @@ function Header({ plan }: { plan: DayPlan }) {
         <div className="flex gap-2 mt-2 flex-wrap">
           {plan.cycle.deload && <Chip tone="warn">Deload</Chip>}
           {plan.cycle.calibration && <Chip tone="lift">Kalibratie</Chip>}
-          {state.settings.travelMode && <Chip tone="off">Reismodus</Chip>}
+          {state.settings?.travelMode && <Chip tone="off">Reismodus</Chip>}
         </div>
       </div>
       <div className="text-right shrink-0">
@@ -455,7 +455,7 @@ export function SkipSheet({
 function Maintenance({ iso }: { iso: string }) {
   const state = useStore()
   const done = state.maintenance[iso] ?? []
-  const items = state.settings.maintenanceItems
+  const items = state.settings?.maintenanceItems ?? []
   const streak = maintenanceStreak(state)
 
   return (

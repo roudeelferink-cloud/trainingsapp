@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
 import { OtherScreen } from './screens/OtherScreen'
 import { ProgressScreen } from './screens/ProgressScreen'
@@ -28,7 +29,9 @@ export default function App() {
     return (
       <div className="min-h-dvh bg-ink-900">
         <main className="max-w-md mx-auto px-4 pt-6 pb-10 safe-top">
-          <Onboarding onDone={() => setTab('vandaag')} />
+          <ErrorBoundary scherm="Start">
+            <Onboarding onDone={() => setTab('vandaag')} />
+          </ErrorBoundary>
         </main>
       </div>
     )
@@ -47,11 +50,18 @@ export default function App() {
   return (
     <div className="min-h-dvh bg-ink-900">
       <main className="max-w-md mx-auto px-4 pt-5 pb-28 safe-top">
-        {tab === 'vandaag' && <Today onOpenSession={open} />}
-        {tab === 'week' && <WeekScreen onOpenSession={open} />}
-        {tab === 'voortgang' && <ProgressScreen />}
-        {tab === 'ander' && <OtherScreen />}
-        {tab === 'instellingen' && <SettingsScreen />}
+        {/* key op de tab: bij het wisselen van scherm begint het vangnet weer schoon */}
+        <ErrorBoundary
+          key={tab}
+          scherm={tabs.find((t) => t.id === tab)?.label}
+          onReset={() => setTab('vandaag')}
+        >
+          {tab === 'vandaag' && <Today onOpenSession={open} />}
+          {tab === 'week' && <WeekScreen onOpenSession={open} />}
+          {tab === 'voortgang' && <ProgressScreen />}
+          {tab === 'ander' && <OtherScreen />}
+          {tab === 'instellingen' && <SettingsScreen />}
+        </ErrorBoundary>
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-ink-800/95 backdrop-blur border-t border-ink-600 safe-bottom">
@@ -74,7 +84,16 @@ export default function App() {
       </nav>
 
       {session && (
-        <SessionScreen date={session.date} kind={session.kind} onClose={() => setSession(null)} />
+        <ErrorBoundary
+          key={`${session.date}:${session.kind}`}
+          scherm="Sessie"
+          onReset={() => {
+            setSession(null)
+            setTab('vandaag')
+          }}
+        >
+          <SessionScreen date={session.date} kind={session.kind} onClose={() => setSession(null)} />
+        </ErrorBoundary>
       )}
     </div>
   )

@@ -16,11 +16,13 @@ import type {
   LoggedSet,
   RunKind,
   SessionLog,
+  Settings,
   SkipReason,
   UserState,
   Warmup,
   WarmupType,
 } from '../types'
+import { normalizeSettings } from './settings'
 import { getState, setState } from './store'
 
 export function setCheckin(iso: string, value: number): void {
@@ -426,15 +428,22 @@ export function reopenSession(iso: string, kind: DayKind): void {
 
 /* ---- instellingen ---- */
 
+/**
+ * Instellingen wijzigen gaat altijd over een compleet `Settings`-object heen. Zo kan
+ * een schakelaar nooit een half opgeslagen instelling verder uithollen, en staat na
+ * één tik alles er weer volledig in.
+ */
+function patchSettings(s: UserState, patch: (current: Settings) => Partial<Settings>): UserState {
+  const current = normalizeSettings(s.settings)
+  return { ...s, settings: { ...current, ...patch(current) } }
+}
+
 export function setBodyweight(kg: number | null): void {
-  setState((s) => ({ ...s, settings: { ...s.settings, bodyweightKg: kg } }))
+  setState((s) => patchSettings(s, () => ({ bodyweightKg: kg })))
 }
 
 export function setSensitivity(area: keyof UserState['settings']['sensitive'], value: 'ok' | 'careful' | 'off'): void {
-  setState((s) => ({
-    ...s,
-    settings: { ...s.settings, sensitive: { ...s.settings.sensitive, [area]: value } },
-  }))
+  setState((s) => patchSettings(s, (c) => ({ sensitive: { ...c.sensitive, [area]: value } })))
 }
 
 /**
@@ -443,35 +452,27 @@ export function setSensitivity(area: keyof UserState['settings']['sensitive'], v
  */
 export function setBarWeight(bar: BarId, kg: number): void {
   if (!Number.isFinite(kg) || kg <= 0) return
-  setState((s) => ({
-    ...s,
-    settings: {
-      ...s.settings,
-      barWeights: { ...s.settings.barWeights, [bar]: Math.round(kg * 100) / 100 },
-    },
-  }))
+  setState((s) =>
+    patchSettings(s, (c) => ({
+      barWeights: { ...c.barWeights, [bar]: Math.round(kg * 100) / 100 },
+    })),
+  )
 }
 
 export function setTravelMode(on: boolean): void {
-  setState((s) => ({ ...s, settings: { ...s.settings, travelMode: on } }))
+  setState((s) => patchSettings(s, () => ({ travelMode: on })))
 }
 
 export function addMaintenanceItem(label: string): void {
-  setState((s) => ({
-    ...s,
-    settings: {
-      ...s.settings,
-      maintenanceItems: [
-        ...s.settings.maintenanceItems,
-        { id: `m${Date.now().toString(36)}`, label },
-      ],
-    },
-  }))
+  setState((s) =>
+    patchSettings(s, (c) => ({
+      maintenanceItems: [...c.maintenanceItems, { id: `m${Date.now().toString(36)}`, label }],
+    })),
+  )
 }
 
 export function removeMaintenanceItem(id: string): void {
-  setState((s) => ({
-    ...s,
-    settings: { ...s.settings, maintenanceItems: s.settings.maintenanceItems.filter((m) => m.id !== id) },
-  }))
+  setState((s) =>
+    patchSettings(s, (c) => ({ maintenanceItems: c.maintenanceItems.filter((m) => m.id !== id) })),
+  )
 }

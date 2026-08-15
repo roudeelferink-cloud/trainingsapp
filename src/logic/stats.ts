@@ -1,4 +1,5 @@
 import { BY_ID } from '../data/exercises'
+import { DEFAULT_PROTEIN_FACTOR } from '../store/settings'
 import type { SessionLog, UserState } from '../types'
 import { buildDay } from './day'
 import { addDays, mondayOf, today } from './dates'
@@ -45,7 +46,7 @@ export function trainingStreak(state: UserState): number {
 
 /** Streak van de dagelijkse onderhoudschecklist. */
 export function maintenanceStreak(state: UserState): number {
-  const items = state.settings.maintenanceItems
+  const items = state.settings?.maintenanceItems ?? []
   if (items.length === 0) return 0
   let streak = 0
   let iso = today()
@@ -189,7 +190,8 @@ export function exportReminder(state: UserState, now = new Date()): ExportRemind
 }
 
 export function proteinGoal(state: UserState): number | null {
-  const kg = state.settings.bodyweightKg
+  const kg = state.settings?.bodyweightKg
   if (!kg || kg <= 0) return null
-  return Math.round((kg * state.settings.proteinFactor) / 5) * 5
+  const factor = state.settings?.proteinFactor
+  return Math.round((kg * (factor && factor > 0 ? factor : DEFAULT_PROTEIN_FACTOR)) / 5) * 5
 }
