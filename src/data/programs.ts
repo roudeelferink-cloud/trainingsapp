@@ -129,6 +129,21 @@ export const PROGRAMS: Record<ProgramId, Program> = {
   },
 }
 
+/**
+ * Naam van de vaste rustdag, voor uitleg in de UI. Niet elk programma heeft
+ * dezelfde: Rob rust op woensdag, Anouc op maandag.
+ */
+export function restDayLabel(program: Program): string | null {
+  if (program.restWeekday === null) return null
+  return program.week[program.restWeekday - 1]?.label ?? null
+}
+
+/** Zin voor de verplaatslijst: welke dag altijd leeg blijft. */
+export function restDayHint(program: Program): string {
+  const label = restDayLabel(program)
+  return label ? ` ${label} blijft altijd vrij.` : ''
+}
+
 export function programById(id: ProgramId): Program {
   return PROGRAMS[id] ?? PROGRAMS.kracht_hardlopen
 }

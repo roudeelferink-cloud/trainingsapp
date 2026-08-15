@@ -6,8 +6,25 @@ import { addDays, mondayOf, today, weekday } from '../src/logic/dates'
 import { Today } from '../src/screens/Today'
 import { WeekScreen } from '../src/screens/WeekScreen'
 import * as A from '../src/store/actions'
-import { ANOUC, ROB, getState, resetState, setCurrentUser, setState } from '../src/store/store'
+import {
+  ANOUC,
+  ROB,
+  getRoot,
+  getState,
+  migrate,
+  replaceRoot,
+  resetState,
+  setCurrentUser,
+  setState,
+} from '../src/store/store'
 import { DI, DO, MON, VR, WO, ZA, ZO } from './helpers'
+
+/** Opnieuw opstarten met wat er in localStorage staat. */
+function herlaad() {
+  const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
+  expect(opgeslagen).not.toBeNull()
+  replaceRoot(migrate(JSON.parse(opgeslagen!)))
+}
 
 const render = (el: Parameters<typeof renderToString>[0]) =>
   renderToString(el).replace(/<!-- -->/g, '')
@@ -130,6 +147,26 @@ describe('per gebruiker', () => {
     setCurrentUser(ROB)
     expect(getState().runMoves).toEqual({})
   })
+
+  it('houdt de verplaatsing van beide gebruikers uit elkaar na een herlaadbeurt', () => {
+    A.moveRun(DI, VR) // Rob: dinsdag naar vrijdag
+
+    setCurrentUser(ANOUC)
+    setState((s) => ({ ...s, startDate: MON }))
+    A.moveRun(DI, DO) // Anouc: dinsdag naar donderdag
+
+    herlaad()
+
+    const root = getRoot()
+    expect(root.users[ROB].runMoves).toEqual({ [DI]: VR })
+    expect(root.users[ANOUC].runMoves).toEqual({ [DI]: DO })
+
+    // en beide schema's rekenen na de herlaadbeurt met hun eigen verplaatsing
+    expect(buildDay(root.users[ROB], VR).run?.movedFrom).toBe(DI)
+    expect(buildDay(root.users[ROB], DO).run?.movedFrom).toBeNull() // eigen donderdagloop
+    expect(buildDay(root.users[ANOUC], DO).run?.movedFrom).toBe(DI)
+    expect(buildDay(root.users[ANOUC], VR).run?.movedFrom).toBeNull()
+  })
 })
 
 describe('in de schermen', () => {
@@ -145,6 +182,47 @@ describe('in de schermen', () => {
     expect(html).toContain('loop verplaatst naar')
     // de krachtsessie van die dinsdag staat er nog gewoon
     expect(buildDay(getState(), di).strength?.kind).toBe('push')
+  })
+
+  it('geeft elke loop op de weekpagina een eigen verplaatsknop', () => {
+    setState((s) => ({ ...s, startDate: mondayOf(today()) }))
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+
+    // dinsdag heeft loop én kracht: de knop van de loop staat naast de loopregel,
+    // die van de sessie naast de sessieregel
+    expect(html).toContain('Verplaatsen')
+    expect(html).toContain('Open')
+    const loopdagen = [1, 3, 6].map((d) => dezeWeek(d))
+    for (const iso of loopdagen) expect(buildDay(getState(), iso).run).not.toBeNull()
+    // drie loopdagen, dus drie verplaatsknoppen
+    expect(html.split('Verplaatsen').length - 1).toBe(3)
+  })
+
+  it('laat een verplaatste loop op de weekpagina op de nieuwe dag zien', () => {
+    const zondag = dezeWeek(6)
+    const maandag = dezeWeek(0)
+    setState((s) => ({ ...s, startDate: mondayOf(today()) }))
+
+    // dit is precies wat de knop op de weekpagina doet
+    expect(A.moveRun(zondag, addDays(zondag, 1)).ok).toBe(true)
+
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+    expect(html).toContain('loop verplaatst naar')
+    expect(buildDay(getState(), maandag).run).toBeNull() // maandag van dezelfde week, niet de volgende
+    expect(buildDay(getState(), addDays(zondag, 1)).run?.movedFrom).toBe(zondag)
+  })
+
+  it('toont geen verplaatsknop bij een afgevinkte of overgeslagen loop', () => {
+    const dinsdag = dezeWeek(1)
+    setState((s) => ({ ...s, startDate: mondayOf(today()) }))
+    const run = buildDay(getState(), dinsdag).run!
+
+    A.completeRun(dinsdag, run.kind, { plannedKm: run.km, km: run.km, minutes: 30, bike: false })
+    A.skipSession(dezeWeek(3), 'run', 'druk')
+
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+    // alleen de zondagloop is nog te verplaatsen
+    expect(html.split('Verplaatsen').length - 1).toBe(1)
   })
 
   it('geeft de loop van vandaag een verplaatsknop en een terugknop', () => {
