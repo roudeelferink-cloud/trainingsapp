@@ -132,6 +132,7 @@ export const START_WEIGHTS: Record<string, StartWeightSpec> = {
   standing_band_abduction: { startFactor: 0 },
   clamshell: { startFactor: 0 },
   monster_walk: { startFactor: 0 },
+  side_lying_abduction_band: { startFactor: 0 },
   side_lying_abduction: { startFactor: 0 },
   side_plank_leg_lift: { startFactor: 0 },
   ab_roller_ex: { startFactor: 0 },

@@ -8,8 +8,20 @@ import type { StartAdvice } from './startWeight'
  * 2. anders het startgewichtadvies (`startWeightAdvice`);
  * 3. anders een leeg gewichtsveld met het schema-aantal herhalingen.
  * `target.reps` valt zelf al terug op repMin zolang er geen historie is.
+ *
+ * Bandwerk krijgt een niveau in plaats van een gewicht; `weight` blijft daar 0.
  */
 export function seedSets(count: number, target: Target, advice: StartAdvice | null): LoggedSet[] {
+  if (target.level !== null) {
+    const level = target.level
+    return Array.from({ length: count }, () => ({
+      weight: 0,
+      level,
+      reps: target.reps,
+      rir: 2,
+      done: false,
+    }))
+  }
   const weight = target.weight ?? advice?.weight ?? 0
   return Array.from({ length: count }, () => ({ weight, reps: target.reps, rir: 2, done: false }))
 }
@@ -22,7 +34,13 @@ export function checkSet(sets: LoggedSet[], i: number): LoggedSet[] {
   const out = sets.map((s, idx) => (idx === i ? { ...s, done: true } : s))
   const next = out[i + 1]
   if (next && !next.done) {
-    out[i + 1] = { ...next, weight: out[i].weight, reps: out[i].reps, rir: out[i].rir }
+    out[i + 1] = {
+      ...next,
+      weight: out[i].weight,
+      level: out[i].level,
+      reps: out[i].reps,
+      rir: out[i].rir,
+    }
   }
   return out
 }

@@ -27,6 +27,10 @@ export type Equipment =
   | 'kettlebell'
   | 'sandbag'
   | 'band'
+  /** set mini-loopbands met oplopende weerstand; niveau in plaats van kilo's */
+  | 'mini_band'
+  /** enkelmanchet voor de lage kabel */
+  | 'ankle_strap'
   | 'ab_roller'
   | 'bike'
   | 'bodyweight'
@@ -106,6 +110,12 @@ export interface Exercise {
   /** hoe de belasting wordt ingevoerd */
   unit?: 'kg' | 'band' | 'bw'
   cue?: string
+  /**
+   * Waar deze oefening naartoe groeit zodra hij op is. Bedoeld voor bandwerk: een
+   * band gaat maar tot het zwaarste niveau, daarna is er echte gewichtsprogressie
+   * nodig. De selectie schakelt vanzelf door zodra het bovenste bandniveau gehaald is.
+   */
+  progressesTo?: string
   /** uitleg: opzet, uitvoering en de meest gemaakte fout */
   coaching: Coaching
   /** heeft deze oefening een poppetje? alleen samengestelde oefeningen */
@@ -184,6 +194,12 @@ export interface LoggedSet {
   weight: number
   reps: number
   rir: number
+  /**
+   * Bandniveau bij een oefening met `unit: 'band'`: 1 is de lichtste band. Bandwerk
+   * heeft geen kilo's, dus daar blijft `weight` 0 en telt dit veld. Zo blijven het
+   * tilvolume en het geschatte 1RM schoon.
+   */
+  level?: number
   /** afgevinkt; voorgevulde waarden tellen pas als gelogd zodra dit waar is */
   done?: boolean
 }
@@ -242,6 +258,14 @@ export interface Activity {
 export interface ExerciseState {
   targetWeight: number | null
   targetReps: number | null
+  /** streefniveau bij bandwerk; null of afwezig bij alles wat in kilo's gaat */
+  targetLevel?: number | null
+  /**
+   * Id van de oefening waar deze in opgegaan is: het bandwerk is op het zwaarste
+   * niveau uitgegroeid en gaat verder als de belaste variant. De selectie pakt die
+   * vanaf dan vanzelf, zolang hij niet wegvalt door reismodus of een gevoelig gebied.
+   */
+  graduatedTo?: string | null
   belowMinStreak: number
   lastNote: string | null
   lastUpdated: string | null

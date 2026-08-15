@@ -44,9 +44,11 @@ function slot(
  * Full body voor een beginner naast 3x hardlopen.
  *
  * Twee sessies per week, woensdag en zaterdag, elk 45-60 min. De keuze van de
- * oefeningen houdt rekening met het materiaal: de lichtste dumbbell is 12,5 kg,
- * dus het duw- en schouderwerk gaat via kabel, band of lichaamsgewicht. Zo kan
- * er echt licht begonnen worden en klopt de opbouw van onder af.
+ * oefeningen houdt rekening met het materiaal: het duw- en schouderwerk gaat via
+ * kabel, band of lichaamsgewicht, zodat er echt licht begonnen kan worden en de
+ * opbouw van onder af klopt. Sinds er dumbbells van 5 kg liggen is dumbbellwerk ook
+ * hier een optie — het advies pakt die stap vanzelf; de sjablonen blijven zoals ze
+ * zijn, zodat lopende schema's niet onder iemands voeten veranderen.
  * ------------------------------------------------------------------------- */
 
 const FULL_BODY_A: SessionTemplate = {
@@ -57,7 +59,7 @@ const FULL_BODY_A: SessionTemplate = {
     // leg press: kleinste schijf is een prima startpunt, veel lichter dan een stang
     slot('full_body_a', 0, 'leg_press', 'core', 3, 10, 12),
     slot('full_body_a', 1, 'lat_pulldown', 'core', 3, 10, 12),
-    // kabel in plaats van dumbbells: de 12,5 kg-dumbbells zijn hier te zwaar om mee te starten
+    // kabel in plaats van dumbbells: dat begint lichter dan de lichtste dumbbell
     slot('full_body_a', 2, 'cable_chest_press', 'core', 3, 10, 12),
     slot('full_body_a', 3, 'glute_bridge_bw', 'accessory', 3, 12, 15),
     slot('full_body_a', 4, 'band_hip_abduction_seated', 'accessory', 3, 15, 20),

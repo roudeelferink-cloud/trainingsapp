@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { EXERCISES, getExercise } from '../src/data/exercises'
 import {
+  DUMBBELL_WEIGHTS,
+  LIGHTEST_DUMBBELL,
+  dumbbellAtMost,
   isBilateralDumbbell,
   isDumbbell,
   loadFactor,
@@ -170,5 +173,50 @@ describe('tilvolume per week', () => {
     const concept = { ...log(deze, 'flat_db_press', [set(12.5, 10)]), completedAt: null }
     state.sessions = { a: concept }
     expect(weeklyStrengthVolume(state, 12).every((w) => w.kg === 0)).toBe(true)
+  })
+})
+
+describe('het dumbbellrek, inclusief de nieuwe 5 kg', () => {
+  it('kent de gewichten die er echt liggen, oplopend', () => {
+    expect(DUMBBELL_WEIGHTS).toEqual([5, 12.5, 15, 17.5, 20])
+    expect(LIGHTEST_DUMBBELL).toBe(5)
+    expect([...DUMBBELL_WEIGHTS].sort((a, b) => a - b)).toEqual(DUMBBELL_WEIGHTS)
+  })
+
+  it('kiest de zwaarste dumbbell die niet boven de schatting uitkomt', () => {
+    expect(dumbbellAtMost(20)).toBe(20)
+    expect(dumbbellAtMost(19.9)).toBe(17.5)
+    expect(dumbbellAtMost(12.5)).toBe(12.5)
+    // de nieuwe stap: alles tussen 5 en 12,5 landt nu op 5 in plaats van nergens
+    expect(dumbbellAtMost(9)).toBe(5)
+    expect(dumbbellAtMost(5)).toBe(5)
+    // lichter dan het lichtste bestaat niet
+    expect(dumbbellAtMost(4.9)).toBeNull()
+  })
+
+  it('adviseert alleen gewichten die in het rek liggen', () => {
+    state.settings = { ...state.settings, bodyweightKg: 82 }
+    for (const ex of EXERCISES.filter((e) => isDumbbell(e) && e.unit !== 'bw')) {
+      const advies = startWeightAdvice(ex, state)
+      if (!advies) continue
+      expect(DUMBBELL_WEIGHTS, `${ex.id}: ${advies.weight}`).toContain(advies.weight)
+    }
+  })
+
+  it('geeft de tweede gebruiker de 5 kg-stap voor licht isolatiewerk', () => {
+    // Anouc start bewust lichter (startScale 0,7); zonder 5 kg was er hier geen advies
+    const licht = startWeightAdvice(
+      getExercise('lateral_raise_db'),
+      { ...state, settings: { ...state.settings, bodyweightKg: 62 } },
+      0.7,
+    )
+    expect(licht).not.toBeNull()
+    expect(licht!.weight).toBe(5)
+  })
+
+  it('geeft geen advies als zelfs de lichtste dumbbell te zwaar is', () => {
+    const state40 = { ...state, settings: { ...state.settings, bodyweightKg: 40 } }
+    // 40 × 0,16 × 0,7 = 4,5 kg: dat ligt er niet, dus liever niets dan een verzonnen getal
+    expect(startWeightAdvice(getExercise('lateral_raise_db'), state40, 0.7)).toBeNull()
   })
 })

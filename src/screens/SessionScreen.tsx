@@ -4,6 +4,7 @@ import { RestTimer } from '../components/RestTimer'
 import { Card, Chip, Sheet, Stepper } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
+import { MAX_BAND_LEVEL, MIN_BAND_LEVEL, bandLabel, isBandExercise, levelOf } from '../logic/band'
 import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '../logic/barWeight'
 import { buildDay } from '../logic/day'
 import { formatShort } from '../logic/dates'
@@ -329,28 +330,44 @@ export function SessionScreen({
                       </div>
                       <div className="mb-2">
                         <p className="label mb-0.5">{weightInputLabel(r.exercise, state.settings)}</p>
-                        <Stepper
-                          ariaLabel={`Gewicht set ${si + 1}`}
-                          value={bar > 0 ? platesFromTotal(s.weight, bar) : s.weight}
-                          onChange={(v) =>
-                            updateSet(r.slot.key, si, {
-                              weight: bar > 0 ? totalFromPlates(v, bar) : v,
-                            })
-                          }
-                          step={r.exercise.minIncrement || 2.5}
-                          max={400}
-                          // alleen zolang er niets ingevuld is; anders zou 0 schijven
-                          // (de kale stang) weer als schatting worden weergegeven
-                          placeholder={s.weight === 0 ? advicePlates : undefined}
-                        />
-                        {bar > 0 && (s.weight > 0 || advicePlates !== undefined) && (
-                          <p className="text-xs text-slate-400 mt-1 tabular-nums">
-                            {barTotalLabel(
-                              s.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(s.weight, bar),
-                              bar,
+                        {isBandExercise(r.exercise) ? (
+                          <>
+                            <Stepper
+                              ariaLabel={`Bandniveau set ${si + 1}`}
+                              value={levelOf(s)}
+                              onChange={(v) => updateSet(r.slot.key, si, { weight: 0, level: v })}
+                              step={1}
+                              min={MIN_BAND_LEVEL}
+                              max={MAX_BAND_LEVEL}
+                            />
+                            <p className="text-xs text-slate-400 mt-1">{bandLabel(levelOf(s))}</p>
+                          </>
+                        ) : (
+                          <>
+                            <Stepper
+                              ariaLabel={`Gewicht set ${si + 1}`}
+                              value={bar > 0 ? platesFromTotal(s.weight, bar) : s.weight}
+                              onChange={(v) =>
+                                updateSet(r.slot.key, si, {
+                                  weight: bar > 0 ? totalFromPlates(v, bar) : v,
+                                })
+                              }
+                              step={r.exercise.minIncrement || 2.5}
+                              max={400}
+                              // alleen zolang er niets ingevuld is; anders zou 0 schijven
+                              // (de kale stang) weer als schatting worden weergegeven
+                              placeholder={s.weight === 0 ? advicePlates : undefined}
+                            />
+                            {bar > 0 && (s.weight > 0 || advicePlates !== undefined) && (
+                              <p className="text-xs text-slate-400 mt-1 tabular-nums">
+                                {barTotalLabel(
+                                  s.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(s.weight, bar),
+                                  bar,
+                                )}
+                                {s.weight === 0 && ' (schatting)'}
+                              </p>
                             )}
-                            {s.weight === 0 && ' (schatting)'}
-                          </p>
+                          </>
                         )}
                       </div>
                       <div className="mb-2">
@@ -639,7 +656,12 @@ function SlotOptions({
       {picking === null ? (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5 mb-2">
-            {!target.byFeel && <Chip tone="lift">streef {fmt(target.weight)} kg</Chip>}
+            {!target.byFeel &&
+              (target.level !== null ? (
+                <Chip tone="lift">streef {bandLabel(target.level)}</Chip>
+              ) : (
+                <Chip tone="lift">streef {fmt(target.weight)} kg</Chip>
+              ))}
             <Chip tone="off">{ORDER_CATEGORY_LABEL[resolved.exercise.orderCategory]}</Chip>
             {resolved.reasons.map((x) => (
               <Chip key={x} tone="off">

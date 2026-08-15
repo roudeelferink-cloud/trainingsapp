@@ -118,8 +118,9 @@ describe('korte versie', () => {
     ])
   })
 
-  it('houdt de volledige benen A op zes oefeningen', () => {
-    expect(buildDay(s0, MON).strength!.slots).toHaveLength(6)
+  it('houdt de volledige benen A op zeven oefeningen', () => {
+    // vijf hoofdoefeningen plus twee keer glute medius: bandwerk en vloeractivatie
+    expect(buildDay(s0, MON).strength!.slots).toHaveLength(7)
   })
 
   it('laat accessoires vallen bij duwen', () => {
@@ -152,9 +153,12 @@ describe('reismodus', () => {
   it('vervangt alles door lichaamsgewicht of band', () => {
     const day = buildDay(travel, MON)
     for (const r of day.strength!.slots) {
-      expect(r.exercise.equipment.every((q) => q === 'bodyweight' || q === 'band'), r.exercise.id).toBe(
-        true,
-      )
+      expect(
+        r.exercise.equipment.every(
+          (q) => q === 'bodyweight' || q === 'band' || q === 'mini_band',
+        ),
+        r.exercise.id,
+      ).toBe(true)
     }
   })
 

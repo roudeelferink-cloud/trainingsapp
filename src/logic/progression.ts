@@ -1,4 +1,14 @@
 import type { UserState, Exercise, ExerciseState, LoggedSet } from '../types'
+import { BY_ID } from '../data/exercises'
+import {
+  MAX_BAND_LEVEL,
+  MIN_BAND_LEVEL,
+  bandLabel,
+  clampBandLevel,
+  isBandExercise,
+  isTopBand,
+  levelOf,
+} from './band'
 
 export type ProgressionPace = 'standard' | 'gentle'
 
@@ -10,7 +20,15 @@ export function roundTo(value: number, step: number): number {
 }
 
 export function emptyExerciseState(): ExerciseState {
-  return { targetWeight: null, targetReps: null, belowMinStreak: 0, lastNote: null, lastUpdated: null }
+  return {
+    targetWeight: null,
+    targetReps: null,
+    targetLevel: null,
+    graduatedTo: null,
+    belowMinStreak: 0,
+    lastNote: null,
+    lastUpdated: null,
+  }
 }
 
 export function stateFor(state: UserState, id: string): ExerciseState {
@@ -20,6 +38,8 @@ export function stateFor(state: UserState, id: string): ExerciseState {
 export interface Target {
   weight: number | null
   reps: number
+  /** bandniveau bij bandwerk; null bij alles wat in kilo's gaat */
+  level: number | null
   /** kalibratie of nog geen data: op gevoel trainen */
   byFeel: boolean
   note?: string
@@ -34,12 +54,29 @@ export function targetFor(
 ): Target {
   const es = stateFor(state, ex.id)
   const reps = es.targetReps ?? repMin
+
+  // bandwerk: geen kilo's, wel een niveau. Zonder historie begin je op de lichtste
+  // band; dat is ook wat "let op" bij een gevoelig gebied voorschrijft.
+  if (isBandExercise(ex)) {
+    const level = clampBandLevel(es.targetLevel ?? MIN_BAND_LEVEL)
+    if (opts.deload && level > MIN_BAND_LEVEL) {
+      return { weight: null, reps, level: level - 1, byFeel: false }
+    }
+    return {
+      weight: null,
+      reps,
+      level,
+      byFeel: opts.calibration || es.targetLevel == null,
+      note: opts.calibration ? CALIBRATION_TEXT : undefined,
+    }
+  }
+
   if (opts.calibration || es.targetWeight === null) {
-    return { weight: es.targetWeight, reps, byFeel: true, note: CALIBRATION_TEXT }
+    return { weight: es.targetWeight, reps, level: null, byFeel: true, note: CALIBRATION_TEXT }
   }
   let w = es.targetWeight
   if (opts.deload) w = roundTo(w * 0.9, ex.minIncrement || 0.5)
-  return { weight: w, reps, byFeel: false }
+  return { weight: w, reps, level: null, byFeel: false }
 }
 
 export interface ProgressionResult {
@@ -66,6 +103,8 @@ export function applyProgression(
 ): ProgressionResult {
   const done = sets.filter((s) => s.reps > 0)
   if (done.length === 0) return { next: prev, message: null }
+
+  if (isBandExercise(ex)) return bandProgression(ex, bounds, done, prev, opts)
 
   const gentle = (opts.pace ?? 'standard') === 'gentle'
   const progression = gentle ? 'reps' : ex.progression
@@ -145,6 +184,95 @@ export function applyProgression(
   }
 
   next.targetReps = Math.max(bounds.repMin, Math.min(minReps, repCeiling))
+  return { next, message: null }
+}
+
+/**
+ * Progressie op bandwerk: reps erbij op dezelfde band, daarna de volgende band.
+ *
+ * De trap is bewust dezelfde als bij reps-progressie op gewicht, alleen staat er een
+ * bandniveau in plaats van kilo's. Twee sessies onder de ondergrens gaat een band
+ * terug, in plaats van 5% eraf.
+ *
+ * Boven de zwaarste band houdt het op. Heeft de oefening een belaste variant
+ * (`progressesTo`), dan groeit hij daarin op: `graduatedTo` blijft in de staat staan en
+ * de selectie pakt vanaf de volgende sessie die oefening, die wél in kilo's loopt.
+ * Zonder zo'n variant blijft het bij de zwaarste band en meer reps.
+ */
+function bandProgression(
+  ex: Exercise,
+  bounds: { repMin: number; repMax: number },
+  done: LoggedSet[],
+  prev: ExerciseState,
+  opts: { allowIncrease: boolean; pace?: ProgressionPace },
+): ProgressionResult {
+  const usedLevel = clampBandLevel(Math.max(...done.map(levelOf)))
+  const minReps = Math.min(...done.map((s) => s.reps))
+  const maxRir = Math.max(...done.map((s) => s.rir))
+  const currentTargetReps = prev.targetReps ?? bounds.repMin
+  const repCeiling = bounds.repMax + 2
+
+  const next: ExerciseState = {
+    ...prev,
+    // bandwerk kent geen kilo's: die blijven leeg, zodat volume en 1RM schoon blijven
+    targetWeight: null,
+    targetLevel: usedLevel,
+    targetReps: currentTargetReps,
+    lastUpdated: new Date().toISOString(),
+    lastNote: null,
+  }
+
+  if (minReps < bounds.repMin) {
+    const streak = prev.belowMinStreak + 1
+    if (streak >= 2 && usedLevel > MIN_BAND_LEVEL) {
+      next.targetLevel = usedLevel - 1
+      next.belowMinStreak = 0
+      next.targetReps = bounds.repMin
+      const msg = `${ex.naam}: twee sessies onder ${bounds.repMin} reps — terug naar ${bandLabel(next.targetLevel)}.`
+      next.lastNote = msg
+      return { next, message: msg }
+    }
+    next.belowMinStreak = streak
+    next.targetReps = bounds.repMin
+    return { next, message: null }
+  }
+
+  next.belowMinStreak = 0
+
+  if (!opts.allowIncrease) {
+    next.lastNote = 'Check-in 3: vandaag geen zwaardere band.'
+    return { next, message: null }
+  }
+
+  const succeeded = minReps >= currentTargetReps && maxRir <= 2
+  if (!succeeded) {
+    next.targetReps = Math.max(bounds.repMin, Math.min(minReps, repCeiling))
+    return { next, message: null }
+  }
+
+  if (currentTargetReps < repCeiling) {
+    next.targetReps = currentTargetReps + 1
+    return { next, message: null }
+  }
+
+  if (!isTopBand(usedLevel)) {
+    next.targetLevel = usedLevel + 1
+    next.targetReps = bounds.repMin
+    const msg = `${ex.naam}: ${repCeiling} reps gehaald — door naar ${bandLabel(next.targetLevel)}, terug naar ${bounds.repMin} reps.`
+    return { next, message: msg }
+  }
+
+  // zwaarste band én het repsplafond: verder kan de band niet
+  const volgende = ex.progressesTo ? BY_ID[ex.progressesTo] : undefined
+  if (volgende) {
+    next.graduatedTo = volgende.id
+    next.targetReps = bounds.repMin
+    const msg = `${ex.naam}: ${bandLabel(MAX_BAND_LEVEL)} op ${repCeiling} reps — verder met ${volgende.naam}, daar gaat het gewicht wél omhoog.`
+    next.lastNote = msg
+    return { next, message: msg }
+  }
+
+  next.targetReps = repCeiling
   return { next, message: null }
 }
 

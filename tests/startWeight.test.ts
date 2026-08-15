@@ -215,7 +215,8 @@ describe('advies op basis van een vergelijkbare oefening', () => {
     const state = withWeight(82, { exerciseState: { flat_db_press: logged(20) } })
     const advies = startWeightAdvice(getExercise('hammer_curl'), state)!
     expect(advies.relatedName).toBe('Bankdrukken dumbbell')
-    expect(advies.weight).toBe(10) // 20 × 0,605 = 12,1 -> stap 2,5 -> 10
+    // 20 × 0,605 = 12,1; tussen 5 en 12,5 ligt niets, dus wordt het de 5 kg
+    expect(advies.weight).toBe(5)
   })
 })
 

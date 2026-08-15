@@ -163,6 +163,18 @@ describe('schermen renderen', () => {
     expect(html).toContain('kg totaal')
   })
 
+  it('zet het glute medius-werk met de mini-band in de beensessie', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+
+    // beide staan er, allebei op de mini-band: opbouwen vanaf de laagste weerstand
+    expect(html).toContain('Laterale bandwalk (mini-band)')
+    expect(html).toContain('Clamshell (mini-band)')
+  })
+
   it('toont per oefening een klaar-knop en de afrondvoortgang', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)

@@ -700,7 +700,7 @@ export const COACHING: Record<string, Coaching> = {
   /* ---------------- abduction ---------------- */
   band_lateral_walk: {
     setup:
-      'Band net boven de knieën of om je enkels. Zak in een halve squat, voeten heupbreed, tenen vooruit.',
+      'Mini-band net boven de knieën of om je enkels. Zak in een halve squat, voeten heupbreed, tenen vooruit.',
     execution: [
       'Stap opzij met de voorste voet en volg gecontroleerd met de andere.',
       'Houd de band de hele set op spanning; je voeten komen nooit tegen elkaar.',
@@ -709,7 +709,8 @@ export const COACHING: Record<string, Coaching> = {
     mistake: 'De knieën naar binnen laten vallen als de band trekt.',
   },
   band_hip_abduction_seated: {
-    setup: 'Zit op de bank, band net boven de knieën, voeten plat en heupbreed. Romp licht voorover.',
+    setup:
+      'Zit op de bank, mini-band net boven de knieën, voeten plat en heupbreed. Romp licht voorover.',
     execution: [
       'Duw in 1 tel je knieën naar buiten tot maximale spanning.',
       'Knijp 1 tel aan buitenin.',
@@ -719,16 +720,17 @@ export const COACHING: Record<string, Coaching> = {
   },
   cable_hip_abduction: {
     setup:
-      'Enkelband aan de laagste kabelstand, sta zijwaarts, kabelbeen het verst van de toren. Hand aan het frame voor balans.',
+      'Enkelmanchet om de enkel, karabijn aan de laagste kabelstand. Sta zijwaarts, kabelbeen het verst van de toren, hand aan het frame voor balans.',
     execution: [
       'Til in 1 tel je been zijwaarts, been gestrekt en teen vooruit.',
       'Knijp 1 tel aan bovenin.',
       'Laat in 3 tellen terugkomen, houd je romp rechtop.',
     ],
     mistake: 'Met de romp naar de andere kant hangen om het been hoger te krijgen.',
+    note: 'De enige abductie met echte kilo\'s: hier loopt de gewichtsprogressie verder als de zwaarste band te licht wordt.',
   },
   standing_band_abduction: {
-    setup: 'Band om beide enkels, sta rechtop, hand licht tegen de muur voor balans.',
+    setup: 'Mini-band om beide enkels, sta rechtop, hand licht tegen de muur voor balans.',
     execution: [
       'Til in 1 tel één been zijwaarts, teen vooruit.',
       'Laat in 3 tellen afgeremd terugkomen tot net voor je voeten elkaar raken.',
@@ -738,7 +740,7 @@ export const COACHING: Record<string, Coaching> = {
   },
   clamshell: {
     setup:
-      'Op je zij, heupen en knieën gebogen, band net boven de knieën. Voeten op één lijn met je romp.',
+      'Op je zij, heupen en knieën gebogen, mini-band net boven de knieën. Voeten op één lijn met je romp.',
     execution: [
       'Draai in 1 tel je bovenste knie omhoog, voeten blijven tegen elkaar.',
       'Knijp 1 tel aan bovenin.',
@@ -747,13 +749,24 @@ export const COACHING: Record<string, Coaching> = {
     mistake: 'Het bekken naar achteren rollen om verder open te kunnen.',
   },
   monster_walk: {
-    setup: 'Band om je enkels of net boven je knieën, halve squat, voeten heupbreed.',
+    setup: 'Mini-band om je enkels of net boven je knieën, halve squat, voeten heupbreed.',
     execution: [
       'Stap schuin naar voren en naar buiten, afwisselend links en rechts.',
       'Houd je voeten breder dan heupbreed zodat de band gespannen blijft.',
       'Blijf laag en met je borst omhoog.',
     ],
     mistake: 'Rechtop komen tijdens het lopen, waardoor de spanning wegvalt.',
+  },
+  side_lying_abduction_band: {
+    setup:
+      'Op je zij, onderste been gebogen, mini-band net boven de knieën. Bovenste been gestrekt in lijn met je romp, heupen recht boven elkaar.',
+    execution: [
+      'Til in 1 tel je bovenste been op tot de band strak staat, ongeveer 30-45°.',
+      'Knijp 1 tel aan bovenin, teen licht naar beneden gedraaid.',
+      'Laat in 3 tellen zakken tot net voor de band ontspant; de spanning blijft erop.',
+    ],
+    mistake: 'Naar achteren rollen met het bekken zodat de band makkelijker rekt.',
+    note: 'Begin op de lichtste band: hier gaat het om de gluteus medius voelen, niet om de zwaarste band halen.',
   },
   side_lying_abduction: {
     setup: 'Op je zij, onderste been gebogen, bovenste been gestrekt in lijn met je romp.',

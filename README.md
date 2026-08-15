@@ -56,7 +56,8 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, afstand en gemiddeld tempo, migratie v4 → v5, en de bevestiging dat ze de krachtprogressie, 1RM-grafiek en loopvolume niet raken |
 | `setRow.test.tsx` | de invoervelden in een setrij: minimumbreedte, 16px tekst, vaste knopbreedte en wrappen in plaats van samenknijpen — voor elke setrij van elke sessie |
 | `barWeight.test.ts` | welke oefening een stang gebruikt, het instelbare stanggewicht, schijven ↔ totaal en de migratie naar v7 |
-| `dumbbell.test.ts` | de dumbbell-conventie: gewicht per dumbbell, reps per zijde, de interne ×2 in volume en advies, en de labels in de UI |
+| `dumbbell.test.ts` | de dumbbell-conventie: gewicht per dumbbell, reps per zijde, de interne ×2 in volume en advies, de labels in de UI, en het rek (5 / 12,5 / 15 / 17,5 / 20 kg) waar het advies naartoe afrondt |
+| `band.test.ts` | het nieuwe materiaal: mini-band en enkelmanchet als equipment, de heupabductie-oefeningen met hun tags en uitleg, loggen op bandniveau zonder kilo's (geen tilvolume, geen 1RM), de progressie over de niveaus, en het doorgroeien naar de kabelvariant |
 | `moveRun.test.tsx` | loopsessies verplaatsen: ruilen, ongedaan maken, geen ketens, los van de krachtsessie, de knop per loopregel op de weekpagina, en de scheiding per gebruiker over een herlaadbeurt heen |
 | `order.test.ts` | de vaste volgorde: `orderCategory` op elke oefening, sorteren en de sjabloonvolgorde binnen een groep, geen enkele sessie die van licht naar zwaar loopt, zelf herordenen en terugzetten |
 | `warmup.test.ts` | het warming-upblok: standaardwaarde, type en duur instellen, afvinken, meeschrijven met concept en afgeronde sessie, per gebruiker, en oude logs zonder blok |
@@ -134,6 +135,10 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
 - **Progressie:** alle sets op de bovengrens met RIR ≤ 2 → gewicht omhoog met de kleinste
   stap, reps terug naar de ondergrens. Bij dumbbells (stap 2,5 kg) groeit eerst het aantal
   reps door tot repMax + 2. Twee sessies onder de ondergrens → streefgewicht −5%.
+- **Bandwerk groeit door:** een mini-band houdt op bij de zwaarste band. Haal je daar het
+  repsplafond, dan schuift de app de oefening door naar de belaste variant — staande
+  heupabductie aan de kabel met enkelmanchet — en loopt de progressie daar in kilo's verder.
+  In reismodus blijft het bandwerk staan; een kabeltoren gaat niet mee in de koffer.
 - **Hardloopvolume:** het weektotaal komt nooit meer dan 10% boven de vorige week;
   overschrijding wordt automatisch teruggeschaald.
 
@@ -160,10 +165,41 @@ Beginnend niveau, dus twee dingen anders dan bij Rob:
   bovengrens; pas daarna komt er gewicht bij. Waar Rob na één goede sessie een schijf
   erbij krijgt, groeit hier eerst het aantal reps.
 
-De oefeningkeuze houdt rekening met het materiaal: de lichtste dumbbell is 12,5 kg, dus
-duw- en schouderwerk loopt via kabel (chest press, laag roeien, pull-through), band
-(overhead press, abductie) of lichaamsgewicht (glute bridge, step-up, kuitheffing,
-dead bug). Leg press en smith laten zich vanaf de laagste stand belasten.
+De oefeningkeuze houdt rekening met het materiaal: duw- en schouderwerk loopt via kabel
+(chest press, laag roeien, pull-through), band (overhead press, abductie) of
+lichaamsgewicht (glute bridge, step-up, kuitheffing, dead bug). Leg press en smith laten
+zich vanaf de laagste stand belasten. Sinds er dumbbells van 5 kg liggen is licht
+dumbbellwerk ook hier een reële optie: het startgewichtadvies pakt die stap vanzelf. De
+sjablonen blijven staan zoals ze zijn, zodat een lopend schema niet onder je voeten
+verandert.
+
+## Materiaal
+
+De thuisgym: smith, leg press, leg curl/extension-combimachine, lat toren, lage kabel,
+bank, optrekstang, trap bar, olympische stang, deadliftstang, curlstang, schijven,
+kettlebell, schouderzak, ab roller, spinningfiets, loopband en lange weerstandsbanden.
+
+Daar kwam bij:
+
+- **Mini-loopbands** — een set met oplopende weerstand (geel, rood, groen, blauw, zwart).
+  Al het mini-bandwerk logt op **niveau**, niet op kilo's; zie hieronder.
+- **Enkelmanchet voor de lage kabel** — maakt staande heupabductie aan de kabel mogelijk.
+  Dat is de enige abductie met echte gewichtsprogressie en daarmee het eindstation van
+  het bandwerk.
+- **Dumbbells van 5 kg** — naast de 12,5 / 15 / 17,5 / 20 kg die er al lagen. Het rek staat
+  in `src/logic/dumbbell.ts`; het advies rondt daarnaartoe af, altijd naar beneden. Valt een
+  schatting tussen 5 en 12,5, dan wordt het de 5 kg — te licht beginnen mag, te zwaar niet.
+  Onder de lichtste dumbbell geeft de app geen advies in plaats van een verzonnen getal.
+
+### Gluteus medius
+
+De zijkant van de heup staat bij Rob standaard op **let op**, en daar hoort opbouwen vanaf
+de laagste weerstand bij. Beide beensessies hebben daarom twee lagen glute medius-werk: een
+staande of lopende mini-bandoefening die doorgroeit naar de kabel, en vloeractivatie op de
+lichtste band. In de bibliotheek staan clamshell, zijligging beenheffen (met en zonder
+band), monster walk, laterale bandwalk, staande abductie met mini-band en de staande
+heupabductie aan de kabel — allemaal met patroon `abduction` en de belastingstag
+`lateral_hip`, dus ze zijn onderling uitwisselbaar via *wissel* en de 12-weekse rotatie.
 
 ## Vaste volgorde binnen een sessie
 
@@ -267,6 +303,13 @@ Wat je in het kg-veld zet, hangt af van het materiaal. Het veld zegt het er zelf
   eenzijdig werk tellen beide kanten. Zo levert 12,5 kg × 10 reps hetzelfde volume op of je
   nu twee dumbbells tegelijk tilt of één per kant. Die regels staan in
   `src/logic/dumbbell.ts` en worden vandaaruit overal toegepast: labels, volume en advies.
+- **Mini-band**: geen kilo's maar een **niveau**, 1 (geel, lichtst) tot 5 (zwart, zwaarst).
+  Een band heeft geen gewicht dat je kunt loggen, en een verzonnen getal zou in het
+  tilvolume en het geschatte 1RM terechtkomen. Bandwerk telt daarom niet mee in beide;
+  je voortgang zie je aan het niveau en de reps. De progressie loopt in twee trappen: eerst
+  reps erbij tot bovengrens + 2, dan de volgende band en terug naar de ondergrens. Twee
+  sessies onder de ondergrens gaat een band terug, en in een deloadweek pak je er één
+  lichter. De niveaus staan in `src/logic/band.ts`.
 - **Machines en kabels**: gewoon wat er op de pin of de stapel staat.
 
 Op Voortgang staat naast het loopvolume ook het **tilvolume per week** (gewicht × reps over
@@ -421,7 +464,8 @@ src/
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
   logic/activities.ts losse activiteiten naast het schema
   logic/barWeight.ts  stanggewicht: schijven invullen, totaal opslaan
-  logic/dumbbell.ts   de dumbbell-conventie op één plek
+  logic/dumbbell.ts   de dumbbell-conventie en het dumbbellrek op één plek
+  logic/band.ts       bandniveaus: kleuren, grenzen en labels
   logic/load.ts       hoe de belasting boven een invoerveld heet
   data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
   store/store.ts      localStorage-store, export/import

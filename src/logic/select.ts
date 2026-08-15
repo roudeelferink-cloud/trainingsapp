@@ -1,7 +1,13 @@
-import { alternatives, getExercise } from '../data/exercises'
+import { BY_ID, alternatives, getExercise } from '../data/exercises'
 import type { UserState, Exercise, LoadArea, SessionSlot, Sensitivity } from '../types'
 
-export type ReplaceReason = 'permanent' | 'rotatie' | 'reismodus' | 'gevoelig' | 'vandaag'
+export type ReplaceReason =
+  | 'permanent'
+  | 'rotatie'
+  | 'reismodus'
+  | 'gevoelig'
+  | 'vandaag'
+  | 'doorgegroeid'
 
 export interface ResolvedSlot {
   slot: SessionSlot
@@ -14,7 +20,7 @@ export interface ResolvedSlot {
   warning?: string
 }
 
-const TRAVEL_EQUIPMENT = new Set(['bodyweight', 'band'])
+const TRAVEL_EQUIPMENT = new Set(['bodyweight', 'band', 'mini_band'])
 
 export function isTravelSafe(e: Exercise): boolean {
   return e.equipment.every((q) => TRAVEL_EQUIPMENT.has(q))
@@ -60,11 +66,38 @@ function sensitiveSwap(e: Exercise, off: LoadArea[], travel: boolean): { ex: Exe
   return { ex: sameRole ?? pool[0], changed: true }
 }
 
+/**
+ * Het bandwerk is uitgegroeid: `graduatedTo` staat in de oefeningstaat zodra de
+ * zwaarste band op het repsplafond zat. Vanaf dan pakt de selectie de belaste variant,
+ * want daar loopt de progressie in kilo's verder.
+ *
+ * Twee uitzonderingen, allebei omdat de kabel dan niet beschikbaar is: in reismodus
+ * blijft het bandwerk staan (een kabeltoren gaat niet mee), en een gevoelig gebied
+ * filtert de variant weg zoals elke andere oefening. `taken` houdt hem uit een sessie
+ * waar hij al in zit, zodat twee bandslots niet allebei op dezelfde kabel uitkomen.
+ */
+function graduated(
+  e: Exercise,
+  state: UserState,
+  off: LoadArea[],
+  travel: boolean,
+  taken: Set<string>,
+): Exercise | null {
+  const id = state.exerciseState?.[e.id]?.graduatedTo
+  if (!id || id === e.id) return null
+  const next = BY_ID[id]
+  if (!next || taken.has(next.id)) return null
+  if (travel && !isTravelSafe(next)) return null
+  if (conflicts(next, off)) return null
+  return next
+}
+
 export function resolveSlot(
   slot: SessionSlot,
   state: UserState,
   iso: string,
   rotation: number,
+  taken: Set<string> = new Set(),
 ): ResolvedSlot {
   const reasons: ReplaceReason[] = []
   const travel = state.settings?.travelMode ?? false
@@ -84,6 +117,15 @@ export function resolveSlot(
     const base = getExercise(slot.exerciseId)
     ex = rotate(base, rotation)
     if (ex.id !== base.id) reasons.push('rotatie')
+  }
+
+  // een keuze voor vandaag is expliciet en blijft staan; de rest groeit mee
+  if (!daily) {
+    const grown = graduated(ex, state, off, travel, taken)
+    if (grown) {
+      ex = grown
+      reasons.push('doorgegroeid')
+    }
   }
 
   if (travel) {

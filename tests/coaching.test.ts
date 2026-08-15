@@ -25,9 +25,9 @@ describe('uitleg per oefening', () => {
     expect(Object.keys(COACHING).filter((k) => !ids.has(k))).toEqual([])
   })
 
-  it('dekt alle 93 oefeningen', () => {
-    expect(EXERCISES).toHaveLength(93)
-    expect(Object.keys(COACHING)).toHaveLength(93)
+  it('dekt alle 94 oefeningen', () => {
+    expect(EXERCISES).toHaveLength(94)
+    expect(Object.keys(COACHING)).toHaveLength(94)
   })
 
   it('beschrijft leg curl en leg extension als zittende combimachine', () => {

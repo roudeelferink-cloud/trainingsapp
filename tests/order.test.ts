@@ -187,6 +187,7 @@ describe('de volgorde van elke echte sessie', () => {
       'leg_curl',
       'standing_calf_smith',
       'band_lateral_walk',
+      'clamshell',
     ])
   })
 
@@ -223,8 +224,8 @@ describe('zelf herordenen', () => {
 
     A.moveSlot(MON, legCurl, -1)
 
-    expect(keys()).toEqual([voor[0], voor[1], legCurl, voor[2], voor[4], voor[5]])
-    expect(getState().overrides[MON]?.order).toHaveLength(6)
+    expect(keys()).toEqual([voor[0], voor[1], legCurl, voor[2], voor[4], voor[5], voor[6]])
+    expect(getState().overrides[MON]?.order).toHaveLength(7)
     expect(buildDay(getState(), MON).strength!.manualOrder).toBe(true)
   })
 
@@ -258,7 +259,7 @@ describe('zelf herordenen', () => {
 
     const na = keys()
     expect(na).not.toContain(voor[0])
-    expect(na).toEqual([voor[1], voor[2], voor[4], voor[3], voor[5]])
+    expect(na).toEqual([voor[1], voor[2], voor[4], voor[3], voor[5], voor[6]])
   })
 
   it('bewaart de eigen volgorde per gebruiker en over een herlaadbeurt heen', () => {

@@ -6,11 +6,21 @@ function slot(kind: DayKind, i: number, exerciseId: string, role: 'core' | 'acce
   return { key: `${kind}:${i}`, exerciseId, role, setsReps: { sets, repMin, repMax } }
 }
 
+/**
+ * De sjablonen. Een slotsleutel is `${dag}:${index}` en ligt vast: nieuwe oefeningen
+ * komen er daarom achteraan bij, zodat gelogde sessies aan hun eigen slot gekoppeld
+ * blijven. De volgorde binnen de sessie komt toch uit `orderCategory`, niet hieruit.
+ *
+ * Beide beensessies hebben glute medius-werk op twee niveaus. Dat sluit aan op de
+ * instelling "let op" voor de zijkant van de heup: bandwerk begint per definitie op
+ * de lichtste mini-band en klimt alleen op wat je haalt, en pas op de zwaarste band
+ * neemt de kabel met enkelmanchet het over — de eerste abductie met echte kilo's.
+ */
 export const TEMPLATES: Partial<Record<DayKind, SessionTemplate>> = {
   legs_a: {
     id: 'legs_a',
     naam: 'Benen A (zwaar)',
-    duurMin: 50,
+    duurMin: 55,
     slots: [
       slot('legs_a', 0, 'leg_press', 'core', 4, 8, 10),
       // leg press dekt kniedominant al als kern, dus smith squat en leg curl zijn accessoire
@@ -18,7 +28,10 @@ export const TEMPLATES: Partial<Record<DayKind, SessionTemplate>> = {
       slot('legs_a', 2, 'rdl_trapbar', 'core', 3, 10, 10),
       slot('legs_a', 3, 'leg_curl', 'accessory', 3, 12, 12),
       slot('legs_a', 4, 'standing_calf_smith', 'core', 4, 12, 15),
+      // Glute medius, twee lagen: staand bandwerk dat vanzelf doorgroeit naar de
+      // kabel met enkelmanchet, plus vloeractivatie op de lichtste mini-band.
       slot('legs_a', 5, 'band_lateral_walk', 'core', 3, 20, 20),
+      slot('legs_a', 6, 'clamshell', 'accessory', 3, 15, 20),
     ],
   },
   push: {
@@ -48,14 +61,16 @@ export const TEMPLATES: Partial<Record<DayKind, SessionTemplate>> = {
   legs_b: {
     id: 'legs_b',
     naam: 'Benen B (eenbenig/isolatie)',
-    duurMin: 50,
+    duurMin: 55,
     slots: [
       slot('legs_b', 0, 'bulgarian_split_squat', 'core', 3, 8, 8),
       slot('legs_b', 1, 'single_leg_press', 'core', 3, 10, 10),
       slot('legs_b', 2, 'hip_thrust_smith', 'core', 4, 10, 10),
       slot('legs_b', 3, 'leg_extension', 'accessory', 3, 12, 12),
       slot('legs_b', 4, 'seated_calf', 'core', 3, 15, 15),
+      // zelfde opzet als in Benen A: bandwerk dat doorgroeit, plus vloeractivatie
       slot('legs_b', 5, 'band_hip_abduction_seated', 'core', 3, 20, 20),
+      slot('legs_b', 6, 'side_lying_abduction_band', 'accessory', 3, 15, 20),
     ],
   },
 }

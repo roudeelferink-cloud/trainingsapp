@@ -131,7 +131,10 @@ export interface Point {
   value: number
 }
 
-/** Geschat 1RM per oefening over de tijd (beste set per sessie). */
+/**
+ * Geschat 1RM per oefening over de tijd (beste set per sessie). Oefeningen die op
+ * bandniveau loggen doen niet mee: daar staat geen gewicht tegenover.
+ */
 export function oneRmSeries(state: UserState): { exerciseId: string; naam: string; points: Point[] }[] {
   const byEx = new Map<string, Point[]>()
   const logs = Object.values(state.sessions)
@@ -142,6 +145,8 @@ export function oneRmSeries(state: UserState): { exerciseId: string; naam: strin
     for (const [slotKey, sets] of Object.entries(log.entries)) {
       const exId = log.exercises?.[slotKey]
       if (!exId || !BY_ID[exId]) continue
+      // bandwerk heeft geen kilo's; een ooit ingetypt getal hoort hier niet in de grafiek
+      if (BY_ID[exId].unit === 'band') continue
       const best = sets.reduce((m, s) => Math.max(m, estimate1RM(s.weight, s.reps)), 0)
       if (best <= 0) continue
       const arr = byEx.get(exId) ?? []

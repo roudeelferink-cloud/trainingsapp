@@ -164,7 +164,14 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       const short = override?.short ?? log?.short ?? false
       const skip = state.skips[`${iso}:strength`]
 
-      let slots = tpl.slots.map((s) => resolveSlot(s, state, iso, cycle.rotation))
+      // `taken` loopt mee zodat doorgegroeid bandwerk niet twee keer op dezelfde
+      // belaste variant uitkomt binnen één sessie
+      const taken = new Set<string>()
+      let slots = tpl.slots.map((s) => {
+        const r = resolveSlot(s, state, iso, cycle.rotation, taken)
+        taken.add(r.exercise.id)
+        return r
+      })
 
       const before = slots.length
       if (short) slots = slots.filter((r) => r.slot.role === 'core')

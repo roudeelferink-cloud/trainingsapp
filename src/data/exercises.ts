@@ -479,47 +479,66 @@ export const EXERCISES: Exercise[] = [
   }),
 
   /* ---------------- abduction ---------------- */
+  /*
+   * Gluteus medius. Het bandwerk logt op niveau (zie logic/band.ts) en groeit via
+   * `progressesTo` door naar de kabelvariant: die gaat wél in kilo's en is daarmee de
+   * enige met echte gewichtsprogressie. Het vloerwerk (clamshell, zijligging) blijft
+   * activatie en groeit niet door — daar is een kabel geen zinnige stap.
+   */
   ex({
-    id: 'band_lateral_walk', naam: 'Laterale bandwalk', pattern: 'abduction',
+    id: 'band_lateral_walk', naam: 'Laterale bandwalk (mini-band)', pattern: 'abduction',
     orderCategory: 'isolation',
-    equipment: ['band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
+    equipment: ['mini_band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
     loads: L('lateral_hip'), setsReps: { sets: 3, repMin: 15, repMax: 20 },
     bodyweightAlternative: 'side_lying_abduction',
-    cue: 'Laagste weerstand eerst, knieën niet naar binnen.',
+    progressesTo: 'cable_hip_abduction',
+    cue: 'Laagste band eerst, knieën niet naar binnen.',
   }),
   ex({
-    id: 'band_hip_abduction_seated', naam: 'Heupabductie met band (zittend)', pattern: 'abduction',
+    id: 'band_hip_abduction_seated', naam: 'Heupabductie mini-band (zittend)', pattern: 'abduction',
     orderCategory: 'isolation',
-    equipment: ['band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
+    equipment: ['mini_band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
     loads: L('lateral_hip'), setsReps: { sets: 3, repMin: 15, repMax: 25 },
     bodyweightAlternative: 'side_lying_abduction',
+    progressesTo: 'cable_hip_abduction',
   }),
   ex({
-    id: 'cable_hip_abduction', naam: 'Heupabductie kabel', pattern: 'abduction',
+    id: 'cable_hip_abduction', naam: 'Staande heupabductie kabel (enkelmanchet)', pattern: 'abduction',
     orderCategory: 'isolation',
-    equipment: ['low_cable'], role: 'core', perSide: true, loads: L('lateral_hip'),
+    equipment: ['low_cable', 'ankle_strap'], role: 'core', perSide: true, minIncrement: 1.25,
+    loads: L('lateral_hip'),
     setsReps: { sets: 3, repMin: 12, repMax: 20 }, bodyweightAlternative: 'side_lying_abduction',
+    cue: 'De enige abductie met echte gewichtsprogressie.',
   }),
   ex({
-    id: 'standing_band_abduction', naam: 'Staande abductie met band', pattern: 'abduction',
+    id: 'standing_band_abduction', naam: 'Staande abductie met mini-band', pattern: 'abduction',
     orderCategory: 'isolation',
-    equipment: ['band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
+    equipment: ['mini_band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
     perSide: true, loads: L('lateral_hip'), setsReps: { sets: 3, repMin: 15, repMax: 20 },
     bodyweightAlternative: 'side_lying_abduction',
+    progressesTo: 'cable_hip_abduction',
   }),
   ex({
-    id: 'clamshell', naam: 'Clamshell (band)', pattern: 'abduction',
+    id: 'clamshell', naam: 'Clamshell (mini-band)', pattern: 'abduction',
     orderCategory: 'isolation',
-    equipment: ['band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
+    equipment: ['mini_band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
     perSide: true, loads: L('lateral_hip'), setsReps: { sets: 3, repMin: 15, repMax: 25 },
     bodyweightAlternative: 'side_lying_abduction',
   }),
   ex({
-    id: 'monster_walk', naam: 'Monster walk (band)', pattern: 'abduction',
+    id: 'side_lying_abduction_band', naam: 'Zijligging beenheffen (mini-band)', pattern: 'abduction',
     orderCategory: 'isolation',
-    equipment: ['band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
+    equipment: ['mini_band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
+    perSide: true, loads: L('lateral_hip'), setsReps: { sets: 3, repMin: 15, repMax: 20 },
+    bodyweightAlternative: 'side_lying_abduction',
+  }),
+  ex({
+    id: 'monster_walk', naam: 'Monster walk (mini-band)', pattern: 'abduction',
+    orderCategory: 'isolation',
+    equipment: ['mini_band'], role: 'core', progression: 'reps', minIncrement: 0, unit: 'band',
     loads: L('lateral_hip'), setsReps: { sets: 3, repMin: 15, repMax: 20 },
     bodyweightAlternative: 'side_lying_abduction',
+    progressesTo: 'cable_hip_abduction',
   }),
   ex({
     id: 'side_lying_abduction', naam: 'Zijligging beenheffen', pattern: 'abduction',
