@@ -6,20 +6,18 @@ import { MON } from './helpers'
 const at = (weeks: number) => cycleInfo(MON, addDays(MON, weeks * 7))
 
 describe('cycluslogica', () => {
-  it('start op week 1 zonder deload', () => {
+  it('start op week 1', () => {
     expect(at(0).week).toBe(1)
-    expect(at(0).deload).toBe(false)
+    expect(at(0).cycleWeek).toBe(1)
   })
 
-  it('maakt van week 4 een deloadweek', () => {
+  it('telt de cyclusweken van 1 tot 4', () => {
     expect(at(3).cycleWeek).toBe(4)
-    expect(at(3).deload).toBe(true)
   })
 
   it('begint bij week 5 aan cyclus 2', () => {
     expect(at(4).cycle).toBe(2)
     expect(at(4).cycleWeek).toBe(1)
-    expect(at(4).deload).toBe(false)
   })
 
   it('kalibreert alleen in week 1 en 2', () => {

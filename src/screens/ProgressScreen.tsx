@@ -49,8 +49,8 @@ export function ProgressScreen() {
               bars={volume.map((v) => ({ label: `w${v.week}`, value: v.km, highlight: v.deload }))}
             />
             <p className="text-xs text-slate-400 mt-2">
-              Oranje = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven de
-              vorige zou uitkomen.
+              Oranje = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven het
+              gemiddelde van de twee voorgaande weken zou uitkomen. Losse rondjes hardlopen tellen mee.
             </p>
           </>
         )}
@@ -121,6 +121,8 @@ export function ProgressScreen() {
 
       <ExtraActivityHistory />
 
+      <Deviations />
+
       {state.notices.length > 0 && (
         <Card>
           <SectionTitle>Meldingen</SectionTitle>
@@ -137,6 +139,37 @@ export function ProgressScreen() {
         </Card>
       )}
     </div>
+  )
+}
+
+/**
+ * Waar je van de voorstellen afweek.
+ *
+ * Geen verwijt en geen correctie: de app remt af, ze houdt niemand tegen. Het staat hier
+ * omdat het patroon iets zegt — wie elke zondag twee kilometer verder loopt dan gepland,
+ * heeft geen ander advies nodig maar een ander plan.
+ */
+function Deviations() {
+  const state = useStore()
+  const items = [...(state.deviations ?? [])].reverse().slice(0, 20)
+
+  return (
+    <Card>
+      <SectionTitle right={items.length > 0 ? <Chip tone="off">{state.deviations.length}</Chip> : undefined}>
+        Afwijkingen van het voorstel
+      </SectionTitle>
+      {items.length === 0 ? (
+        <Empty>Nog geen afwijkingen. Ze verschijnen hier vanzelf als je iets anders doet.</Empty>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((d) => (
+            <li key={d.id} className="text-sm text-slate-300">
+              <span className="text-slate-500">{d.date}</span> — {d.note}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 
@@ -158,7 +191,8 @@ function ExtraActivityHistory() {
         <>
           <ActivityList items={items} showDate onEdit={setEdit} />
           <p className="text-xs text-slate-400 mt-2">
-            Deze tellen niet mee in de 1RM-grafiek of het hardloopvolume.
+            Deze tellen niet mee in de 1RM-grafiek. Een los rondje hardlopen telt wél mee in je
+            weekkilometers: je pezen weten niet of het in het schema stond.
           </p>
         </>
       )}

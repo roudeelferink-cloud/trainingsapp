@@ -73,6 +73,47 @@ describe('schermen renderen', () => {
     }
   })
 
+  it('toont de dagcheck op Vandaag, met slaap en energie op een schaal van 3', () => {
+    const html = render(createElement(Today, { onOpenSession: noop }))
+    expect(html).toContain('Dagcheck')
+    expect(html).toContain('Slaap')
+    expect(html).toContain('Energie')
+    expect(html).toContain('Overslaan mag')
+  })
+
+  it('toont de deloadweek met de mogelijkheid om hem over te slaan', () => {
+    setState((s) => ({ ...s, startDate: addDays(mondayOf(today()), -49) })) // week 8
+    const html = render(createElement(Today, { onOpenSession: noop }))
+    expect(html).toContain('Deloadweek')
+    // overslaan zit achter een dialoog met het risico erin; de knop opent die, hij slaat niets over
+    expect(html).toContain('Deload overslaan')
+    expect(html).toContain('40%')
+  })
+
+  it('toont de geschatte duur van de sessie', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const html = render(
+      createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
+    )
+    expect(html).toContain('Geschatte duur')
+    expect(html).toContain('Sessie afronden')
+  })
+
+  it('laat de geplande loopafstand zien en aanpassen', () => {
+    const zondag = addDays(mondayOf(today()), 6)
+    setState((s) => ({ ...s, startDate: mondayOf(zondag) }))
+    const html = render(createElement(Today, { onOpenSession: noop }))
+    expect(html).toContain('Duurloop 10 km')
+    expect(html).toContain('Geplande afstand aanpassen')
+  })
+
+  it('toont in Instellingen welke schijven er liggen', () => {
+    const html = render(createElement(SettingsScreen))
+    expect(html).toContain('Schijven')
+    expect(html).toContain('kleinste echte stap')
+  })
+
   it('rendert elke krachtsessie van de week met ingevulde setvelden', () => {
     const monday = mondayOf(today())
     let gerenderd = 0
@@ -93,7 +134,7 @@ describe('schermen renderen', () => {
   it('rendert Vandaag met reismodus, deload en een gevoelige knie', () => {
     setState((s) => ({
       ...s,
-      startDate: addDays(mondayOf(today()), -21), // deloadweek
+      startDate: addDays(mondayOf(today()), -49), // week 8: de vaste deloadweek
       settings: {
         ...s.settings,
         travelMode: true,

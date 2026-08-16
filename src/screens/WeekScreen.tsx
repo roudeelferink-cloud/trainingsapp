@@ -5,7 +5,8 @@ import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn, activityKm, activityTypeLabel } from '../logic/activities'
 import { buildDay, moveTargets } from '../logic/day'
 import { addDays, formatShort, mondayOf, today } from '../logic/dates'
-import { plannedWeekKm } from '../logic/running'
+import { weekLoad } from '../logic/runningLoad'
+import { DELOAD_RUN_PCT, DELOAD_WEIGHT_PCT, weeksUntilDeload } from '../logic/deload'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
 import type { DayKind } from '../types'
@@ -16,10 +17,12 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
   /** datum waarvan de loop verplaatst wordt; null = geen keuzelijst open */
   const [runMoveFrom, setRunMoveFrom] = useState<string | null>(null)
   const monday = addDays(mondayOf(today()), offset * 7)
-  const info = buildDay(state, monday).cycle
+  const dag = buildDay(state, monday)
+  const info = dag.cycle
+  const deload = dag.deload
   const program = programFor(state)
   const vrijLopen = program.runMode === 'free'
-  const week = plannedWeekKm(state, monday)
+  const week = weekLoad(state, monday)
 
   return (
     <div className="space-y-4">
@@ -30,7 +33,8 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
         <div className="text-center">
           <p className="font-bold text-lg">Week {info.week}</p>
           <p className="text-xs text-slate-400">
-            cyclus {info.cycle} · week {info.cycleWeek}/4
+            cyclus {info.cycle} ·{' '}
+            {deload.active ? 'deloadweek' : `deload over ${weeksUntilDeload(info.week)} wk`}
           </p>
         </div>
         <button className="btn-ghost btn-sm" onClick={() => setOffset((o) => o + 1)}>
@@ -39,7 +43,12 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center">
-        {info.deload && <Chip tone="warn">Deloadweek — 1 set minder, −10% gewicht, −20% loopvolume</Chip>}
+        {deload.active && (
+          <Chip tone="warn">
+            Deloadweek — 1 set minder, −{DELOAD_WEIGHT_PCT}% gewicht, −{DELOAD_RUN_PCT}% loopvolume
+          </Chip>
+        )}
+        {deload.skipped && <Chip tone="off">Deload overgeslagen</Chip>}
         {info.calibration && <Chip tone="lift">Kalibratie — op gevoel, RIR 2-3</Chip>}
         {vrijLopen ? (
           <Chip tone="run">3 loopdagen · eigen afstand</Chip>
@@ -52,6 +61,18 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
           </button>
         )}
       </div>
+
+      {/* waarom het weekvolume is wat het is: één regel per bijsturing */}
+      {(week.reasons.length > 0 || week.overCapReason) && (
+        <ul className="space-y-1">
+          {[...week.reasons, ...(week.overCapReason ? [week.overCapReason] : [])].map((reden, i) => (
+            <li key={i} className="text-sm text-slate-400 flex gap-2">
+              <span aria-hidden>•</span>
+              <span>{reden}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="space-y-2">
         {program.week.map((spec, i) => {

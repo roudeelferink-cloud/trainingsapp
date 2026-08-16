@@ -1,4 +1,5 @@
 import { BAR_IDS, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
+import { DEFAULT_PLATES } from '../logic/plates'
 import type { LoadArea, MaintenanceItem, Sensitivity, Settings } from '../types'
 
 /**
@@ -53,6 +54,7 @@ export function defaultSettings(): Settings {
     maintenanceItems: defaultMaintenanceItems(),
     proteinFactor: DEFAULT_PROTEIN_FACTOR,
     barWeights: { ...DEFAULT_BAR_WEIGHTS },
+    plates: [...DEFAULT_PLATES],
   }
 }
 
@@ -122,5 +124,20 @@ export function normalizeSettings(raw: unknown, fallback?: Settings): Settings {
     maintenanceItems: normalizeMaintenance(s.maintenanceItems, base.maintenanceItems),
     proteinFactor: Number.isFinite(factor) && factor > 0 ? factor : base.proteinFactor,
     barWeights,
+    plates: normalizePlates(s.plates, base.plates),
   }
+}
+
+/**
+ * De schijven die er liggen: oplopend, zonder dubbelen en zonder onzin. Een lege of
+ * onleesbare lijst valt terug op de standaard — zonder schijven valt er niets af te
+ * ronden en zou elk gewichtsvoorstel vastlopen.
+ */
+function normalizePlates(raw: unknown, fallback: number[] | undefined): number[] {
+  const terugval = Array.isArray(fallback) && fallback.length > 0 ? fallback : DEFAULT_PLATES
+  if (!Array.isArray(raw)) return [...terugval]
+  const clean = [...new Set(raw.map(Number).filter((kg) => Number.isFinite(kg) && kg > 0))].sort(
+    (a, b) => a - b,
+  )
+  return clean.length > 0 ? clean : [...terugval]
 }

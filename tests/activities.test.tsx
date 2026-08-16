@@ -298,17 +298,27 @@ describe('krachtprogressie blijft onaangeroerd', () => {
     expect(targets()).toEqual(zonder)
   })
 
-  it('laat de 1RM-grafiek en het loopvolume ongemoeid', () => {
+  it('laat de 1RM-grafiek ongemoeid, en het loopvolume zolang er geen afstand bij staat', () => {
     A.completeSession(MON, 'legs_a', slot(), entries(), false, [slotKey()])
     const serieVoor = oneRmSeries(getState())
     const volumeVoor = weeklyRunVolume(getState(), 12)
     expect(serieVoor.length).toBeGreaterThan(0)
 
     A.addActivity(MON, { type: 'hardlopen', minutes: 60, intensity: 'intensief' })
-    A.addActivity(MON, { type: 'fietsen', minutes: 90, intensity: 'intensief' })
+    A.addActivity(MON, { type: 'fietsen', minutes: 90, intensity: 'intensief', distanceKm: 30 })
 
     expect(oneRmSeries(getState())).toEqual(serieVoor)
     expect(weeklyRunVolume(getState(), 12)).toEqual(volumeVoor)
+  })
+
+  it('telt een los rondje hardlopen mét afstand wél mee in de weekkilometers', () => {
+    // anders zou de +10%-bewaking te omzeilen zijn door buiten het schema om te loggen
+    const week = (state: ReturnType<typeof getState>) =>
+      weeklyRunVolume(state, 12).find((w) => w.weekStart === MON)!.km
+
+    const voor = week(getState())
+    A.addActivity(MON, { type: 'hardlopen', minutes: 45, intensity: 'normaal', distanceKm: 7.5 })
+    expect(week(getState())).toBe(voor + 7.5)
   })
 
   it('verandert het schema en de rustdag niet', () => {

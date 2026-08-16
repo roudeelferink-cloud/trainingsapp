@@ -175,6 +175,13 @@ export interface Settings {
   proteinFactor: number
   /** eigen gewicht per stang in kg; per sportschool anders, dus instelbaar */
   barWeights: Record<BarId, number>
+  /**
+   * De schijven die er liggen, in kg per schijf, oplopend. Schijven gaan altijd per
+   * paar op de stang, dus de kleinste echte stap is twee keer de lichtste schijf.
+   * De progressie rondt hiernaartoe af: een voorstel dat niet te laden is, is geen
+   * voorstel.
+   */
+  plates: number[]
 }
 
 /** Waarmee je warm wordt: rustig op de loopband of losfietsen op de spinningfiets. */
@@ -204,6 +211,27 @@ export interface LoggedSet {
   done?: boolean
 }
 
+/**
+ * Hoe een sessie viel. Eén tik na afloop, bij kracht én bij hardlopen.
+ *
+ * Dit is de enige subjectieve maat die de guardrails gebruiken: 'makkelijk' en 'goed'
+ * geven ruimte om te verhogen, 'zwaar' zet alles op de rem. Ontbreekt hij (oude logs,
+ * of overgeslagen), dan valt de progressie terug op de gelogde RIR.
+ */
+export type Feel = 'makkelijk' | 'goed' | 'zwaar'
+
+/** Schaal van 3 voor de dagcheck: 1 = slecht, 2 = oké, 3 = goed. */
+export type DayScore = 1 | 2 | 3
+
+/**
+ * Optionele dagcheck: hoe je geslapen hebt en hoeveel energie je hebt. Overslaan mag
+ * en heeft geen gevolgen; ingevuld telt hij mee in de deloadbeslissing.
+ */
+export interface DayCheck {
+  sleep: DayScore
+  energy: DayScore
+}
+
 export interface SessionLog {
   /** sessiesleutel: `${datum}:${dayKind}` */
   date: string
@@ -218,10 +246,17 @@ export interface SessionLog {
   completedSlots: string[]
   /** warming-up van deze sessie; ontbreekt bij logs van vóór dit blok bestond */
   warmup?: Warmup
+  /** afsluitende beoordeling; ontbreekt bij oude logs en bij overslaan */
+  feel?: Feel
 }
 
 export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek'
 
+/**
+ * Eén hardloopsessie. Gepland en werkelijk staan bewust apart: `plannedKm` is wat de
+ * app voorschreef op het moment van afvinken, `km` is wat er echt gelopen is. Het
+ * verschil tussen die twee is precies wat het loopvolume verderop bijstuurt.
+ */
 export interface RunLog {
   date: string
   kind: RunKind
@@ -230,6 +265,8 @@ export interface RunLog {
   minutes: number | null
   bike: boolean
   completedAt: string | null
+  /** afsluitende beoordeling; ontbreekt bij oude logs en bij overslaan */
+  feel?: Feel
 }
 
 /* ---------- losse activiteiten ---------- */
@@ -269,6 +306,45 @@ export interface ExerciseState {
   belowMinStreak: number
   lastNote: string | null
   lastUpdated: string | null
+  /**
+   * Maandag van de week waarin het streefgewicht voor het laatst omhoog ging, plus
+   * hoeveel kilo er die week al bij kwam. Samen bewaken ze de maximale sprong per
+   * oefening per week: meerdere goede sessies in één week leveren niet meer op dan één.
+   */
+  increaseWeek?: string | null
+  increasedKg?: number
+}
+
+/** Waarom een voorstel afweek van wat de gebruiker uiteindelijk deed. */
+export type DeviationKind = 'run_plan' | 'run_distance' | 'lift_weight' | 'deload_skip'
+
+/**
+ * Een afwijking van een voorstel. De app stuurt bij, maar houdt niemand tegen: wat de
+ * gebruiker anders doet wordt vastgelegd zodat er later een patroon uit te lezen is
+ * ("elke zondag 2 km verder dan gepland").
+ */
+export interface Deviation {
+  id: string
+  date: string
+  kind: DeviationKind
+  /** waar het voorstel op uitkwam; null als het geen getal is */
+  suggested: number | null
+  /** wat de gebruiker koos */
+  chosen: number | null
+  /** één regel uitleg, in gewone taal */
+  note: string
+  createdAt: string
+}
+
+/**
+ * Een bewust overgeslagen deloadweek. Kan alleen ontstaan na een expliciete
+ * bevestiging waarin het risico benoemd staat; de sleutel is de maandag van die week.
+ */
+export interface DeloadSkip {
+  weekStart: string
+  confirmedAt: string
+  /** de tekst die de gebruiker bevestigd heeft, zodat achteraf duidelijk is wat er stond */
+  acknowledged: string
 }
 
 export interface DayOverride {
@@ -305,6 +381,8 @@ export interface UserState {
   permanentReplacements: Record<string, string>
   /** datum -> 1..5 */
   checkins: Record<string, number>
+  /** datum -> optionele dagcheck (slaap en energie) */
+  dayChecks: Record<string, DayCheck>
   /** datum -> gram eiwit */
   protein: Record<string, number>
   /** datum -> afgevinkte onderhoudsitems */
@@ -313,6 +391,15 @@ export interface UserState {
   sessions: Record<string, SessionLog>
   /** datum -> looplog */
   runs: Record<string, RunLog>
+  /**
+   * datum -> handmatig gezette geplande afstand in km. Wint van wat de app uitrekent,
+   * ook van de +10%-bewaking: het voorstel is een voorstel.
+   */
+  runPlans: Record<string, number>
+  /** maandag -> bewust overgeslagen deloadweek */
+  deloadSkips: Record<string, DeloadSkip>
+  /** afwijkingen van voorstellen, oudste eerst */
+  deviations: Deviation[]
   /** losse, ongeplande activiteiten naast het schema */
   activities: Activity[]
   /** datum -> reden (overgeslagen krachtsessie of loop) */

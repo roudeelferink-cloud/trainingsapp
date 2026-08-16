@@ -224,3 +224,66 @@ describe('v8 -> v9: de syncvelden eruit', () => {
     expect(root.users[ANOUC].protein[MON]).toBe(95)
   })
 })
+
+describe('v10 -> v11: de guardrails-laag', () => {
+  const v10 = {
+    schemaVersion: 10,
+    currentUser: 'rob',
+    pin: '1234',
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        settings: { bodyweightKg: 84, barWeights: { smith: 7 } },
+        checkins: { [MON]: 4 },
+        sessions: {
+          [`${MON}:legs_a`]: {
+            date: MON,
+            kind: 'legs_a',
+            short: false,
+            completedAt: '2026-08-03T18:00:00.000Z',
+            skippedSlots: [],
+            completedSlots: ['legs_a:0'],
+            exercises: { 'legs_a:0': 'leg_press' },
+            entries: { 'legs_a:0': [{ weight: 120, reps: 10, rir: 1, done: true }] },
+          },
+        },
+        runs: { [MON]: { date: MON, kind: 'short', plannedKm: 6, km: 6.5, minutes: 38, bike: false, completedAt: 'x' } },
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen', protein: { [MON]: 95 } },
+    },
+  }
+
+  it('zet de nieuwe velden leeg klaar bij elke gebruiker', () => {
+    const out = runMigrations(structuredClone(v10), 10, 11) as Record<string, any>
+
+    expect(out.schemaVersion).toBe(11)
+    for (const id of ['rob', 'anouc']) {
+      expect(out.users[id].dayChecks).toEqual({})
+      expect(out.users[id].runPlans).toEqual({})
+      expect(out.users[id].deloadSkips).toEqual({})
+      expect(out.users[id].deviations).toEqual([])
+    }
+  })
+
+  it('vult de beschikbare schijven aan zonder de stanggewichten te raken', () => {
+    const out = runMigrations(structuredClone(v10), 10, 11) as Record<string, any>
+    expect(out.users.rob.settings.plates.length).toBeGreaterThan(0)
+    expect(out.users.rob.settings.barWeights.smith).toBe(7)
+    expect(out.users.rob.settings.bodyweightKg).toBe(84)
+  })
+
+  it('laat historie zonder beoordeling gewoon staan', () => {
+    const root = migrate(structuredClone(v10))
+
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
+    const log = root.users[ROB].sessions[`${MON}:legs_a`]
+    expect(log.entries['legs_a:0'][0].weight).toBe(120)
+    expect(log.feel).toBeUndefined()
+    expect(root.users[ROB].runs[MON].feel).toBeUndefined()
+    expect(root.users[ROB].checkins[MON]).toBe(4)
+    expect(root.users[ANOUC].protein[MON]).toBe(95)
+  })
+})

@@ -3,6 +3,7 @@ import { programFor } from '../src/data/programs'
 import { activitiesOn } from '../src/logic/activities'
 import { applyProgression, emptyExerciseState } from '../src/logic/progression'
 import { buildDay } from '../src/logic/day'
+import { addDays } from '../src/logic/dates'
 import { oneRmSeries, trainingStreak, weeklyRunVolume } from '../src/logic/stats'
 import { startWeightAdvice } from '../src/logic/startWeight'
 import { getExercise } from '../src/data/exercises'
@@ -222,10 +223,11 @@ describe('het schema van Anouc', () => {
     const sets = [{ weight: 40, reps: 12, rir: 1, done: true }]
     const start = emptyExerciseState()
 
-    const standaard = applyProgression(ex, bounds, sets, start, { allowIncrease: true })
+    const standaard = applyProgression(ex, bounds, sets, start, { allowIncrease: true, iso: WO })
     const rustig = applyProgression(ex, bounds, sets, start, {
       allowIncrease: true,
       pace: 'gentle',
+      iso: WO,
     })
 
     // standaard: bovengrens gehaald, dus meteen een schijf erbij
@@ -247,5 +249,66 @@ describe('het schema van Anouc', () => {
     }, false, [key])
 
     expect(getState().exerciseState[slot.exercise.id].targetWeight).toBe(40)
+  })
+})
+
+describe('de guardrails werken voor allebei de profielen', () => {
+  for (const [id, naam] of [
+    [ROB, 'Rob'],
+    [ANOUC, 'Anouc'],
+  ] as const) {
+    describe(naam, () => {
+      beforeEach(() => {
+        setCurrentUser(id)
+        setState((s) => ({ ...s, startDate: MON }))
+      })
+
+      it('registreert een dagcheck en een beoordeling per sessie', () => {
+        A.setDayCheck(MON, { sleep: 1, energy: 1 })
+        expect(getState().dayChecks[MON]).toEqual({ sleep: 1, energy: 1 })
+
+        const dag = [MON, DI, WO, DO, VR, ZA, ZO].find((iso) => buildDay(getState(), iso).strength)!
+        const strength = buildDay(getState(), dag).strength!
+        const slot = strength.slots[0]
+        A.completeSession(dag, strength.kind, [slot], {
+          [slot.slot.key]: [{ weight: 30, reps: slot.repMax, rir: 1, done: true }],
+        }, false, [slot.slot.key], 'zwaar')
+
+        expect(getState().sessions[`${dag}:${strength.kind}`].feel).toBe('zwaar')
+      })
+
+      it('schat de duur van elke krachtsessie en houdt hem binnen het uur', () => {
+        for (const iso of [MON, DI, WO, DO, VR, ZA, ZO]) {
+          const strength = buildDay(getState(), iso).strength
+          if (!strength) continue
+          expect(strength.estimatedMin, iso).toBeGreaterThan(15)
+          expect(strength.tooLong, iso).toBeNull()
+        }
+      })
+
+      it('legt de deloadweek van week 8 op', () => {
+        const week8 = addDays(MON, 49)
+        expect(buildDay(getState(), week8).deload.active).toBe(true)
+        expect(A.skipDeload(week8, false).ok).toBe(false)
+        expect(A.skipDeload(week8, true).ok).toBe(true)
+        expect(buildDay(getState(), week8).deload.skipped).toBe(true)
+      })
+
+      it('laat de geplande loopafstand zelf zetten', () => {
+        const loopdag = [MON, DI, WO, DO, VR, ZA, ZO].find((iso) => buildDay(getState(), iso).run)!
+        A.setPlannedRunKm(loopdag, buildDay(getState(), loopdag).run!.kind, 9)
+        const run = buildDay(getState(), loopdag).run!
+        expect(run.plannedKm).toBe(9)
+        expect(run.manualPlan).toBe(true)
+      })
+    })
+  }
+
+  it('schrijft Anouc geen afstand voor zolang zij er zelf geen zet', () => {
+    setCurrentUser(ANOUC)
+    setState((s) => ({ ...s, startDate: MON }))
+    const run = buildDay(getState(), ZO).run!
+    expect(run.free).toBe(true)
+    expect(run.km).toBe(0)
   })
 })

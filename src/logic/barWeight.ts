@@ -45,10 +45,10 @@ export function barFor(ex: Exercise): BarId | null {
 }
 
 /** Eigen gewicht van de stang bij deze oefening; 0 als er geen stang aan te pas komt. */
-export function barWeightFor(ex: Exercise, settings: Settings): number {
+export function barWeightFor(ex: Exercise, settings: Settings | undefined): number {
   const bar = barFor(ex)
   if (!bar) return 0
-  const kg = settings.barWeights?.[bar]
+  const kg = settings?.barWeights?.[bar]
   return typeof kg === 'number' && Number.isFinite(kg) && kg > 0 ? kg : DEFAULT_BAR_WEIGHTS[bar]
 }
 
