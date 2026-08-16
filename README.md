@@ -40,14 +40,17 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | --- | --- |
 | `library.test.ts` | bibliotheek-invarianten: ≥6 oefeningen per patroon, unieke ids, geldige `bodyweightAlternative`, kuit/abductie blijven `core`, zaterdag zonder zware beenbelasting |
 | `cycle.test.ts` | weeknummer, cyclusweek, kalibratie, rotatie na 3 cycli |
-| `day.test.ts` | weekstructuur, woensdag altijd leeg, deload, check-in-afschaling, korte versie, gevoelige gebieden, reismodus, verplaatsen/ruilen, zaterdagblokkade voor beensessies, de geplande loopafstand per dag en de geschatte duur |
+| `day.test.ts` | weekstructuur, woensdag altijd leeg, deload, check-in-afschaling, korte versie, gevoelige gebieden, reismodus, verplaatsen/ruilen, de geplande loopafstand per dag en de geschatte duur |
 | `running.test.ts` | de kale rekenkunde van het loopschema: opbouw per week, de verdeling kort/kort/lang en het afronden |
 | `runningLoad.test.ts` | het weekplafond van +10% op het gemiddelde van twee weken, werkelijk gelopen kilometers inclusief losse rondjes, terugschalen na een te lange loop, de rem na een zware loop, handmatige afstanden en de deloadkorting |
 | `progression.test.ts` | streefwaarden, progressie op gewicht en op reps, double progression op gevoel, de maximale sprong per week, het uitsmeren van een te grote stap en de −10%-regel |
 | `plates.test.ts` | afronden op wat te laden is: schijven per paar, stanggewicht, het dumbbellrek en bandwerk zonder kilo's |
 | `deload.test.ts` | de drie aanleidingen (drie zware sessies, twee slechte weken, elke achtste week), het overslaan met bevestiging en de kortingen |
 | `duration.test.ts` | de geschatte sessieduur en de waarschuwing boven het uur, met een accessoire als voorstel |
-| `guardrails.test.ts` | het schema uitlezen langs verplaatsingen, zware benen binnen 48 uur voor de duurloop met een ruilvoorstel, en één uitlegregel per bijsturing |
+| `guardrails.test.ts` | het schema uitlezen langs verplaatsingen, het tijdvenster van 24 en 48 uur, het structurele weekpatroon en het wegklikken ervan, twee zware beendagen achter elkaar, en één uitlegregel per bijsturing |
+| `legLoad.test.ts` | de beenbelasting per sessie: welk werk zwaar of licht telt, de sets, het deel van je 1RM, lichaamsgewicht en band, en de deloadkorting |
+| `verplaatsen.test.ts` | verplaatsen in beide richtingen: naar voren halen, ruilen, over de weekgrens, woensdag geblokkeerd, de waarschuwingen vooraf en de guardrails die op de nieuwe datum blijven gelden — voor beide profielen |
+| `moveSheet.test.tsx` | de keuzelijst zelf: beide richtingen met een kopje, de rustdag grijs met reden, en een waarschuwing die de dag niet uitschakelt |
 | `gevoel.test.ts` | de beoordeling per sessie, de dagcheck, gepland versus werkelijk gelopen, het vastleggen van afwijkingen en het overslaan van een deload |
 | `stats.test.ts` | streaks, 1RM-reeks, eiwitdoel, exportherinnering |
 | `coaching.test.ts` | elke oefening heeft een gevulde setup, execution en mistake |
@@ -235,9 +238,45 @@ inbegrepen: anders zou de bewaking te omzeilen zijn door buiten het schema om te
   korte lopen krijgen de rest, binnen 5 tot 8 km. Die volgorde is het hele punt: andersom
   (korte lopen eerst op hun ondergrens, duurloop als restpost) kon een teruggeschaalde week
   een zondag van 6 km opleveren met dinsdag en donderdag op 5 — dat was de bug.
-- **Zware benen vlak voor de duurloop** — staat er binnen 48 uur voor de duurloop een sessie
-  met zwaar beenwerk, dan waarschuwt de app en stelt hij een dag voor om mee te ruilen. De
-  standaardweek (benen B op vrijdag) valt op precies 48 uur en blijft dus stil.
+- **Zware benen vlak voor de duurloop** — zie hieronder; die regel telt de werkelijke
+  beenbelasting van de sessie, niet de naam ervan.
+
+### Zware benen vlak voor de duurloop (`src/logic/legLoad.ts`)
+
+Deze regel keek eerst naar de naam van de sessie — "benen A" en "benen B" waren zwaar, de
+rest niet. Dat klopte voor één programma en voor geen enkel ander, en de harde grens van
+48 uur maakte de standaardweek per toeval stil. Nu wordt geteld wat er echt gepland staat:
+
+- **Wat voor werk** — zwaar samengesteld beenwerk (squat, leg press, RDL, lunges, hip
+  thrust) telt vol mee, beenisolatie (leg curl, leg extension, kuiten, abductie) voor 0,3
+  per set, bovenlichaam en romp niet.
+- **Hoeveel werksets**, ná alles wat de dag er al af haalt: de korte versie, een lage
+  check-in en de deloadweek.
+- **Hoe zwaar** — welk deel van je hoogst geschatte 1RM er gepland staat. Zonder historie
+  telt 0,7; werk op lichaamsgewicht of band 0,4, want daar staan geen kilo's tegenover.
+
+Boven de 3 heet dat zwaar, boven de 6 heel zwaar. Ter ijking: benen A komt op ~9, een full
+body met één matige beenoefening op ~2,8 — die laatste levert dus geen melding op.
+
+Het tijdvenster is een oplopende schaal in plaats van een harde grens, met de
+grenswaarden bij de strengere band zodat 24 en 48 uur voorspelbaar afgehandeld worden:
+
+| Uren tot de duurloop | Melden bij |
+| --- | --- |
+| tot en met 24 | zwaar (≥ 3) |
+| 24 tot en met 48 | heel zwaar (≥ 6) |
+| meer dan 48 | nooit |
+
+**Herhaling wordt gedempt.** Staat dezelfde combinatie er de twee weken ervoor ook, dan is
+het de opzet van de week en geen incident. Dan komt er één structurele signalering in
+plaats van elke week hetzelfde regeltje, met een knop om de sessie meteen te verplaatsen.
+Weggeklikt blijft hij vier weken stil; verandert het patroon eerder — een andere dag, een
+andere sessie, een ander niveau — dan is het een andere melding en staat hij er weer. De
+sleutel ís het patroon, dus dat werkt vanzelf.
+
+De melding noemt de sessie, het aantal uren en de oefeningen die de belasting veroorzaken:
+"Full body B op za 15 aug staat 24 uur voor de duurloop van zo 16 aug — Smith squat, Kabel
+pull-through en Step-up doen het meeste werk."
 
 ### Deload (`src/logic/deload.ts`)
 
@@ -423,13 +462,21 @@ alle sets), berekend met dezelfde conventie.
 - **Verplaatsen:** kracht én loop kunnen naar een andere dag, onafhankelijk van elkaar. Op
   Vandaag zit de knop bij de sessie zelf; op de weekpagina heeft elke regel zijn eigen knop
   — *Open* bij de krachtsessie, *Verplaatsen* bij de loop — zodat ook een loop van morgen of
-  overmorgen te verzetten is. Op
-  een dag met allebei verzet je dus alleen wat je wilt verzetten. Woensdag kan nooit (bij
-  Anouc maandag). Is de doeldag bezet met hetzelfde soort sessie, dan ruilen de twee van
-  plek (ma ↔ vr bijvoorbeeld). Een beensessie kan nooit op zaterdag landen, ook niet via
-  een ruil, omdat zondag de duurloop is; de app toont die dag geblokkeerd met de reden.
-  Voor loopdagen geldt die blokkade niet: hij gaat over zware beenbelasting vlak vóór de
-  duurloop, niet over de loop zelf.
+  overmorgen te verzetten is. Op een dag met allebei verzet je dus alleen wat je wilt
+  verzetten.
+
+  De lijst loopt **beide kanten op**: van de dag vóór deze week tot en met de dag erna, dus
+  een sessie is net zo goed naar voren te halen en over een weekgrens heen te verzetten.
+  Is de doeldag bezet met hetzelfde soort sessie, dan ruilen de twee van plek (ma ↔ vr
+  bijvoorbeeld); dagen die al aan een verplaatsing meedoen vallen af, want ketens maken het
+  onnavolgbaar. Woensdag staat in de lijst maar is geblokkeerd (bij Anouc maandag): de vaste
+  rustdag is nooit een geldige bestemming.
+
+  **De guardrails gelden op de nieuwe datum.** Per dag staat er bij wat die keuze oplevert:
+  zwaar beenwerk dat te dicht op de duurloop komt, twee zware beendagen achter elkaar, of
+  een week die over het loopplafond gaat. Dat houdt je niet tegen — je ziet het vooraf en
+  kiest zelf. Alleen conflicten die er zónder deze verplaatsing ook al waren blijven
+  ongenoemd; die horen niet bij deze keuze.
 - **Per oefening:** eenmalig wisselen, permanent vervangen (rouleert dan niet meer mee),
   een plek naar voren of naar achteren schuiven, of overslaan.
 - **Gevoelige gebieden** (Instellingen): per belast gebied ok / let op / gevoelig. Op
@@ -505,7 +552,7 @@ huishoudcode en de synctijdstempels op uit bestaande data. Het Firebase-project
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **11**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **12**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -555,6 +602,9 @@ Bestaande stappen:
 - **v9 → v10** — één veld erbij: `pin`, de viercijferige code voor het wissen van
   gegevens. Bestaande data krijgt `null`, en dan is wissen simpelweg niet mogelijk tot er
   in de instellingen een code is ingesteld. Verder verandert er niets.
+- **v11 → v12** — één veld erbij per gebruiker: `dismissedWarnings`, een sleutel per
+  weggeklikt patroon met de datum erbij. Bestaande data krijgt een lege lijst; er is dan
+  simpelweg nog niets weggeklikt.
 - **v10 → v11** — de guardrails-laag. Per gebruiker komen er vier lege velden bij:
   `dayChecks` (de optionele dagcheck), `runPlans` (een zelf gezette loopafstand per dag),
   `deloadSkips` (bewust overgeslagen deloadweken) en `deviations` (afwijkingen van
@@ -594,6 +644,8 @@ src/
   logic/deload.ts     wanneer een deloadweek nodig is, en wat er dan af gaat
   logic/duration.ts   geschatte sessieduur en de waarschuwing boven het uur
   logic/guardrails.ts alle bijsturingen van een dag, met per stuk één regel waarom
+  logic/legLoad.ts    hoe zwaar een sessie op je benen is, geteld uit de oefeningen
+  logic/sessionSlots.ts welke oefeningen er in de sessie van een dag zitten
   logic/schedule.ts   wat er volgens het schema op een dag staat, verplaatsingen meegerekend
   logic/feel.ts       beoordeling per sessie en de dagcheck
   logic/startWeight.ts geschat startgewicht zonder historie

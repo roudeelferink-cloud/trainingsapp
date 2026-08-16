@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TEMPLATES, saturdayTemplate } from '../src/data/plan'
-import { buildDay, isLegsSession, moveBlockReason, moveTargets } from '../src/logic/day'
+import { buildDay, moveTargets } from '../src/logic/day'
 import { addDays, weekday } from '../src/logic/dates'
 import { durationWarning } from '../src/logic/duration'
 import { resolveSlot } from '../src/logic/select'
@@ -214,8 +214,10 @@ describe('verplaatsen', () => {
     expect(buildDay(state, VR).strength?.kind).toBe('legs_a')
   })
 
-  it('biedt woensdag nooit aan als doeldag', () => {
-    expect(moveTargets(s0, MON).some((t) => weekday(t.date) === 3)).toBe(false)
+  it('biedt woensdag nooit aan als geldige doeldag', () => {
+    const woensdagen = moveTargets(s0, MON).filter((t) => weekday(t.date) === 3)
+    expect(woensdagen.length).toBeGreaterThan(0)
+    expect(woensdagen.every((t) => t.blocked !== null)).toBe(true)
   })
 
   it('biedt bezette dagen aan als ruil', () => {
@@ -223,42 +225,27 @@ describe('verplaatsen', () => {
   })
 })
 
-describe('beensessies nooit op zaterdag', () => {
-  it('herkent beensessies', () => {
-    expect(isLegsSession('legs_a')).toBe(true)
-    expect(isLegsSession('legs_b')).toBe(true)
-    expect(isLegsSession('push')).toBe(false)
-    expect(isLegsSession(null)).toBe(false)
+describe('zware benen naar zaterdag: een keuze met uitleg', () => {
+  it('blokkeert de verplaatsing niet meer, maar waarschuwt wel', () => {
+    const zaterdag = moveTargets(s0, MON).find((t) => t.date === ZA)!
+    expect(zaterdag.blocked).toBeNull()
+    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
   })
 
-  it('weigert ma -> za', () => {
-    expect(moveBlockReason(s0, MON, ZA)).toContain('zaterdag')
+  it('waarschuwt ook bij de ruil vanaf zaterdag', () => {
+    // za -> ma zet benen A op zaterdag, één dag voor de duurloop
+    const maandag = moveTargets(s0, ZA).find((t) => t.date === MON)!
+    expect(maandag.warnings.join(' ')).toContain('duurloop')
   })
 
-  it('weigert vr -> za', () => {
-    expect(moveBlockReason(s0, VR, ZA)).not.toBeNull()
+  it('laat ma -> vr en ma -> zo zonder waarschuwing over de duurloop', () => {
+    const vrijdag = moveTargets(s0, MON).find((t) => t.date === VR)!
+    // vrijdag is al een beendag: daar staat de waarschuwing over twee zware dagen los van
+    expect(vrijdag.warnings.join(' ')).not.toContain('duurloop')
   })
 
-  it('weigert za -> ma, want die ruil zou benen A op zaterdag zetten', () => {
-    expect(moveBlockReason(s0, ZA, MON)).not.toBeNull()
-  })
-
-  it('markeert zaterdag als geblokkeerd in de lijst met doeldagen', () => {
-    const za = moveTargets(s0, MON).find((t) => t.date === ZA)
-    expect(za?.blocked).not.toBeNull()
-  })
-
-  it('laat ma -> vr en ma -> zo gewoon toe', () => {
-    expect(moveBlockReason(s0, MON, VR)).toBeNull()
-    expect(moveBlockReason(s0, MON, ZO)).toBeNull()
-  })
-
-  it('laat een niet-beensessie wel naar zaterdag', () => {
-    expect(moveBlockReason(s0, DI, ZA)).toBeNull()
-  })
-
-  it('laat de zaterdagsessie naar zondag', () => {
-    expect(moveBlockReason(s0, ZA, ZO)).toBeNull()
+  it('waarschuwt niet bij een sessie zonder beenwerk', () => {
+    expect(moveTargets(s0, DI).find((t) => t.date === ZA)!.warnings).toEqual([])
   })
 })
 

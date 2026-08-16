@@ -12,9 +12,10 @@ import {
   resetState,
   setState,
 } from '../src/store/store'
+import { moveTargets } from '../src/logic/day'
 import { runMigrations } from '../src/store/migrations'
 import * as A from '../src/store/actions'
-import { MON, VR, ZA } from './helpers'
+import { MON, VR, WO, ZA } from './helpers'
 
 const sessionLog = {
   [`${MON}:legs_a`]: {
@@ -302,10 +303,19 @@ describe('migratie van oudere data', () => {
 })
 
 describe('acties op de gedeelde staat', () => {
-  it('weigert een beensessie naar zaterdag te verplaatsen', () => {
-    const res = A.moveSession(MON, ZA)
+  it('verplaatst een beensessie naar zaterdag, maar niet zonder waarschuwing vooraf', () => {
+    const zaterdag = moveTargets(getState(), MON, 'strength').find((t) => t.date === ZA)!
+    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
+
+    // de waarschuwing houdt de gebruiker niet tegen
+    expect(A.moveSession(MON, ZA).ok).toBe(true)
+    expect(getState().moves[MON]).toBe(ZA)
+  })
+
+  it('weigert de vaste rustdag als bestemming', () => {
+    const res = A.moveSession(MON, WO)
     expect(res.ok).toBe(false)
-    expect(res.reason).toContain('zaterdag')
+    expect(res.reason).toContain('Rustdag')
     expect(getState().moves).toEqual({})
   })
 

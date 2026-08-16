@@ -2,7 +2,7 @@ import { getExercise } from '../data/exercises'
 import { supportsDistance } from '../logic/activities'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
-import { buildDay, moveBlockReason, moveTargets, sessionKeyFor } from '../logic/day'
+import { applyMove, buildDay, moveTargets, sessionKeyFor } from '../logic/day'
 import { moveKey } from '../logic/order'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, stateFor } from '../logic/progression'
@@ -219,18 +219,18 @@ export function setWarmupDone(iso: string, kind: DayKind, done: boolean): void {
 }
 
 /**
- * Verplaatst een krachtsessie. Staat er op de doeldag al een sessie, dan ruilen ze van plek.
- * Geweigerde verplaatsingen (zoals een beensessie naar zaterdag) veranderen niets.
+ * Verplaatst een krachtsessie, vooruit of naar voren. Staat er op de doeldag al een
+ * sessie, dan ruilen ze van plek.
+ *
+ * Conflicten houden de verplaatsing niet tegen: de MoveSheet toont ze vooraf met de
+ * reden, en de gebruiker beslist. Alleen een dag die geen geldige bestemming ís — de
+ * vaste rustdag, of een dag die al aan een verplaatsing meedoet — wordt geweigerd.
  */
 export function moveSession(iso: string, target: string): { ok: boolean; reason?: string } {
-  const reason = moveBlockReason(getState(), iso, target)
-  if (reason) return { ok: false, reason }
-  setState((s) => {
-    const occupied = !!buildDay(s, target).strength
-    const moves = { ...s.moves, [iso]: target }
-    if (occupied) moves[target] = iso
-    return { ...s, moves }
-  })
+  const doel = moveTargets(getState(), iso, 'strength').find((t) => t.date === target)
+  if (!doel) return { ok: false, reason: 'Die dag kan niet.' }
+  if (doel.blocked) return { ok: false, reason: doel.blocked }
+  setState((s) => applyMove(s, iso, target, 'strength'))
   return { ok: true }
 }
 
@@ -255,15 +255,10 @@ export function undoMove(iso: string): void {
 export function moveRun(iso: string, target: string): { ok: boolean; reason?: string } {
   const from = buildDay(getState(), iso)
   if (!from.run) return { ok: false, reason: 'Er staat op deze dag geen loop.' }
-  if (!moveTargets(getState(), iso, 'run').some((t) => t.date === target && !t.blocked)) {
-    return { ok: false, reason: 'Die dag kan niet.' }
-  }
-  setState((s) => {
-    const occupied = !!buildDay(s, target).run
-    const runMoves = { ...s.runMoves, [iso]: target }
-    if (occupied) runMoves[target] = iso
-    return { ...s, runMoves }
-  })
+  const doel = moveTargets(getState(), iso, 'run').find((t) => t.date === target)
+  if (!doel) return { ok: false, reason: 'Die dag kan niet.' }
+  if (doel.blocked) return { ok: false, reason: doel.blocked }
+  setState((s) => applyMove(s, iso, target, 'run'))
   return { ok: true }
 }
 
@@ -384,6 +379,26 @@ export function skipDeload(iso: string, acknowledged: boolean): { ok: boolean; r
     })
   })
   return { ok: true }
+}
+
+/* ---- meldingen wegklikken ---- */
+
+/**
+ * Klikt een structurele melding weg. De sleutel ís het patroon, dus zodra de combinatie
+ * verandert komt de melding vanzelf terug; verandert er niets, dan blijft hij vier weken
+ * stil. Zie `isDismissed` in `guardrails.ts`.
+ */
+export function dismissWarning(signature: string, iso: string): void {
+  if (!signature) return
+  setState((s) => ({ ...s, dismissedWarnings: { ...s.dismissedWarnings, [signature]: iso } }))
+}
+
+export function undismissWarning(signature: string): void {
+  setState((s) => {
+    const dismissedWarnings = { ...s.dismissedWarnings }
+    delete dismissedWarnings[signature]
+    return { ...s, dismissedWarnings }
+  })
 }
 
 /** Toch de deload doen. Kan altijd, zonder drempel. */

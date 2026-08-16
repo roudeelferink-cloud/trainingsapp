@@ -448,3 +448,40 @@ export function estimate1RM(weight: number, reps: number): number {
   if (weight <= 0 || reps <= 0) return 0
   return Math.round(weight * (1 + reps / 30) * 10) / 10
 }
+
+/**
+ * Het hoogste geschatte 1RM dat er ooit voor deze oefening gelogd is; 0 zonder historie.
+ * Hiermee is te zien welk deel van je maximum er vandaag gepland staat — dat zegt meer
+ * over de belasting dan het aantal kilo's op zichzelf.
+ */
+export function bestEstimated1RM(state: UserState, exerciseId: string): number {
+  const key = state.sessions ?? state
+  const cached = oneRmCache.get(key)?.get(exerciseId)
+  if (cached !== undefined) return cached
+
+  let best = 0
+  for (const log of Object.values(state.sessions ?? {})) {
+    if (!log.completedAt) continue
+    for (const [slotKey, sets] of Object.entries(log.entries ?? {})) {
+      if (log.exercises?.[slotKey] !== exerciseId) continue
+      for (const set of sets) {
+        if (set.done === false) continue
+        best = Math.max(best, estimate1RM(set.weight, set.reps))
+      }
+    }
+  }
+
+  const perExercise = oneRmCache.get(key) ?? new Map<string, number>()
+  perExercise.set(exerciseId, best)
+  oneRmCache.set(key, perExercise)
+  return best
+}
+
+/**
+ * De uitkomst hangt alleen van de gelogde sessies af, en die worden nooit aangepast maar
+ * altijd vervangen. Onthouden op die map scheelt dus niets aan correctheid en veel aan
+ * werk: de beenbelasting vraagt dit voor elke oefening van elke dag opnieuw, en bij het
+ * vooruitkijken naar een verplaatsing zelfs voor elke kandidaatdag apart — met dezelfde
+ * sessies eronder.
+ */
+const oneRmCache = new WeakMap<object, Map<string, number>>()

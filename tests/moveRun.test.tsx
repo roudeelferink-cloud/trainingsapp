@@ -96,8 +96,10 @@ describe('een loop verplaatsen', () => {
   })
 
   it('weigert een dag die niet mag', () => {
-    // woensdag is de vaste rustdag van dit programma
-    expect(moveTargets(getState(), DI, 'run').some((t) => weekday(t.date) === 3)).toBe(false)
+    // woensdag is de vaste rustdag van dit programma: hij staat er wel, maar geblokkeerd
+    const woensdag = moveTargets(getState(), DI, 'run').filter((t) => weekday(t.date) === 3)
+    expect(woensdag.length).toBeGreaterThan(0)
+    expect(woensdag.every((t) => t.blocked !== null)).toBe(true)
     expect(A.moveRun(DI, WO).ok).toBe(false)
     expect(getState().runMoves).toEqual({})
 
@@ -112,10 +114,16 @@ describe('een loop verplaatsen', () => {
     expect(moveTargets(getState(), MON, 'run').some((t) => t.date === DI)).toBe(false)
   })
 
-  it('blokkeert loopdagen niet zoals beensessies op zaterdag', () => {
-    // een beensessie mag niet naar zaterdag, een loop wel
-    expect(moveTargets(getState(), MON, 'strength').find((t) => t.date === ZA)?.blocked).not.toBeNull()
-    expect(moveTargets(getState(), VR, 'run').every((t) => t.blocked === null)).toBe(true)
+  it('houdt alleen de rustdag geblokkeerd; de rest is een keuze met uitleg', () => {
+    // een beensessie naar zaterdag mag, maar niet zonder waarschuwing: zondag is de duurloop
+    const zaterdag = moveTargets(getState(), MON, 'strength').find((t) => t.date === ZA)!
+    expect(zaterdag.blocked).toBeNull()
+    expect(zaterdag.warnings.length).toBeGreaterThan(0)
+    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
+
+    // en de loop zelf heeft nergens een waarschuwing nodig
+    const loopdagen = moveTargets(getState(), VR, 'run').filter((t) => t.blocked === null)
+    expect(loopdagen.length).toBeGreaterThan(0)
   })
 })
 
@@ -137,7 +145,11 @@ describe('per gebruiker', () => {
     // Anouc loopt dinsdag, vrijdag en zondag; maandag is haar rustdag
     expect(buildDay(getState(), DI).run).not.toBeNull()
     expect(buildDay(getState(), MON).isRest).toBe(true)
-    expect(moveTargets(getState(), DI, 'run').every((t) => weekday(t.date) !== 1)).toBe(true)
+    expect(
+      moveTargets(getState(), DI, 'run')
+        .filter((t) => weekday(t.date) === 1)
+        .every((t) => t.blocked !== null),
+    ).toBe(true)
 
     expect(A.moveRun(DI, DO).ok).toBe(true)
     expect(buildDay(getState(), DO).run?.movedFrom).toBe(DI)
