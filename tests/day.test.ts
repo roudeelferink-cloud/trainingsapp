@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { TEMPLATES, saturdayTemplate } from '../src/data/plan'
 import { buildDay, isLegsSession, moveBlockReason, moveTargets } from '../src/logic/day'
 import { addDays, weekday } from '../src/logic/dates'
+import { durationWarning } from '../src/logic/duration'
 import { resolveSlot } from '../src/logic/select'
 import { DI, DO, MON, VR, WO, ZA, ZO, baseState } from './helpers'
 
@@ -59,15 +60,22 @@ describe('weekstructuur', () => {
 })
 
 describe('deload', () => {
-  const deload = buildDay(s0, addDays(MON, 21))
+  // week 8 is de vaste deloadweek; die begint 7 weken na de start
+  const deload = buildDay(s0, addDays(MON, 49))
   const normaal = buildDay(s0, MON)
+
+  it('valt op de achtste trainingsweek', () => {
+    expect(deload.deload.active).toBe(true)
+    expect(deload.deload.reason).toBe('ritme')
+    expect(buildDay(s0, addDays(MON, 21)).deload.active).toBe(false)
+  })
 
   it('haalt één set per oefening weg', () => {
     expect(deload.strength!.slots[0].sets).toBe(normaal.strength!.slots[0].sets - 1)
   })
 
   it('zet de optionele zaterdagsessie automatisch uit', () => {
-    expect(buildDay(s0, addDays(ZA, 21)).strength).toBeNull()
+    expect(buildDay(s0, addDays(ZA, 49)).strength).toBeNull()
   })
 })
 
@@ -292,5 +300,68 @@ describe('resolveSlot', () => {
         }
       }
     }
+  })
+})
+
+describe('de loop van de dag', () => {
+  it('schrijft dinsdag en donderdag 5-8 km voor en zondag de duurloop', () => {
+    for (const iso of [DI, DO]) {
+      const run = buildDay(s0, iso).run!
+      expect(run.km, iso).toBeGreaterThanOrEqual(5)
+      expect(run.km, iso).toBeLessThanOrEqual(8)
+    }
+    expect(buildDay(s0, ZO).run!.km).toBe(10)
+  })
+
+  it('houdt de zondagse duurloop altijd langer dan de korte lopen', () => {
+    // ook na een week waarin er veel minder gelopen is dan gepland
+    const state = baseState({
+      runs: {
+        [addDays(DI, 7)]: {
+          date: addDays(DI, 7), kind: 'short', plannedKm: 6, km: 4, minutes: 26,
+          bike: false, completedAt: 'x',
+        },
+      },
+    })
+    const derdeWeek = addDays(MON, 14)
+    const kort = buildDay(state, addDays(derdeWeek, 1)).run!.km
+    const lang = buildDay(state, addDays(derdeWeek, 6)).run!.km
+    expect(lang).toBeGreaterThan(kort)
+  })
+
+  it('laat de geplande afstand met de hand overschrijven', () => {
+    const state = baseState({ runPlans: { [ZO]: 13 } })
+    const run = buildDay(state, ZO).run!
+    expect(run.plannedKm).toBe(13)
+    expect(run.km).toBe(13)
+    expect(run.manualPlan).toBe(true)
+    expect(run.why.join(' ')).toContain('Zelf ingesteld')
+  })
+
+  it('legt per bijsturing uit waarom de afstand is wat hij is', () => {
+    const laag = buildDay(baseState({ checkins: { [DI]: 1 } }), DI)
+    expect(laag.run!.why.join(' ')).toContain('30% korter')
+  })
+
+  it('haalt in de deloadweek kilometers weg', () => {
+    const normaal = buildDay(s0, ZO).run!.km
+    const deload = buildDay(s0, addDays(ZO, 49)).run!.km
+    expect(deload).toBeLessThan(normaal)
+  })
+})
+
+describe('geschatte duur van de sessie', () => {
+  it('staat op elke krachtsessie', () => {
+    const strength = buildDay(s0, MON).strength!
+    expect(strength.estimatedMin).toBeGreaterThan(20)
+  })
+
+  it('waarschuwt boven het uur en wijst een accessoire aan', () => {
+    const state = baseState({ sessions: {} })
+    const plan = buildDay(state, MON)
+    const langer = plan.strength!.slots.map((r) => ({ ...r, sets: r.sets + 3 }))
+    // de sessie zelf is nog binnen het uur; met drie sets extra per oefening niet meer
+    expect(plan.strength!.tooLong).toBeNull()
+    expect(durationWarning(langer, plan.strength!.warmup.minutes)).not.toBeNull()
   })
 })

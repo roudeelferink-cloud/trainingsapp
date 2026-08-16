@@ -34,7 +34,7 @@ function sets(level: number, reps: number, rir = 1): LoggedSet[] {
 }
 
 function na(prev: ExerciseState, id: string, s: LoggedSet[], allowIncrease = true): ExerciseState {
-  return applyProgression(getExercise(id), BOUNDS, s, prev, { allowIncrease }).next
+  return applyProgression(getExercise(id), BOUNDS, s, prev, { allowIncrease, iso: MON }).next
 }
 
 describe('nieuw materiaal in de bibliotheek', () => {
@@ -188,6 +188,7 @@ describe('progressie op bandniveau', () => {
     // plafond gehaald: volgende band, reps terug naar de ondergrens
     const res = applyProgression(getExercise('clamshell'), BOUNDS, sets(1, CEILING), es, {
       allowIncrease: true,
+      iso: MON,
     })
     expect(res.next.targetLevel).toBe(2)
     expect(res.next.targetReps).toBe(BOUNDS.repMin)
@@ -201,7 +202,7 @@ describe('progressie op bandniveau', () => {
       BOUNDS,
       sets(2, CEILING, 4),
       { ...emptyExerciseState(), targetLevel: 2, targetReps: CEILING },
-      { allowIncrease: true },
+      { allowIncrease: true, iso: MON },
     )
     expect(res.next.targetLevel).toBe(2)
     expect(res.next.targetReps).toBeLessThanOrEqual(CEILING)
@@ -216,6 +217,7 @@ describe('progressie op bandniveau', () => {
 
     const res = applyProgression(getExercise('clamshell'), BOUNDS, sets(3, BOUNDS.repMin - 4), es, {
       allowIncrease: true,
+      iso: MON,
     })
     expect(res.next.targetLevel).toBe(2)
     expect(res.message).toContain('terug naar niveau 2')
@@ -235,6 +237,7 @@ describe('progressie op bandniveau', () => {
     const es = { ...emptyExerciseState(), targetLevel: 2, targetReps: CEILING }
     const res = applyProgression(getExercise('clamshell'), BOUNDS, sets(2, CEILING), es, {
       allowIncrease: false,
+      iso: MON,
     })
     expect(res.next.targetLevel).toBe(2)
     expect(res.next.lastNote).toContain('geen zwaardere band')
@@ -246,7 +249,7 @@ describe('doorschakelen naar de kabelvariant', () => {
 
   function opDeZwaarsteBand(id: string) {
     const es = { ...emptyExerciseState(), targetLevel: MAX_BAND_LEVEL, targetReps: CEILING }
-    return applyProgression(getExercise(id), BOUNDS, topBand, es, { allowIncrease: true })
+    return applyProgression(getExercise(id), BOUNDS, topBand, es, { allowIncrease: true, iso: MON })
   }
 
   it('groeit door zodra de zwaarste band op het repsplafond zit', () => {

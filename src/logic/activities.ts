@@ -1,9 +1,13 @@
 import type { Activity, ActivityIntensity, ActivityType, UserState } from '../types'
 
 /**
- * Losse activiteiten staan naast het schema. Ze worden nergens in de
- * progressie- of gewichtsadvieslogica gelezen: die kijkt alleen naar
- * `sessions` (kracht) en `runs` (loop).
+ * Losse activiteiten staan naast het schema. Ze worden nergens in de progressie- of
+ * gewichtsadvieslogica gelezen: die kijkt alleen naar `sessions` (kracht).
+ *
+ * Eén uitzondering, en die is bewust: een los rondje hardlopen telt wél mee in de
+ * weekkilometers (`runningLoad.ts`). Anders zou de +10%-bewaking te omzeilen zijn door
+ * je lopen buiten het schema om te loggen, terwijl je pezen niet weten of het in het
+ * schema stond.
  */
 
 export const ACTIVITY_TYPES: { id: ActivityType; label: string }[] = [

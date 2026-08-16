@@ -295,6 +295,50 @@ function v9_to_v10(state: RawState): RawState {
   return { ...state, pin }
 }
 
+/**
+ * v10 -> v11: de guardrails-laag.
+ *
+ * Er komen per gebruiker vier velden bij, allemaal leeg te beginnen:
+ * - `dayChecks` — de optionele dagcheck (slaap en energie) per dag;
+ * - `runPlans` — een zelf gezette geplande loopafstand per dag;
+ * - `deloadSkips` — bewust overgeslagen deloadweken, per maandag;
+ * - `deviations` — afwijkingen van voorstellen, zodat er later een patroon uit te lezen is.
+ *
+ * De beoordeling van een sessie (`feel`, op het sessielog en op het looplog) heeft geen
+ * stap nodig: hij is optioneel en ontbreekt gewoon bij alles wat er al staat. Dat is ook
+ * precies hoe de progressie hem leest — geen beoordeling betekent terugvallen op de RIR.
+ *
+ * De schijven in de instellingen komen via `normalizeSettings` binnen, net als de
+ * stanggewichten destijds; die stap staat hieronder alsnog expliciet zodat een gebruiker
+ * zonder `settings` er ook een krijgt.
+ */
+function v10_to_v11(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!raw || typeof raw !== 'object') {
+      next[id] = raw
+      continue
+    }
+    const user = raw as Record<string, unknown>
+    next[id] = {
+      ...user,
+      dayChecks: isRecord(user.dayChecks) ? user.dayChecks : {},
+      runPlans: isRecord(user.runPlans) ? user.runPlans : {},
+      deloadSkips: isRecord(user.deloadSkips) ? user.deloadSkips : {},
+      deviations: Array.isArray(user.deviations) ? user.deviations : [],
+      settings: normalizeSettings(user.settings, defaultSettingsFor(id)),
+    }
+  }
+
+  return { ...state, users: next }
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
@@ -305,6 +349,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   7: v7_to_v8,
   8: v8_to_v9,
   9: v9_to_v10,
+  10: v10_to_v11,
 }
 
 /**

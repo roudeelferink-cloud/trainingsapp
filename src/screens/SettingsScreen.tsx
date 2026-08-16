@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Card, Chip, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
+import { PLATE_OPTIONS, smallestPlate } from '../logic/plates'
 import { TEMPLATES } from '../data/plan'
 import { programById } from '../data/programs'
 import { dataSummary, exportReminder, exportWarning, proteinGoal } from '../logic/stats'
@@ -180,6 +181,32 @@ export function SettingsScreen() {
               />
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle>Schijven</SectionTitle>
+        <p className="text-sm text-slate-400 mb-3">
+          Welke schijven er liggen. Ze gaan per paar op de stang, dus de kleinste echte stap is
+          twee keer de lichtste schijf: nu <b>{smallestPlate(settings) * 2} kg</b>. Een voorstel dat
+          niet te laden is, doet de app niet.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {PLATE_OPTIONS.map((kg) => {
+            const aan = settings.plates.includes(kg)
+            return (
+              <button
+                key={kg}
+                aria-pressed={aan}
+                onClick={() => A.togglePlate(kg)}
+                className={`btn btn-sm min-h-[44px] px-3 tabular-nums ${
+                  aan ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600 text-slate-300'
+                }`}
+              >
+                {String(kg).replace('.', ',')} kg
+              </button>
+            )
+          })}
         </div>
       </Card>
 

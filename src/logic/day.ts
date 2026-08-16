@@ -3,15 +3,24 @@ import { programFor } from '../data/programs'
 import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
 import { cycleInfo, type CycleInfo } from './cycle'
 import { weekday } from './dates'
+import { deloadFor, type DeloadPlan } from './deload'
+import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
+import { dayGuardrails, type Guardrail } from './guardrails'
 import { orderSlots } from './order'
-import { plannedRunKm, scaledRunKm } from './running'
+import { scaledRunKm } from './running'
+import { plannedRunKm } from './runningLoad'
+import { scheduledRun, scheduledStrength } from './schedule'
 import { resolveSlot, type ResolvedSlot } from './select'
 import { warmupOf } from './warmup'
 
 export interface RunBlock {
   kind: RunKind
+  /** de geplande afstand: wat de app voorschrijft, of wat je zelf ingesteld hebt */
   plannedKm: number
+  /** de afstand voor vandaag, na de check-in van vanochtend */
   km: number
+  /** de geplande afstand is met de hand gezet */
+  manualPlan: boolean
   bike: boolean
   /** de app schrijft geen afstand voor: jij loopt wat je wilt, de app registreert */
   free: boolean
@@ -22,6 +31,8 @@ export interface RunBlock {
   skipped: SkipReason | null
   /** deze loop stond oorspronkelijk op die datum */
   movedFrom: string | null
+  /** per bijsturing één regel waarom de afstand is wat hij is */
+  why: string[]
 }
 
 export interface StrengthBlock {
@@ -43,6 +54,10 @@ export interface StrengthBlock {
   movedFrom: string | null
   hiddenAccessories: number
   hiddenCalf: boolean
+  /** geschatte duur in minuten, warming-up meegerekend */
+  estimatedMin: number
+  /** waarschuwing bij een sessie boven het uur, met wat eruit kan */
+  tooLong: DurationWarning | null
 }
 
 export interface DayPlan {
@@ -50,6 +65,8 @@ export interface DayPlan {
   weekday: number
   isRest: boolean
   cycle: CycleInfo
+  /** de deloadweek waar deze dag in valt */
+  deload: DeloadPlan
   checkin: number | undefined
   run: RunBlock | null
   strength: StrengthBlock | null
@@ -58,6 +75,8 @@ export interface DayPlan {
   /** loop van deze dag staat nu op die datum */
   runMovedTo: string | null
   notes: string[]
+  /** alles wat de app vandaag bijstuurt, met per bijsturing één regel waarom */
+  guardrails: Guardrail[]
 }
 
 export function sessionKeyFor(date: string, kind: DayKind): string {
@@ -69,53 +88,53 @@ export function buildDay(state: UserState, iso: string): DayPlan {
   const program = programFor(state)
   const wd = weekday(iso)
   const cycle = cycleInfo(state.startDate, iso)
+  const deload = deloadFor(state, iso)
   const checkin = state.checkins[iso]
   const notes: string[] = []
   const lowEnergy = checkin !== undefined && checkin <= 2
 
   if (wd === program.restWeekday) {
     return {
-      date: iso, weekday: wd, isRest: true, cycle, checkin,
+      date: iso, weekday: wd, isRest: true, cycle, deload, checkin,
       run: null, strength: null, movedTo: null, runMovedTo: null,
       notes: ['Rustdag. Hier plant de app nooit iets.'],
+      guardrails: [],
     }
   }
 
-  const spec = program.week[wd - 1]
   const override = state.overrides[iso]
+  // de bijsturingen van vandaag; ze staan als losse regels op het scherm, dus wat hier al
+  // in staat hoeft niet nog eens onder de loop herhaald te worden
+  const guardrails = dayGuardrails(state, iso)
 
   /* ---- loop ---- */
   // een verplaatste loop werkt hetzelfde als een verplaatste krachtsessie: hij is
   // hier weg en staat op de doeldag, met de soort loop van zijn oorspronkelijke dag
-  let runKind: RunKind | null = spec.run
-  let runMovedFrom: string | null = null
-  const runMovedTo = state.runMoves[iso] ?? null
-  if (runMovedTo) runKind = null
-
-  if (!runKind) {
-    const incoming = Object.entries(state.runMoves).find(([, to]) => to === iso)
-    if (incoming) {
-      const origin = incoming[0]
-      const originKind = program.week[weekday(origin) - 1].run
-      if (originKind) {
-        runKind = originKind
-        runMovedFrom = origin
-      }
-    }
-  }
+  const runSlot = scheduledRun(state, iso)
+  const runKind = runSlot.kind
+  const runMovedTo = runSlot.movedTo
 
   let run: RunBlock | null = null
   if (runKind) {
     const log = state.runs[iso] ?? null
     const bike = override?.bike ?? log?.bike ?? false
     const skip = state.skips[`${iso}:run`]
-    const free = program.runMode === 'free'
-    const planned = free ? { km: 0, capped: false } : plannedRunKm(state, iso, runKind)
+    const manual = state.runPlans?.[iso]
+    // een vrij programma schrijft niets voor, tenzij je zelf een afstand zet
+    const free = program.runMode === 'free' && !(typeof manual === 'number' && manual > 0)
+    const planned = free
+      ? { km: 0, capped: false, manual: false, reasons: [] as string[] }
+      : plannedRunKm(state, iso, runKind)
     const scaled = free ? 0 : scaledRunKm(planned.km, checkin)
+    const why = planned.reasons.filter((r) => !guardrails.some((g) => g.text === r))
+    if (scaled < planned.km) {
+      why.push(`Check-in ${checkin}: 30% korter, ${planned.km} km wordt ${scaled} km.`)
+    }
     run = {
       kind: runKind,
       plannedKm: planned.km,
       km: override?.runScale ? Math.round(planned.km * override.runScale * 2) / 2 : scaled,
+      manualPlan: planned.manual,
       bike,
       free,
       capped: planned.capped,
@@ -123,37 +142,25 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       done: !!log?.completedAt,
       log,
       skipped: skip?.what === 'run' ? skip.reason : null,
-      movedFrom: runMovedFrom,
+      movedFrom: runSlot.movedFrom,
+      why,
     }
-    if (planned.capped) notes.push('Loopvolume automatisch teruggeschaald: max +10% t.o.v. vorige week.')
     if (run.scaledDown) notes.push('Check-in laag: loop 30% korter, of vervang door 30 min fietsen.')
   }
 
   /* ---- kracht ---- */
-  let kind: DayKind | null = spec.strength
-  let movedFrom: string | null = null
-  const movedTo = state.moves[iso] ?? null
-  if (movedTo) kind = null
-
-  if (!kind) {
-    const incoming = Object.entries(state.moves).find(([, to]) => to === iso)
-    if (incoming) {
-      const origin = incoming[0]
-      const originKind = program.week[weekday(origin) - 1].strength
-      if (originKind) {
-        kind = originKind
-        movedFrom = origin
-      }
-    }
-  }
+  const strengthSlot = scheduledStrength(state, iso)
+  const kind = strengthSlot.kind
+  const movedFrom = strengthSlot.movedFrom
+  const movedTo = strengthSlot.movedTo
 
   let strength: StrengthBlock | null = null
   if (kind && kind !== 'rest') {
     const optional = kind === 'optional_upper'
-    const skipSaturday = optional && (cycle.deload || lowEnergy)
+    const skipSaturday = optional && (deload.active || lowEnergy)
     if (skipSaturday) {
       notes.push(
-        cycle.deload
+        deload.active
           ? 'Deloadweek: de optionele zaterdagsessie staat automatisch uit.'
           : 'Check-in laag: de optionele zaterdagsessie staat vandaag uit.',
       )
@@ -187,7 +194,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
         slots = [...core, ...rest].slice(0, 5)
       }
 
-      const setDrop = (cycle.deload ? 1 : 0) + (lowEnergy ? 1 : 0)
+      const setDrop = (deload.active ? 1 : 0) + (lowEnergy ? 1 : 0)
       if (setDrop > 0) {
         slots = slots.map((r) => ({ ...r, sets: Math.max(1, r.sets - setDrop) }))
       }
@@ -195,13 +202,16 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       // als laatste: de volgorde staat los van welke oefeningen er overblijven
       slots = orderSlots(slots, override?.order)
 
+      const warmup = warmupOf(log)
+      const tooLong = durationWarning(slots, warmup.minutes)
+
       strength = {
         kind,
         naam: DAY_LABEL[kind],
         optional,
         duurMin: short ? 25 : tpl.duurMin,
         slots,
-        warmup: warmupOf(log),
+        warmup,
         manualOrder: (override?.order ?? []).length > 0,
         short,
         done: !!log?.completedAt,
@@ -211,19 +221,27 @@ export function buildDay(state: UserState, iso: string): DayPlan {
         movedFrom,
         hiddenAccessories: before - slots.length,
         hiddenCalf,
+        estimatedMin: sessionMinutes(slots, warmup.minutes),
+        tooLong,
       }
 
-      if (cycle.deload) notes.push('Deloadweek: 1 set minder per oefening en 10% van het gewicht af.')
+      if (deload.active) notes.push('Deloadweek: 1 set minder per oefening en 40% van het gewicht af.')
       if (lowEnergy) notes.push('Check-in laag: 1 set minder en zwaar kuitwerk eruit.')
       if (checkin === 3) notes.push('Check-in 3: normaal programma, maar vandaag geen nieuwe gewichtsverhogingen.')
       if (cycle.calibration) notes.push('Kalibratieweek: train op gevoel, stop bij RIR 2-3. Log wat je doet.')
       if (state.settings?.travelMode) notes.push('Reismodus: lichaamsgewicht en band, max 30 min.')
+      if (tooLong) notes.push(tooLong.text)
     }
   }
 
+  if (strength?.tooLong) {
+    guardrails.push({ id: 'sessieduur', text: strength.tooLong.text, tone: 'warn' })
+  }
+  for (const g of guardrails) if (!notes.includes(g.text)) notes.push(g.text)
+
   return {
-    date: iso, weekday: wd, isRest: false, cycle, checkin,
-    run, strength, movedTo, runMovedTo, notes,
+    date: iso, weekday: wd, isRest: false, cycle, deload, checkin,
+    run, strength, movedTo, runMovedTo, notes, guardrails,
   }
 }
 

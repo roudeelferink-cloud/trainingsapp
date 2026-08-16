@@ -9,6 +9,8 @@ import { formatLong, formatShort, today } from '../logic/dates'
 import { warmupLabel } from '../logic/warmup'
 import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
+import { DAY_SCORES, FEELS, feelLabel } from '../logic/feel'
+import { DELOAD_RISK, weeksUntilDeload } from '../logic/deload'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
 import type { Activity, DayKind, SkipReason } from '../types'
@@ -29,6 +31,7 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
     <div className="space-y-4">
       <Header plan={plan} />
       <CheckIn iso={iso} value={plan.checkin} />
+      <DayCheckCard iso={iso} />
 
       {plan.notes.length > 0 && (
         <ul className="space-y-1">
@@ -40,6 +43,8 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
           ))}
         </ul>
       )}
+
+      <DeloadCard iso={iso} plan={plan} />
 
       {plan.isRest && (
         <Card className="text-center py-8">
@@ -112,7 +117,8 @@ function ExtraActivities({ iso }: { iso: string }) {
         Extra activiteiten
       </SectionTitle>
       <p className="text-sm text-slate-400 mb-3">
-        Naast het schema. Telt niet mee in je krachtprogressie of gewichtsadvies.
+        Naast het schema. Telt niet mee in je krachtprogressie of gewichtsadvies; een los rondje
+        hardlopen telt wél mee in je weekkilometers.
       </p>
 
       {items.length === 0 ? (
@@ -144,10 +150,18 @@ function Header({ plan }: { plan: DayPlan }) {
         <p className="text-sm text-slate-400 capitalize">{formatLong(plan.date)}</p>
         <h1 className="text-2xl font-bold leading-tight">
           Week {plan.cycle.week}
-          <span className="text-slate-400 font-medium text-lg"> · cyclusweek {plan.cycle.cycleWeek}/4</span>
+          <span className="text-slate-400 font-medium text-lg">
+            {' · '}
+            {plan.deload.active
+              ? 'deloadweek'
+              : `nog ${weeksUntilDeload(plan.cycle.week)} ${
+                  weeksUntilDeload(plan.cycle.week) === 1 ? 'week' : 'weken'
+                } tot de deload`}
+          </span>
         </h1>
         <div className="flex gap-2 mt-2 flex-wrap">
-          {plan.cycle.deload && <Chip tone="warn">Deload</Chip>}
+          {plan.deload.active && <Chip tone="warn">Deload</Chip>}
+          {plan.deload.skipped && <Chip tone="off">Deload overgeslagen</Chip>}
           {plan.cycle.calibration && <Chip tone="lift">Kalibratie</Chip>}
           {state.settings?.travelMode && <Chip tone="off">Reismodus</Chip>}
         </div>
@@ -157,6 +171,125 @@ function Header({ plan }: { plan: DayPlan }) {
         <p className="text-xs text-slate-400">dagen streak</p>
       </div>
     </div>
+  )
+}
+
+/**
+ * De dagcheck: slaap en energie, allebei op een schaal van 3. Volledig optioneel —
+ * niet invullen kost je niets. Twee weken op rij overwegend slecht is wél een van de
+ * aanleidingen voor een deloadweek, dus invullen loont als je je beroerd voelt.
+ */
+function DayCheckCard({ iso }: { iso: string }) {
+  const state = useStore()
+  const check = state.dayChecks?.[iso]
+
+  return (
+    <Card>
+      <SectionTitle
+        right={
+          check ? (
+            <button className="btn-quiet btn-sm" onClick={() => A.clearDayCheck(iso)}>
+              Wissen
+            </button>
+          ) : undefined
+        }
+      >
+        Dagcheck
+      </SectionTitle>
+      <p className="text-xs text-slate-400 mb-3">Optioneel. Overslaan mag; er verandert dan niets.</p>
+
+      {(
+        [
+          { part: 'sleep' as const, label: 'Slaap' },
+          { part: 'energy' as const, label: 'Energie' },
+        ]
+      ).map(({ part, label }) => (
+        <div key={part} className="mb-2 last:mb-0">
+          <p className="label mb-1">{label}</p>
+          <div className="grid grid-cols-3 gap-2">
+            {DAY_SCORES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => A.setDayCheckPart(iso, part, s.id)}
+                className={`btn min-h-[48px] text-sm ${
+                  check?.[part] === s.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </Card>
+  )
+}
+
+/**
+ * De deloadweek, en het overslaan daarvan.
+ *
+ * Overslaan kan, maar niet met één tik: eerst het risico aanvinken, dan pas de knop.
+ * Dat is bewust ongemakkelijk — een deload die je wegklikt omdat hij in de weg staat is
+ * precies de deload die je nodig had.
+ */
+function DeloadCard({ iso, plan }: { iso: string; plan: DayPlan }) {
+  const [open, setOpen] = useState(false)
+  const [gelezen, setGelezen] = useState(false)
+  const deload = plan.deload
+
+  if (!deload.reason) return null
+
+  return (
+    <Card className={deload.active ? 'border-amber-500/40' : 'border-rose-500/40'}>
+      <SectionTitle right={<Chip tone={deload.active ? 'warn' : 'off'}>week {deload.week}</Chip>}>
+        {deload.active ? 'Deloadweek' : 'Deload overgeslagen'}
+      </SectionTitle>
+      <p className="text-sm text-slate-300">{deload.explanation}</p>
+
+      {deload.active ? (
+        <button className="btn-quiet w-full mt-3" onClick={() => setOpen(true)}>
+          Deload overslaan
+        </button>
+      ) : (
+        <button className="btn-ghost w-full mt-3" onClick={() => A.undoSkipDeload(iso)}>
+          Toch de deload doen
+        </button>
+      )}
+
+      <Sheet open={open} onClose={() => setOpen(false)} title="Deload overslaan">
+        <p className="text-sm text-slate-300 mb-3">{DELOAD_RISK}</p>
+        <button
+          className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
+          role="checkbox"
+          aria-checked={gelezen}
+          onClick={() => setGelezen((v) => !v)}
+        >
+          <span
+            className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
+              gelezen ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
+            }`}
+            aria-hidden
+          >
+            ✓
+          </span>
+          <span className="text-sm">Ik heb het risico gelezen en sla de deload bewust over</span>
+        </button>
+        <button
+          className="btn w-full bg-rose-500 text-ink-900 disabled:opacity-40 mt-3"
+          disabled={!gelezen}
+          onClick={() => {
+            A.skipDeload(iso, gelezen)
+            setGelezen(false)
+            setOpen(false)
+          }}
+        >
+          Deload overslaan
+        </button>
+        <button className="btn-quiet w-full mt-2" onClick={() => setOpen(false)}>
+          Annuleren
+        </button>
+      </Sheet>
+    </Card>
   )
 }
 
@@ -189,6 +322,8 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
   const [logOpen, setLogOpen] = useState(false)
   const [skipOpen, setSkipOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [planOpen, setPlanOpen] = useState(false)
+  const [planKm, setPlanKm] = useState(run.plannedKm)
   const [km, setKm] = useState(run.km)
   const [min, setMin] = useState(Math.round(run.km * 6))
   const targets = moveTargets(state, iso, 'run')
@@ -227,6 +362,13 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
           {!run.free && !run.bike && run.km !== run.plannedKm && (
             <p className="text-sm text-slate-400">Gepland was {run.plannedKm} km</p>
           )}
+          {/* waarom de afstand is wat hij is: één regel per bijsturing */}
+          {!run.bike &&
+            run.why.map((reden, i) => (
+              <p key={i} className="text-sm text-slate-400 mt-1">
+                {reden}
+              </p>
+            ))}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           {run.done && <Chip tone="ok">Gedaan</Chip>}
@@ -237,6 +379,8 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
       {run.done ? (
         <p className="text-sm text-slate-400">
           Gelogd: {run.log?.bike ? `${run.log.minutes ?? BIKE_MINUTES} min fietsen` : `${run.log?.km} km`}
+          {run.log && !run.log.bike && ` van ${run.log.plannedKm} km gepland`}
+          {run.log?.feel && ` · ${feelLabel(run.log.feel).toLowerCase()}`}
         </p>
       ) : (
         <div className="space-y-2">
@@ -265,26 +409,105 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
               Overslaan
             </button>
           </div>
+          {!run.bike && (
+            <button
+              className="btn-quiet btn-sm w-full"
+              onClick={() => {
+                setPlanKm(run.plannedKm || 5)
+                setPlanOpen(true)
+              }}
+            >
+              Geplande afstand aanpassen
+            </button>
+          )}
         </div>
       )}
+
+      {/*
+        De geplande afstand is een voorstel, geen voorschrift. Zelf zetten kan altijd;
+        de afwijking wordt vastgelegd zodat er later een patroon uit te lezen valt.
+      */}
+      <Sheet open={planOpen} onClose={() => setPlanOpen(false)} title="Geplande afstand">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-400">
+            {run.manualPlan
+              ? 'Deze afstand heb je zelf gezet.'
+              : `Voorstel van de app: ${run.plannedKm} km.`}
+          </p>
+          <div>
+            <p className="label mb-1">Gepland (km)</p>
+            <Stepper value={planKm} onChange={setPlanKm} step={0.5} decimals={1} suffix="km" max={60} />
+          </div>
+          <button
+            className="btn-primary w-full"
+            onClick={() => {
+              A.setPlannedRunKm(iso, run.kind, planKm)
+              setPlanOpen(false)
+            }}
+          >
+            Opslaan
+          </button>
+          {run.manualPlan && (
+            <button
+              className="btn-quiet w-full"
+              onClick={() => {
+                A.clearPlannedRunKm(iso)
+                setPlanOpen(false)
+              }}
+            >
+              Terug naar het voorstel van de app
+            </button>
+          )}
+        </div>
+      </Sheet>
 
       <Sheet open={logOpen} onClose={() => setLogOpen(false)} title={run.bike ? 'Fietsen loggen' : 'Loop loggen'}>
         <div className="space-y-4">
           {!run.bike && (
             <div>
-              <p className="label mb-1">Afstand (km)</p>
+              <p className="label mb-1">Werkelijk gelopen (km)</p>
               <Stepper value={km} onChange={setKm} step={0.5} decimals={1} suffix="km" max={60} />
+              <p className="text-xs text-slate-400 mt-1 tabular-nums">
+                Gepland was {run.km} km. Verder lopen mag; het telt mee in het weekvolume.
+              </p>
             </div>
           )}
           <div>
-            <p className="label mb-1">Duur (min)</p>
+            <p className="label mb-1">Duur (min) — optioneel</p>
             <Stepper value={min} onChange={setMin} step={5} max={300} suffix="min" />
+            {!run.bike && km > 0 && min > 0 && (
+              <p className="text-xs text-slate-400 mt-1 tabular-nums">Tempo {paceLabel(km, min)}</p>
+            )}
+          </div>
+          {/* dezelfde afsluitende beoordeling als bij kracht: één tik, en het staat erin */}
+          <div>
+            <p className="label mb-1">Hoe ging het?</p>
+            <div className="grid grid-cols-3 gap-2">
+              {FEELS.map((f) => (
+                <button
+                  key={f.id}
+                  className="btn bg-ink-700 border border-ink-600 min-h-[52px] text-sm"
+                  onClick={() => {
+                    A.completeRun(iso, run.kind, {
+                      plannedKm: run.km,
+                      km: run.bike ? 0 : km,
+                      minutes: min,
+                      bike: run.bike,
+                      feel: f.id,
+                    })
+                    setLogOpen(false)
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
           <button
-            className="btn-primary w-full"
+            className="btn-quiet w-full"
             onClick={() => {
               A.completeRun(iso, run.kind, {
-                plannedKm: run.plannedKm,
+                plannedKm: run.km,
                 km: run.bike ? 0 : km,
                 minutes: min,
                 bike: run.bike,
@@ -292,7 +515,7 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
               setLogOpen(false)
             }}
           >
-            Opslaan
+            Opslaan zonder beoordeling
           </button>
         </div>
       </Sheet>
@@ -318,6 +541,12 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
       />
     </Card>
   )
+}
+
+/** Gemiddeld tempo in min/km, zoals het op een horloge staat. */
+function paceLabel(km: number, minutes: number): string {
+  const secPerKm = Math.round((minutes * 60) / km)
+  return `${Math.floor(secPerKm / 60)}:${String(secPerKm % 60).padStart(2, '0')} min/km`
 }
 
 function StrengthCard({
@@ -356,9 +585,12 @@ function StrengthCard({
           <Chip tone="lift">{plan.run ? '2 · Kracht' : '1 · Kracht'}</Chip>
           <p className="text-xl font-bold mt-2">{s.naam}</p>
           <p className="text-sm text-slate-400">
-            ~{s.duurMin} min · {s.slots.length} oefeningen
+            ~{s.estimatedMin} min · {s.slots.length} oefeningen
             {s.short && ' · korte versie'}
           </p>
+          {s.log?.feel && (
+            <p className="text-sm text-slate-400">Beoordeeld als {feelLabel(s.log.feel).toLowerCase()}</p>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1">
           {s.done && <Chip tone="ok">Gedaan</Chip>}

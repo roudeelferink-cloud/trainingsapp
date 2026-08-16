@@ -12,6 +12,7 @@ import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
 import { loadHint, repsInputLabel, weightInputLabel } from '../logic/load'
 import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
 import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
+import { FEELS } from '../logic/feel'
 import { CALIBRATION_TEXT, fmt, targetFor } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
 import {
@@ -64,7 +65,7 @@ export function SessionScreen({
       }
       const t = targetFor(r.exercise, r.repMin, state, {
         calibration: plan.cycle.calibration,
-        deload: plan.cycle.deload,
+        deload: plan.deload.active,
       })
       out[r.slot.key] = seedSets(r.sets, t, adviceFor(r, state, plan.cycle.calibration))
     }
@@ -204,6 +205,40 @@ export function SessionScreen({
 
       {plan.cycle.calibration && (
         <p className="text-sm text-rose-300 mb-3">Kalibratieweek: {CALIBRATION_TEXT}.</p>
+      )}
+
+      {/*
+        Alles wat de app aan deze sessie bijstuurt staat hier, met de reden erbij. Geen
+        stille correcties: als er een set af gaat of een oefening eruit kan, hoor je te
+        kunnen lezen waarom.
+      */}
+      {plan.guardrails.length > 0 && (
+        <ul className="mb-3 space-y-1">
+          {plan.guardrails.map((g) => (
+            <li
+              key={g.id}
+              className={`text-sm flex gap-2 ${g.tone === 'warn' ? 'text-amber-300' : 'text-slate-400'}`}
+            >
+              <span aria-hidden>•</span>
+              <span>{g.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="text-sm text-slate-400 mb-2 tabular-nums">
+        Geschatte duur {strength.estimatedMin} min
+        {strength.tooLong?.dropName && ` · zonder ${strength.tooLong.dropName} ${strength.tooLong.minutesWithoutDrop} min`}
+      </p>
+
+      {/* het voorstel is er één met een knop: anders blijft het bij een waarschuwing */}
+      {strength.tooLong?.dropKey && (
+        <button
+          className="btn-quiet btn-sm w-full mb-3"
+          onClick={() => A.skipSlot(date, strength.tooLong!.dropKey!)}
+        >
+          Haal {strength.tooLong.dropName} eruit
+        </button>
       )}
 
       <WarmupBlock date={date} kind={kind} warmup={strength.warmup} />
@@ -438,18 +473,47 @@ export function SessionScreen({
       <Sheet open={doneOpen} onClose={() => setDoneOpen(false)} title="Sessie afronden">
         {messages === null ? (
           <>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className="text-sm text-slate-400 mb-1">
               {doneSets} van {totalSets} sets afgevinkt. Alleen afgevinkte sets tellen mee.
             </p>
+            {/*
+              De beoordeling ís de afrondknop: één tik, en de sessie staat erin. Dat is
+              bewust — een los schermpje erna wordt overgeslagen, en zonder beoordeling
+              moet de progressie terugvallen op de RIR per set.
+            */}
+            <p className="font-semibold mt-4 mb-2">Hoe ging het?</p>
+            <div className="grid grid-cols-3 gap-2">
+              {FEELS.map((f) => (
+                <button
+                  key={f.id}
+                  className="btn bg-ink-700 border border-ink-600 min-h-[56px]"
+                  onClick={() =>
+                    setMessages(
+                      A.completeSession(
+                        date,
+                        kind,
+                        slots,
+                        effectiveEntries(),
+                        strength.short,
+                        completed,
+                        f.id,
+                      ),
+                    )
+                  }
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <button
-              className="btn-primary w-full"
+              className="btn-quiet w-full mt-2"
               onClick={() =>
                 setMessages(
                   A.completeSession(date, kind, slots, effectiveEntries(), strength.short, completed),
                 )
               }
             >
-              Afronden en opslaan
+              Afronden zonder beoordeling
             </button>
           </>
         ) : (

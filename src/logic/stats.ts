@@ -6,6 +6,8 @@ import { addDays, mondayOf, today } from './dates'
 import { setVolumeKg } from './dumbbell'
 import { estimate1RM } from './progression'
 import { cycleInfo } from './cycle'
+import { deloadFor } from './deload'
+import { weeklyKm } from './runningLoad'
 
 /** Aantal afgeronde krachtsessies. */
 export function completedSessions(state: UserState): number {
@@ -67,21 +69,17 @@ export interface WeekVolume {
   deload: boolean
 }
 
-/** Hardloopvolume per week, oudste eerst. */
+/**
+ * Hardloopvolume per week, oudste eerst. Rekent met dezelfde kilometers als de
+ * guardrails: losse hardloopactiviteiten tellen mee, fietsen niet.
+ */
 export function weeklyRunVolume(state: UserState, weeks = 12): WeekVolume[] {
-  const out: WeekVolume[] = []
-  const start = mondayOf(today())
-  for (let w = weeks - 1; w >= 0; w--) {
-    const weekStart = addDays(start, -7 * w)
-    let km = 0
-    for (let d = 0; d < 7; d++) {
-      const r = state.runs[addDays(weekStart, d)]
-      if (r?.completedAt && !r.bike) km += r.km
-    }
-    const info = cycleInfo(state.startDate, weekStart)
-    out.push({ weekStart, week: info.week, km: Math.round(km * 10) / 10, deload: info.deload })
-  }
-  return out
+  return weeklyKm(state, today(), weeks).map((w) => ({
+    weekStart: w.weekStart,
+    week: w.week,
+    km: Math.round(w.km * 10) / 10,
+    deload: w.deload,
+  }))
 }
 
 /**
@@ -121,7 +119,7 @@ export function weeklyStrengthVolume(state: UserState, weeks = 12): WeekTonnage[
       if (log.completedAt && days.has(log.date)) kg += sessionVolumeKg(log)
     }
     const info = cycleInfo(state.startDate, weekStart)
-    out.push({ weekStart, week: info.week, kg, deload: info.deload })
+    out.push({ weekStart, week: info.week, kg, deload: deloadFor(state, weekStart).active })
   }
   return out
 }

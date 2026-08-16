@@ -7,12 +7,21 @@ import { moveKey } from '../logic/order'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, stateFor } from '../logic/progression'
 import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
+import { DELOAD_RISK, deloadFor } from '../logic/deload'
+import { round05 } from '../logic/running'
+import { plannedRunKm } from '../logic/runningLoad'
+import { mondayOf } from '../logic/dates'
 import type {
   Activity,
   ActivityIntensity,
   ActivityType,
   BarId,
+  DayCheck,
   DayKind,
+  DayScore,
+  Deviation,
+  DeviationKind,
+  Feel,
   LoggedSet,
   RunKind,
   SessionLog,
@@ -35,6 +44,61 @@ export function clearCheckin(iso: string): void {
     delete checkins[iso]
     return { ...s, checkins }
   })
+}
+
+/* ---- dagcheck en afwijkingen ---- */
+
+/**
+ * De optionele dagcheck: slaap en energie, allebei op een schaal van 3. Overslaan mag —
+ * er staat niets in de weg als dit leeg blijft, en twee slechte weken op rij zijn pas een
+ * signaal als er ook echt iets ingevuld is.
+ */
+export function setDayCheck(iso: string, check: DayCheck): void {
+  setState((s) => ({ ...s, dayChecks: { ...s.dayChecks, [iso]: check } }))
+}
+
+export function setDayCheckPart(iso: string, part: 'sleep' | 'energy', value: DayScore): void {
+  setState((s) => {
+    const current = s.dayChecks?.[iso] ?? { sleep: 2, energy: 2 }
+    return { ...s, dayChecks: { ...s.dayChecks, [iso]: { ...current, [part]: value } } }
+  })
+}
+
+export function clearDayCheck(iso: string): void {
+  setState((s) => {
+    const dayChecks = { ...s.dayChecks }
+    delete dayChecks[iso]
+    return { ...s, dayChecks }
+  })
+}
+
+let deviationSeq = 0
+
+function deviationId(): string {
+  deviationSeq += 1
+  return `dev_${Date.now().toString(36)}_${deviationSeq.toString(36)}`
+}
+
+/**
+ * Legt vast dat de gebruiker iets anders deed dan voorgesteld. Dit stuurt niets bij —
+ * het is puur geheugen, zodat er later een patroon uit te lezen valt ("elke zondag twee
+ * kilometer verder dan gepland").
+ */
+function recordDeviation(
+  s: UserState,
+  input: { date: string; kind: DeviationKind; suggested: number | null; chosen: number | null; note: string },
+): UserState {
+  const deviation: Deviation = {
+    id: deviationId(),
+    date: input.date,
+    kind: input.kind,
+    suggested: input.suggested,
+    chosen: input.chosen,
+    note: input.note,
+    createdAt: new Date().toISOString(),
+  }
+  // 200 is ruim een half jaar aan afwijkingen; ouder dan dat zegt niets meer
+  return { ...s, deviations: [...(s.deviations ?? []), deviation].slice(-200) }
 }
 
 export function setProtein(iso: string, grams: number): void {
@@ -229,18 +293,106 @@ export function setBike(iso: string, bike: boolean): void {
   setState((s) => patchOverride(s, iso, { bike }))
 }
 
+/**
+ * Zet de geplande afstand van één loop met de hand. Dit wint van alles wat de app
+ * uitrekent — inclusief de +10%-bewaking — maar de afwijking wordt vastgelegd.
+ */
+export function setPlannedRunKm(iso: string, kind: RunKind, km: number): void {
+  if (!Number.isFinite(km) || km <= 0) return
+  const gekozen = round05(km)
+  setState((s) => {
+    const voorstel = plannedRunKm(s, iso, kind)
+    const next = { ...s, runPlans: { ...s.runPlans, [iso]: gekozen } }
+    if (Math.abs(voorstel.km - gekozen) < 0.01) return next
+    return recordDeviation(next, {
+      date: iso,
+      kind: 'run_plan',
+      suggested: voorstel.km,
+      chosen: gekozen,
+      note: `Geplande afstand zelf op ${gekozen} km gezet; de app stelde ${voorstel.km} km voor.`,
+    })
+  })
+}
+
+/** Terug naar de afstand die de app voorstelt. */
+export function clearPlannedRunKm(iso: string): void {
+  setState((s) => {
+    const runPlans = { ...s.runPlans }
+    delete runPlans[iso]
+    return { ...s, runPlans }
+  })
+}
+
+/**
+ * Vinkt een loop af. Gepland en werkelijk worden apart bewaard: `plannedKm` is wat er
+ * voorgeschreven stond, `km` is wat er echt gelopen is. Wijkt dat meer dan een halve
+ * kilometer af, dan komt het als afwijking in de historie — daar stuurt het loopvolume
+ * van volgende week op bij.
+ */
 export function completeRun(
   iso: string,
   kind: RunKind,
-  data: { plannedKm: number; km: number; minutes: number | null; bike: boolean },
+  data: { plannedKm: number; km: number; minutes: number | null; bike: boolean; feel?: Feel },
 ): void {
-  setState((s) => ({
-    ...s,
-    runs: {
-      ...s.runs,
-      [iso]: { date: iso, kind, ...data, completedAt: new Date().toISOString() },
-    },
-  }))
+  setState((s) => {
+    const next: UserState = {
+      ...s,
+      runs: {
+        ...s.runs,
+        [iso]: { date: iso, kind, ...data, completedAt: new Date().toISOString() },
+      },
+    }
+    if (data.bike || Math.abs(data.km - data.plannedKm) < 0.5) return next
+    const verder = data.km > data.plannedKm
+    return recordDeviation(next, {
+      date: iso,
+      kind: 'run_distance',
+      suggested: data.plannedKm,
+      chosen: data.km,
+      note: `${data.km} km gelopen tegen ${data.plannedKm} km gepland — ${verder ? 'verder' : 'korter'} dan voorgesteld.`,
+    })
+  })
+}
+
+/* ---- deload ---- */
+
+/**
+ * Slaat de deloadweek van `iso` over. Dit lukt alleen met `acknowledged: true`: de
+ * gebruiker moet in de dialoog eerst bevestigen dat hij het risico gelezen heeft. Eén
+ * tik is bewust niet genoeg — zie `DELOAD_RISK`.
+ */
+export function skipDeload(iso: string, acknowledged: boolean): { ok: boolean; reason?: string } {
+  if (!acknowledged) return { ok: false, reason: 'Bevestig eerst dat je het risico gelezen hebt.' }
+  const plan = deloadFor(getState(), iso)
+  if (!plan.reason) return { ok: false, reason: 'Deze week is geen deloadweek.' }
+
+  setState((s) => {
+    const weekStart = mondayOf(iso)
+    const next: UserState = {
+      ...s,
+      deloadSkips: {
+        ...s.deloadSkips,
+        [weekStart]: { weekStart, confirmedAt: new Date().toISOString(), acknowledged: DELOAD_RISK },
+      },
+    }
+    return recordDeviation(next, {
+      date: weekStart,
+      kind: 'deload_skip',
+      suggested: null,
+      chosen: null,
+      note: `Deloadweek overgeslagen (aanleiding: ${plan.reason}).`,
+    })
+  })
+  return { ok: true }
+}
+
+/** Toch de deload doen. Kan altijd, zonder drempel. */
+export function undoSkipDeload(iso: string): void {
+  setState((s) => {
+    const deloadSkips = { ...s.deloadSkips }
+    delete deloadSkips[mondayOf(iso)]
+    return { ...s, deloadSkips }
+  })
 }
 
 /* ---- losse activiteiten ---- */
@@ -356,6 +508,10 @@ export function saveSessionDraft(
  * Sluit de sessie af en laat de progressielogica de streefwaarden bijwerken.
  * Alleen afgevinkte sets tellen mee: voorgevulde maar niet-gedane sets worden
  * niet opgeslagen en sturen de progressie niet.
+ *
+ * De afsluitende beoordeling (`feel`) gaat mee de progressie in: die beslist samen met
+ * de gehaalde reps of het gewicht omhoog mag. Hij hoort bij de sessie, dus hij wordt ook
+ * op het log bewaard. Wie hem overslaat, valt terug op de gelogde RIR.
  */
 export function completeSession(
   iso: string,
@@ -364,6 +520,7 @@ export function completeSession(
   entries: Record<string, LoggedSet[]>,
   short: boolean,
   completedSlots: string[] = [],
+  feel?: Feel,
 ): string[] {
   const messages: string[] = []
   const doneOnly = Object.fromEntries(
@@ -373,29 +530,45 @@ export function completeSession(
     const info = cycleInfo(s.startDate, iso)
     const checkin = s.checkins[iso]
     const pace = programFor(s).pace
-    const allowIncrease = !info.calibration && !info.deload && checkin !== 3
+    const deload = deloadFor(s, iso).active
+    const allowIncrease = !info.calibration && !deload && checkin !== 3
     const exerciseState = { ...s.exerciseState }
+    let next = s
 
     for (const r of slots) {
       const sets = doneOnly[r.slot.key]
       if (sets.length === 0) continue
       const ex = getExercise(r.exercise.id)
-      const res = applyProgression(
-        ex,
-        { repMin: r.repMin, repMax: r.repMax },
-        sets,
-        stateFor({ ...s, exerciseState }, ex.id),
-        { allowIncrease, pace },
-      )
+      const before = stateFor({ ...s, exerciseState }, ex.id)
+      const res = applyProgression(ex, { repMin: r.repMin, repMax: r.repMax }, sets, before, {
+        allowIncrease,
+        pace,
+        iso,
+        feel,
+        deload,
+        settings: s.settings,
+      })
       exerciseState[ex.id] = res.next
       if (res.message) messages.push(res.message)
+
+      // zwaarder getild dan voorgesteld: dat mag, maar het wordt onthouden
+      const heaviest = Math.max(...sets.map((x) => x.weight))
+      if (before.targetWeight !== null && heaviest > before.targetWeight + 0.01) {
+        next = recordDeviation(next, {
+          date: iso,
+          kind: 'lift_weight',
+          suggested: before.targetWeight,
+          chosen: heaviest,
+          note: `${ex.naam}: ${heaviest} kg getild, voorstel was ${before.targetWeight} kg.`,
+        })
+      }
     }
 
     const key = sessionKeyFor(iso, kind)
     const notices = [...s.notices, ...messages.map((text) => ({ date: iso, text }))].slice(-50)
 
     return {
-      ...s,
+      ...next,
       exerciseState,
       notices,
       sessions: {
@@ -410,11 +583,22 @@ export function completeSession(
           completedSlots,
           completedAt: new Date().toISOString(),
           warmup: s.sessions[key]?.warmup,
+          feel,
         },
       },
     }
   })
   return messages
+}
+
+/** Beoordeling van een al afgeronde sessie bijstellen. */
+export function setSessionFeel(iso: string, kind: DayKind, feel: Feel): void {
+  const key = sessionKeyFor(iso, kind)
+  setState((s) => {
+    const log = s.sessions[key]
+    if (!log) return s
+    return { ...s, sessions: { ...s.sessions, [key]: { ...log, feel } } }
+  })
 }
 
 export function reopenSession(iso: string, kind: DayKind): void {
@@ -456,6 +640,22 @@ export function setBarWeight(bar: BarId, kg: number): void {
     patchSettings(s, (c) => ({
       barWeights: { ...c.barWeights, [bar]: Math.round(kg * 100) / 100 },
     })),
+  )
+}
+
+/**
+ * Zet een schijfmaat aan of uit. De laatste schijf kan er niet uit: zonder schijven
+ * valt er niets af te ronden en zou elk gewichtsvoorstel betekenisloos worden.
+ */
+export function togglePlate(kg: number): void {
+  if (!Number.isFinite(kg) || kg <= 0) return
+  setState((s) =>
+    patchSettings(s, (c) => {
+      const heeft = c.plates.includes(kg)
+      if (heeft && c.plates.length <= 1) return {}
+      const plates = heeft ? c.plates.filter((p) => p !== kg) : [...c.plates, kg].sort((a, b) => a - b)
+      return { plates }
+    }),
   )
 }
 
