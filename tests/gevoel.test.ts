@@ -191,3 +191,36 @@ describe('deload overslaan', () => {
     expect(A.skipDeload(MON, true).ok).toBe(false)
   })
 })
+
+describe('structurele melding wegklikken', () => {
+  it('legt vast wanneer je hem wegklikte en houdt hem dan stil', () => {
+    A.dismissWarning('benen-duurloop:6-7:full_body_b:hoog', MON)
+    expect(getState().dismissedWarnings['benen-duurloop:6-7:full_body_b:hoog']).toBe(MON)
+
+    A.undismissWarning('benen-duurloop:6-7:full_body_b:hoog')
+    expect(getState().dismissedWarnings).toEqual({})
+  })
+
+  it('negeert een lege sleutel', () => {
+    A.dismissWarning('', MON)
+    expect(getState().dismissedWarnings).toEqual({})
+  })
+
+  it('haalt de melding van het scherm en laat hem na vier weken terugkomen', () => {
+    // benen B staat elke week 48 uur voor de duurloop: dat is een patroon, geen incident
+    const dag = [MON, DI, DO, VR, ZO].find((iso) =>
+      buildDay(getState(), iso).guardrails.some((g) => g.dismissKey),
+    )
+    expect(dag).toBeTruthy()
+
+    const melding = buildDay(getState(), dag!).guardrails.find((g) => g.dismissKey)!
+    expect(melding.move).toBeTruthy()
+
+    A.dismissWarning(melding.dismissKey!, dag!)
+    expect(buildDay(getState(), dag!).guardrails.some((g) => g.id === melding.id)).toBe(false)
+
+    // en vier weken later staat hij er weer
+    const later = addDays(dag!, 28)
+    expect(buildDay(getState(), later).guardrails.some((g) => g.dismissKey)).toBe(true)
+  })
+})

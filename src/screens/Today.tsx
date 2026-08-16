@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ActivityList, ActivitySheet } from '../components/Activities'
 import { MoveSheet } from '../components/MoveSheet'
 import { Bar, Card, Chip, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn } from '../logic/activities'
-import { buildDay, moveTargets, type DayPlan } from '../logic/day'
+import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
 import { formatLong, formatShort, today } from '../logic/dates'
 import { warmupLabel } from '../logic/warmup'
 import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
@@ -33,16 +33,8 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
       <CheckIn iso={iso} value={plan.checkin} />
       <DayCheckCard iso={iso} />
 
-      {plan.notes.length > 0 && (
-        <ul className="space-y-1">
-          {plan.notes.map((n, i) => (
-            <li key={i} className="text-sm text-slate-400 flex gap-2">
-              <span aria-hidden>•</span>
-              <span>{n}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <Notes plan={plan} />
+      <GuardrailCards plan={plan} />
 
       <DeloadCard iso={iso} plan={plan} />
 
@@ -171,6 +163,78 @@ function Header({ plan }: { plan: DayPlan }) {
         <p className="text-xs text-slate-400">dagen streak</p>
       </div>
     </div>
+  )
+}
+
+/**
+ * De losse regels van vandaag. Bijsturingen met een knop eronder staan niet hier maar in
+ * `GuardrailCards`; die zouden als opsommingsteken niets te kiezen geven.
+ */
+function Notes({ plan }: { plan: DayPlan }) {
+  const metKnop = new Set(plan.guardrails.filter((g) => g.move || g.dismissKey).map((g) => g.text))
+  const regels = plan.notes.filter((n) => !metKnop.has(n))
+  if (regels.length === 0) return null
+
+  return (
+    <ul className="space-y-1">
+      {regels.map((n, i) => (
+        <li key={i} className="text-sm text-slate-400 flex gap-2">
+          <span aria-hidden>•</span>
+          <span>{n}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * Bijsturingen waar iets mee te doen valt: de uitleg, en meteen de knop om het op te
+ * lossen. Een waarschuwing over een sessie die verkeerd staat zonder knop om hem te
+ * verzetten is een verwijt; met knop is het een voorstel.
+ */
+function GuardrailCards({ plan }: { plan: DayPlan }) {
+  const state = useStore()
+  const [moveFrom, setMoveFrom] = useState<{ date: string; what: MoveWhat } | null>(null)
+  const items = plan.guardrails.filter((g) => g.move || g.dismissKey)
+  if (items.length === 0) return null
+
+  return (
+    <>
+      {items.map((g) => (
+        <Card key={g.id} className="border-amber-500/40">
+          <p className="text-sm text-slate-200">{g.text}</p>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {g.move && (
+              <button className="btn-ghost btn-sm" onClick={() => setMoveFrom(g.move!)}>
+                Verplaatsen
+              </button>
+            )}
+            {g.dismissKey && (
+              <button
+                className="btn-quiet btn-sm"
+                onClick={() => A.dismissWarning(g.dismissKey!, plan.date)}
+              >
+                Niet meer tonen
+              </button>
+            )}
+          </div>
+        </Card>
+      ))}
+
+      {moveFrom && (
+        <MoveSheet
+          open
+          onClose={() => setMoveFrom(null)}
+          targets={moveTargets(state, moveFrom.date, moveFrom.what)}
+          hint={`Verplaats de sessie van ${formatShort(moveFrom.date)}.${restDayHint(programFor(state))}`}
+          onPick={(target) => {
+            if (moveFrom.what === 'run') A.moveRun(moveFrom.date, target)
+            else A.moveSession(moveFrom.date, target)
+            setMoveFrom(null)
+          }}
+        />
+      )}
+    </>
   )
 }
 
@@ -326,7 +390,13 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
   const [planKm, setPlanKm] = useState(run.plannedKm)
   const [km, setKm] = useState(run.km)
   const [min, setMin] = useState(Math.round(run.km * 6))
-  const targets = moveTargets(state, iso, 'run')
+  // de doellijst rekent per dag door wat een verplaatsing zou betekenen; dat gebeurt pas
+  // als de lijst open gaat, niet bij elke render van dit scherm
+  const targets = useMemo(
+    () => (moveOpen ? moveTargets(state, iso, 'run') : []),
+    [moveOpen, state, iso],
+  )
+  const kanVerplaatsen = canMove(state, iso, 'run')
 
   if (run.skipped) {
     return (
@@ -400,7 +470,7 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
             </button>
             <button
               className="btn-ghost btn-sm disabled:opacity-40"
-              disabled={targets.length === 0}
+              disabled={!kanVerplaatsen}
               onClick={() => setMoveOpen(true)}
             >
               Verplaatsen
@@ -562,7 +632,8 @@ function StrengthCard({
   const s = plan.strength!
   const [skipOpen, setSkipOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
-  const targets = moveTargets(state, iso)
+  const targets = useMemo(() => (moveOpen ? moveTargets(state, iso) : []), [moveOpen, state, iso])
+  const kanVerplaatsen = canMove(state, iso)
 
   if (s.skipped) {
     return (
@@ -628,7 +699,7 @@ function StrengthCard({
         </button>
         <button
           className="btn-ghost btn-sm disabled:opacity-40"
-          disabled={targets.length === 0}
+          disabled={!kanVerplaatsen}
           onClick={() => setMoveOpen(true)}
         >
           Verplaatsen

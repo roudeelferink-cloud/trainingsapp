@@ -175,9 +175,11 @@ export function plannedRunKm(state: UserState, iso: string, kind: RunKind): RunT
   let km = base
   const reasons = [...load.reasons]
 
-  // wat er deze week nog komt, inclusief vandaag: samen mag dat niet meer zijn dan wat
-  // er van het weekplafond over is
-  const remaining = remainingRuns(state, iso)
+  // Wat er deze week nog komt: samen mag dat niet meer zijn dan wat er van het weekplafond
+  // over is. Bewust vanaf maandag geteld en niet vanaf vandaag — anders kijkt elke loop
+  // alleen naar de lopen ná zichzelf, en dan past elke dag apart binnen het plafond
+  // terwijl de week als geheel er ruim overheen gaat.
+  const remaining = remainingRuns(state, mondayOf(iso))
   const plannedSum = remaining.reduce((sum, r) => sum + runKmFor(load.km, r.kind), 0)
   const left = Math.max(0, round(load.km - load.done))
   if (plannedSum > left + 1e-9 && plannedSum > 0) {
@@ -194,6 +196,29 @@ export function plannedRunKm(state: UserState, iso: string, kind: RunKind): RunT
   }
 
   return { km, base, manual: false, capped: load.capped, reasons }
+}
+
+export interface WeekProjection {
+  /** wat de week wordt: gelopen plus wat er nog staat, zonder terugschalen */
+  planned: number
+  /** het plafond van die week */
+  cap: number
+  over: boolean
+  /** aantal lopen dat er deze week nog staat */
+  remaining: number
+}
+
+/**
+ * Waar de week op uitkomt als alles doorgaat zoals gepland: de kilometers die er al in
+ * zitten plus de basisafstand van elke loop die er nog staat, zonder de bijsturing die de
+ * app zelf zou toepassen. Zo is te zien of een week overvol raakt — bijvoorbeeld doordat
+ * er een vierde loop bij komt — in plaats van alleen te zien dat alles korter wordt.
+ */
+export function weekProjection(state: UserState, iso: string): WeekProjection {
+  const load = weekLoad(state, iso)
+  const remaining = remainingRuns(state, mondayOf(iso))
+  const planned = round(load.done + remaining.reduce((sum, r) => sum + runKmFor(load.km, r.kind), 0))
+  return { planned, cap: load.km, over: planned > load.km + 1e-9, remaining: remaining.length }
 }
 
 /** De lopen die er deze week nog staan, vanaf `iso`: niet gedaan en niet overgeslagen. */

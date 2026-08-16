@@ -695,7 +695,18 @@ export const LOAD_LABEL: Record<LoadArea, string> = {
 
 /** Kandidaten voor wisselen: zelfde pattern, en zelfde groep als die er is. */
 export function alternatives(ex: Exercise): Exercise[] {
-  return EXERCISES.filter(
+  const cached = ALTERNATIVES.get(ex.id)
+  if (cached) return cached
+  const out = EXERCISES.filter(
     (c) => c.pattern === ex.pattern && (ex.group ? c.group === ex.group : !c.group),
   )
+  ALTERNATIVES.set(ex.id, out)
+  return out
 }
+
+/**
+ * De bibliotheek staat vast, dus de alternatieven van een oefening ook. Ze worden vaak
+ * gevraagd — de rotatie doet het per slot, en het vooruitkijken naar een verplaatsing
+ * bouwt dezelfde sessies tientallen keren opnieuw — dus één keer uitrekenen is genoeg.
+ */
+const ALTERNATIVES = new Map<string, Exercise[]>()

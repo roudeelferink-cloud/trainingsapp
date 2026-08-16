@@ -162,6 +162,26 @@ describe('verder gelopen dan gepland', () => {
   })
 })
 
+describe('alle lopen samen binnen het plafond', () => {
+  it('houdt de som van de weeklopen onder het plafond, ook met een loop erbij', () => {
+    // een vierde loop in de week, bijvoorbeeld doordat er eentje naar deze week verhuisde
+    const state = baseState({ runMoves: { [addDays(ZO, -7)]: MON } })
+    const load = weekLoad(state, MON)
+    const lopen = remainingRuns(state, MON)
+    expect(lopen.length).toBe(4)
+
+    const samen = lopen.reduce((sum, r) => sum + plannedRunKm(state, r.date, r.kind).km, 0)
+    expect(samen).toBeLessThanOrEqual(load.km + 0.01)
+  })
+
+  it('schaalt elke loop van de week met dezelfde factor', () => {
+    const state = baseState({ runMoves: { [addDays(ZO, -7)]: MON } })
+    const eerste = plannedRunKm(state, DI, 'short').km
+    const tweede = plannedRunKm(state, DO, 'short').km
+    expect(eerste).toBe(tweede)
+  })
+})
+
 describe('een zware loop remt de rest van de week', () => {
   it('haalt er 10% af', () => {
     const zwaar = baseState({ runs: run(DI, 6, { feel: 'zwaar' }) })

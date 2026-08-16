@@ -287,3 +287,42 @@ describe('v10 -> v11: de guardrails-laag', () => {
     expect(root.users[ANOUC].protein[MON]).toBe(95)
   })
 })
+
+describe('v11 -> v12: meldingen wegklikken', () => {
+  const v11 = {
+    schemaVersion: 11,
+    currentUser: 'rob',
+    pin: null,
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        dayChecks: { [MON]: { sleep: 2, energy: 3 } },
+        runPlans: { [MON]: 8 },
+        deloadSkips: {},
+        deviations: [{ id: 'd1', date: MON, kind: 'run_plan', suggested: 6, chosen: 8, note: 'x', createdAt: 'x' }],
+        settings: { bodyweightKg: 84, plates: [2.5, 5] },
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen' },
+    },
+  }
+
+  it('zet een lege lijst met weggeklikte meldingen klaar', () => {
+    const out = runMigrations(structuredClone(v11), 11, 12) as Record<string, any>
+    expect(out.schemaVersion).toBe(12)
+    expect(out.users.rob.dismissedWarnings).toEqual({})
+    expect(out.users.anouc.dismissedWarnings).toEqual({})
+  })
+
+  it('laat alles van v11 staan', () => {
+    const root = migrate(structuredClone(v11))
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(root.users[ROB].dayChecks[MON]).toEqual({ sleep: 2, energy: 3 })
+    expect(root.users[ROB].runPlans[MON]).toBe(8)
+    expect(root.users[ROB].deviations).toHaveLength(1)
+    expect(root.users[ROB].settings.plates).toEqual([2.5, 5])
+    expect(root.users[ROB].dismissedWarnings).toEqual({})
+  })
+})

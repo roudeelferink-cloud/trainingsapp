@@ -398,6 +398,12 @@ export interface UserState {
   runPlans: Record<string, number>
   /** maandag -> bewust overgeslagen deloadweek */
   deloadSkips: Record<string, DeloadSkip>
+  /**
+   * Weggeklikte structurele meldingen: patroonsleutel -> datum waarop dat gebeurde.
+   * De sleutel ís het patroon, dus zodra de combinatie verandert komt de melding vanzelf
+   * terug; verandert er niets, dan blijft hij vier weken stil.
+   */
+  dismissedWarnings: Record<string, string>
   /** afwijkingen van voorstellen, oudste eerst */
   deviations: Deviation[]
   /** losse, ongeplande activiteiten naast het schema */

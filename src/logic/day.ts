@@ -2,15 +2,15 @@ import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
 import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
 import { cycleInfo, type CycleInfo } from './cycle'
-import { weekday } from './dates'
+import { addDays, mondayOf, weekday } from './dates'
 import { deloadFor, type DeloadPlan } from './deload'
 import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
-import { dayGuardrails, type Guardrail } from './guardrails'
-import { orderSlots } from './order'
+import { dayGuardrails, legStackAround, rawLegRunConflict, type Guardrail } from './guardrails'
 import { scaledRunKm } from './running'
-import { plannedRunKm } from './runningLoad'
+import { plannedRunKm, weekProjection } from './runningLoad'
 import { scheduledRun, scheduledStrength } from './schedule'
-import { resolveSlot, type ResolvedSlot } from './select'
+import { type ResolvedSlot } from './select'
+import { resolveSession } from './sessionSlots'
 import { warmupOf } from './warmup'
 
 export interface RunBlock {
@@ -171,36 +171,13 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       const short = override?.short ?? log?.short ?? false
       const skip = state.skips[`${iso}:strength`]
 
-      // `taken` loopt mee zodat doorgegroeid bandwerk niet twee keer op dezelfde
-      // belaste variant uitkomt binnen één sessie
-      const taken = new Set<string>()
-      let slots = tpl.slots.map((s) => {
-        const r = resolveSlot(s, state, iso, cycle.rotation, taken)
-        taken.add(r.exercise.id)
-        return r
+      const { slots, before, hiddenCalf } = resolveSession(state, iso, kind, {
+        short,
+        lowEnergy,
+        deload: deload.active,
+        rotation: cycle.rotation,
+        week: cycle.week,
       })
-
-      const before = slots.length
-      if (short) slots = slots.filter((r) => r.slot.role === 'core')
-      let hiddenCalf = false
-      if (lowEnergy) {
-        const kept = slots.filter((r) => !(r.exercise.pattern === 'calf' && r.exercise.unit !== 'bw'))
-        hiddenCalf = kept.length < slots.length
-        slots = kept
-      }
-      if (state.settings?.travelMode && slots.length > 5) {
-        const core = slots.filter((r) => r.slot.role === 'core')
-        const rest = slots.filter((r) => r.slot.role !== 'core')
-        slots = [...core, ...rest].slice(0, 5)
-      }
-
-      const setDrop = (deload.active ? 1 : 0) + (lowEnergy ? 1 : 0)
-      if (setDrop > 0) {
-        slots = slots.map((r) => ({ ...r, sets: Math.max(1, r.sets - setDrop) }))
-      }
-      slots = slots.filter((r) => !(override?.skippedSlots ?? []).includes(r.slot.key))
-      // als laatste: de volgorde staat los van welke oefeningen er overblijven
-      slots = orderSlots(slots, override?.order)
 
       const warmup = warmupOf(log)
       const tooLong = durationWarning(slots, warmup.minutes)
@@ -247,75 +224,165 @@ export function buildDay(state: UserState, iso: string): DayPlan {
 
 export interface MoveTarget {
   date: string
-  /** staat hier al een krachtsessie, dan wordt het een ruil */
+  /** staat hier al zo'n sessie, dan wordt het een ruil */
   swapWith: string | null
-  /** reden waarom dit doel niet mag; null = toegestaan */
+  /** reden waarom dit doel niet kan; null = toegestaan */
   blocked: string | null
-}
-
-const SATURDAY = 6
-
-export const SATURDAY_LEGS_REASON =
-  'Zondag is de duurloop — een beensessie kan niet op zaterdag.'
-
-export function isLegsSession(kind: DayKind | null | undefined): boolean {
-  return kind === 'legs_a' || kind === 'legs_b'
-}
-
-/**
- * Waarom een verplaatsing niet mag, of null als hij mag.
- * Beensessies mogen nooit op zaterdag landen: zondag is de duurloop.
- * Dat geldt in beide richtingen, want een bezette doeldag betekent ruilen.
- */
-export function moveBlockReason(state: UserState, iso: string, target: string): string | null {
-  const sourceKind = buildDay(state, iso).strength?.kind ?? null
-  if (weekday(target) === SATURDAY && isLegsSession(sourceKind)) return SATURDAY_LEGS_REASON
-  if (weekday(iso) === SATURDAY) {
-    const targetKind = buildDay(state, target).strength?.kind ?? null
-    if (isLegsSession(targetKind)) return SATURDAY_LEGS_REASON
-  }
-  return null
+  /** deze dag ligt vóór de huidige: de sessie wordt naar voren gehaald */
+  earlier: boolean
+  /**
+   * Wat deze verplaatsing oplevert aan conflicten: te veel kilometers in die week, of
+   * zwaar beenwerk te dicht op de duurloop of op een andere beensessie. Geen blokkade —
+   * de gebruiker kiest zelf — maar hij hoort het vooraf te weten.
+   */
+  warnings: string[]
 }
 
 /** Wat er verplaatst wordt. Kracht en loop verhuizen los van elkaar. */
 export type MoveWhat = 'strength' | 'run'
 
+export const REST_DAY_REASON = 'Rustdag — hier plant de app nooit iets.'
+
 /**
- * Dagen waarheen een sessie verplaatst mag worden. Nooit de vaste rustdag.
- * Staat er op de doeldag al zo'n sessie, dan ruilen de twee van plek.
- * Geblokkeerde dagen komen wél terug, met reden, zodat de UI kan uitleggen waarom.
+ * Past de verplaatsing toe op een kopie van de staat, zonder iets op te slaan.
  *
- * Voor loopsessies gelden geen blokkades: de zaterdagregel gaat over zware
- * beenbelasting vlak voor de duurloop, niet over de loop zelf.
+ * Dit is de enige plek waar staat wat verplaatsen precies doet: de brondag wijst naar de
+ * doeldag, en staat daar al zo'n sessie, dan ruilen de twee. De acties in de store
+ * gebruiken hem om te schrijven, en `moveTargets` om vooruit te kijken naar wat een
+ * verplaatsing zou betekenen.
+ */
+export function applyMove(
+  state: UserState,
+  iso: string,
+  target: string,
+  what: MoveWhat,
+): UserState {
+  const key = what === 'run' ? 'runMoves' : 'moves'
+  const moves = { ...(state[key] ?? {}) }
+  // wat er volgens het schema op de doeldag staat, ook als het die week niet getoond
+  // wordt (de optionele zaterdag valt in een deloadweek weg). Zonder ruil zou de sessie
+  // die je verplaatst anders verdwijnen achter de sessie die daar al hoort.
+  const bezet =
+    what === 'run' ? scheduledRun(state, target).kind : scheduledStrength(state, target).kind
+
+  moves[iso] = target
+  if (bezet) moves[target] = iso
+  return { ...state, [key]: moves }
+}
+
+/**
+ * Dagen waar deze sessie naartoe kan: de hele week waar hij in staat, plus de dag ervoor
+ * en de dag erna — zo is een sessie ook naar voren te halen en over een weekgrens heen te
+ * verzetten. De vaste rustdag komt wel in de lijst, maar geblokkeerd: hij is nooit een
+ * geldige bestemming en dat is duidelijker dan hem weg te laten.
+ *
+ * Staat er op de doeldag al zo'n sessie, dan ruilen de twee van plek. Dagen die al aan
+ * een verplaatsing meedoen vallen af: geen ketens.
  */
 export function moveTargets(state: UserState, iso: string, what: MoveWhat = 'strength'): MoveTarget[] {
+  return moveCandidates(state, iso, what).map((t) => ({
+    ...t,
+    warnings: t.blocked ? [] : moveWarnings(state, iso, t.date, what),
+  }))
+}
+
+/** Is er überhaupt een dag om naartoe te verplaatsen? Zonder de conflicten uit te rekenen. */
+export function canMove(state: UserState, iso: string, what: MoveWhat = 'strength'): boolean {
+  return moveCandidates(state, iso, what).some((t) => !t.blocked)
+}
+
+/**
+ * De dagen zelf, zonder de conflicten erbij. Dat scheelt: uitrekenen wat een
+ * verplaatsing zou betekenen kost per dag een hele doorrekening van de week, en dat is
+ * zonde als je alleen wilt weten of de knop aan mag.
+ */
+function moveCandidates(
+  state: UserState,
+  iso: string,
+  what: MoveWhat,
+): Omit<MoveTarget, 'warnings'>[] {
   const rest = programFor(state).restWeekday
-  const moves = what === 'run' ? state.runMoves : state.moves
-  const out: MoveTarget[] = []
-  for (let d = 1; d <= 6; d++) {
-    const target = shift(iso, d)
-    if (weekday(target) === rest) continue
+  const moves = (what === 'run' ? state.runMoves : state.moves) ?? {}
+  const monday = mondayOf(iso)
+  const out: Omit<MoveTarget, 'warnings'>[] = []
+
+  // van de dag vóór deze week tot en met de dag erna
+  for (let d = -1; d <= 7; d++) {
+    const target = addDays(monday, d)
+    if (target === iso) continue
     if (moves[target]) continue // al verplaatst, geen ketens
-    const plan = buildDay(state, target)
-    const bezet = what === 'run' ? plan.run : plan.strength
-    if (bezet?.movedFrom) continue
+
+    if (weekday(target) === rest) {
+      out.push({ date: target, swapWith: null, blocked: REST_DAY_REASON, earlier: target < iso })
+      continue
+    }
+
+    // bewust niet via `buildDay`: die bouwt de hele dag inclusief guardrails, en dat maal
+    // negen kandidaten maakt het openen van de lijst traag. Wie er staat is genoeg.
+    const bezet = what === 'run' ? scheduledRun(state, target) : scheduledStrength(state, target)
+    if (bezet.movedFrom) continue
+
     out.push({
       date: target,
-      swapWith: bezet ? blockName(bezet) : null,
-      blocked: what === 'run' ? null : moveBlockReason(state, iso, target),
+      swapWith: bezet.kind ? blockName(bezet.kind, what) : null,
+      blocked: null,
+      earlier: target < iso,
     })
   }
+
   return out
 }
 
-function blockName(block: RunBlock | StrengthBlock): string {
-  if ('naam' in block) return block.naam
-  return block.kind === 'long' ? 'Duurloop' : 'Korte loop'
+/**
+ * Wat er misgaat als je deze sessie naar die dag verplaatst.
+ *
+ * De guardrails gelden op de nieuwe datum, ook bij naar voren halen: het weekplafond voor
+ * hardloopkilometers en de beenbelasting worden opnieuw beoordeeld op de staat ná de
+ * verplaatsing. Alleen wat er níét al stond telt mee — een conflict dat er sowieso is,
+ * hoort niet aan deze keuze te hangen.
+ */
+export function moveWarnings(
+  state: UserState,
+  iso: string,
+  target: string,
+  what: MoveWhat,
+): string[] {
+  const next = applyMove(state, iso, target, what)
+  const out: string[] = []
+
+  // loopvolume: valt de week waar hij naartoe gaat boven het plafond?
+  if (what === 'run') {
+    const na = weekProjection(next, target)
+    const voor = weekProjection(state, target)
+    if (na.over && na.planned > voor.planned + 0.01) {
+      out.push(
+        `Die week komt daarmee op ${fmtKm(na.planned)} km, boven het plafond van ${fmtKm(na.cap)} km — de andere lopen worden ingekort.`,
+      )
+    }
+  }
+
+  // zware benen te dicht op de duurloop, in beide betrokken weken
+  const weken = [mondayOf(iso), mondayOf(target)].filter((w, i, a) => a.indexOf(w) === i)
+  const voorConflicts = new Set(
+    weken.map((w) => rawLegRunConflict(state, w)?.situation).filter(Boolean),
+  )
+  for (const week of weken) {
+    const na = rawLegRunConflict(next, week)
+    if (na && !voorConflicts.has(na.situation)) out.push(na.text)
+  }
+
+  // twee zware beensessies achter elkaar
+  const stapel = legStackAround(next, target)
+  if (stapel && !legStackAround(state, target)) out.push(stapel.text)
+
+  return out
 }
 
-function shift(iso: string, n: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const date = new Date(y, m - 1, d + n)
-  const p = (x: number) => String(x).padStart(2, '0')
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+function fmtKm(km: number): string {
+  return String(Math.round(km * 10) / 10).replace('.', ',')
+}
+
+function blockName(kind: DayKind | RunKind, what: MoveWhat): string {
+  if (what === 'run') return kind === 'long' ? 'Duurloop' : 'Korte loop'
+  return DAY_LABEL[kind as DayKind]
 }

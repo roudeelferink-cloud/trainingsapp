@@ -339,6 +339,32 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v)
 }
 
+/**
+ * v11 -> v12: structurele meldingen zijn weg te klikken.
+ *
+ * Eén veld erbij per gebruiker: `dismissedWarnings`, een sleutel per patroon met de datum
+ * waarop je hem wegklikte. Bestaande data krijgt een lege lijst; er is dan simpelweg nog
+ * niets weggeklikt.
+ */
+function v11_to_v12(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!raw || typeof raw !== 'object') {
+      next[id] = raw
+      continue
+    }
+    const user = raw as Record<string, unknown>
+    next[id] = {
+      ...user,
+      dismissedWarnings: isRecord(user.dismissedWarnings) ? user.dismissedWarnings : {},
+    }
+  }
+
+  return { ...state, users: next }
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
@@ -350,6 +376,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   8: v8_to_v9,
   9: v9_to_v10,
   10: v10_to_v11,
+  11: v11_to_v12,
 }
 
 /**

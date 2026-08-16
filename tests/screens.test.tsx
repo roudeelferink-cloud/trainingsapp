@@ -114,6 +114,20 @@ describe('schermen renderen', () => {
     expect(html).toContain('kleinste echte stap')
   })
 
+  it('levert de waarschuwing over zware benen aan met een knop om te verplaatsen', () => {
+    // Anouc traint zaterdag full body en loopt zondag haar duurloop: dat staat elke week zo.
+    // Het scherm rendert deze regels als kaart met knoppen; hier staat vast wat het krijgt.
+    setCurrentUser(ANOUC)
+    const zondag = addDays(mondayOf(today()), 6)
+    setState((s) => ({ ...s, startDate: mondayOf(zondag) }))
+
+    const plan = buildDay(getState(), zondag)
+    const melding = plan.guardrails.find((g) => g.id.startsWith('benen-voor-duurloop'))
+    expect(melding).toBeTruthy()
+    expect(melding!.move).toBeTruthy()
+    expect(melding!.text).toContain('duurloop')
+  })
+
   it('rendert elke krachtsessie van de week met ingevulde setvelden', () => {
     const monday = mondayOf(today())
     let gerenderd = 0
