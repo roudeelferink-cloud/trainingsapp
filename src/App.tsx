@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
 import { ProgressScreen } from './screens/ProgressScreen'
@@ -36,12 +36,18 @@ export default function App() {
     )
   }
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'vandaag', label: 'Vandaag', icon: '●' },
-    { id: 'week', label: 'Week', icon: '▦' },
-    { id: 'voortgang', label: 'Voortgang', icon: '↗' },
-    { id: 'instellingen', label: 'Instellingen', icon: '⚙' },
+  const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
+    { id: 'vandaag', label: 'Vandaag', icon: <IconToday /> },
+    { id: 'week', label: 'Week', icon: <IconWeek /> },
+    { id: 'voortgang', label: 'Voortgang', icon: <IconProgress /> },
+    { id: 'instellingen', label: 'Instellingen', icon: <IconSettings /> },
   ]
+
+  const kiesTab = (t: Tab) => {
+    setTab(t)
+    // elk scherm begint bovenaan; anders land je midden in het vorige scrollpunt
+    window.scrollTo(0, 0)
+  }
 
   return (
     <div className="min-h-dvh bg-ink-900">
@@ -64,14 +70,13 @@ export default function App() {
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-h-[60px] text-[11px] font-semibold ${
+              onClick={() => kiesTab(t.id)}
+              aria-current={tab === t.id ? 'page' : undefined}
+              className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-semibold ${
                 tab === t.id ? 'text-accent' : 'text-slate-400'
               }`}
             >
-              <span className="text-lg leading-none" aria-hidden>
-                {t.icon}
-              </span>
+              <span aria-hidden>{t.icon}</span>
               <span className="truncate max-w-full px-1">{t.label}</span>
             </button>
           ))}
@@ -93,3 +98,61 @@ export default function App() {
     </div>
   )
 }
+
+/**
+ * De iconen van de onderbalk. Inline SVG in plaats van tekstglyphs: die rendert iOS
+ * klein en ongelijk van gewicht, en zo kleuren ze netjes mee met de actieve tab.
+ */
+function TabIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-6 h-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  )
+}
+
+function IconToday() {
+  return (
+    <TabIcon>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+    </TabIcon>
+  )
+}
+
+function IconWeek() {
+  return (
+    <TabIcon>
+      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 10h17M8.5 5V3M15.5 5V3" />
+    </TabIcon>
+  )
+}
+
+function IconProgress() {
+  return (
+    <TabIcon>
+      <path d="M4 18l5.5-5.5 3.5 3.5L20 8" />
+      <path d="M14.5 8H20v5.5" />
+    </TabIcon>
+  )
+}
+
+function IconSettings() {
+  return (
+    <TabIcon>
+      <path d="M4 8h9M17 8h3M4 16h3M11 16h9" />
+      <circle cx="15" cy="8" r="2" />
+      <circle cx="9" cy="16" r="2" />
+    </TabIcon>
+  )
+}
+

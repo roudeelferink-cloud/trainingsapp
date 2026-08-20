@@ -12,6 +12,11 @@
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: none;
   }
+  /* zichtbare focus voor toetsenbord en schakelbediening; tikken toont hem niet */
+  :focus-visible {
+    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline-offset: 2px;
+  }
   input[type='number']::-webkit-outer-spin-button,
   input[type='number']::-webkit-inner-spin-button {
     -webkit-appearance: none;
