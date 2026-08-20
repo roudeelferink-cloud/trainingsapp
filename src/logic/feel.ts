@@ -38,14 +38,6 @@ export const DAY_SCORES: { id: DayScore; label: string }[] = [
   { id: 3, label: 'Goed' },
 ]
 
-export function isDayScore(v: unknown): v is DayScore {
-  return v === 1 || v === 2 || v === 3
-}
-
-export function dayScoreLabel(score: DayScore): string {
-  return DAY_SCORES.find((s) => s.id === score)?.label ?? String(score)
-}
-
 /**
  * Een slechte dag: slaap en energie samen op 3 of lager. Dat is één keer 'slecht' met
  * hooguit een 'oké' ernaast — twee keer 'oké' (4) telt dus nog niet als slecht.

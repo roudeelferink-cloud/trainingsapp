@@ -1,4 +1,3 @@
-import { programFor } from '../data/programs'
 import type { RunKind, UserState } from '../types'
 import { activityKm } from './activities'
 import { cycleInfo } from './cycle'
@@ -277,11 +276,6 @@ export function weeklyKm(state: UserState, from: string, weeks = 12): WeekKm[] {
     })
   }
   return out
-}
-
-/** Schrijft dit programma afstanden voor, of registreert het alleen? */
-export function prescribesDistance(state: UserState): boolean {
-  return programFor(state).runMode === 'planned'
 }
 
 function round(n: number): number {

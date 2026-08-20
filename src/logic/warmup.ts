@@ -10,11 +10,6 @@ export const WARMUP_TYPES: { id: WarmupType; label: string }[] = [
   { id: 'fiets', label: 'Losfietsen' },
 ]
 
-export const WARMUP_TYPE_LABEL: Record<WarmupType, string> = {
-  loopband: 'Loopband',
-  fiets: 'Losfietsen (spinningfiets)',
-}
-
 /** Het advies. De duur is instelbaar, dit is waar hij op begint. */
 export const WARMUP_MIN_MINUTES = 5
 export const WARMUP_MAX_MINUTES = 10
