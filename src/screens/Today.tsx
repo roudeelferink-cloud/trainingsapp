@@ -13,7 +13,7 @@ import { DAY_SCORES, FEELS, feelLabel } from '../logic/feel'
 import { DELOAD_RISK, weeksUntilDeload } from '../logic/deload'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
-import type { Activity, DayKind, SkipReason } from '../types'
+import type { Activity, DayKind, DayScore, SkipReason } from '../types'
 
 const REASONS: { id: SkipReason; label: string }[] = [
   { id: 'druk', label: 'Druk' },
@@ -30,8 +30,9 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
   return (
     <div className="space-y-4">
       <Header plan={plan} />
+      {/* de check-in stuurt het programma van vandaag en blijft daarom boven de sessie;
+          eenmaal ingevuld klapt hij in, zodat de sessie zelf bovenaan komt te staan */}
       <CheckIn iso={iso} value={plan.checkin} />
-      <DayCheckCard iso={iso} />
 
       <Notes plan={plan} />
       <GuardrailCards plan={plan} />
@@ -85,6 +86,9 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
         </Card>
       )}
 
+      {/* stuurt vandaag niets (hij voedt alleen de deloadbeslissing) en staat daarom
+          onder de sessies in plaats van erboven */}
+      <DayCheckCard iso={iso} />
       <ExtraActivities iso={iso} />
       <Maintenance iso={iso} />
       <Protein iso={iso} />
@@ -246,6 +250,25 @@ function GuardrailCards({ plan }: { plan: DayPlan }) {
 function DayCheckCard({ iso }: { iso: string }) {
   const state = useStore()
   const check = state.dayChecks?.[iso]
+  const [edit, setEdit] = useState(false)
+
+  // volledig ingevuld en niet aan het wijzigen: samenvatten op één regel
+  if (check && !edit) {
+    const label = (v: DayScore) => DAY_SCORES.find((s) => s.id === v)?.label.toLowerCase()
+    return (
+      <Card>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-slate-300">
+            Dagcheck: slaap <b className="text-slate-100">{label(check.sleep)}</b> · energie{' '}
+            <b className="text-slate-100">{label(check.energy)}</b>
+          </span>
+          <button className="btn-quiet btn-sm shrink-0" onClick={() => setEdit(true)}>
+            Wijzig
+          </button>
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card>
@@ -273,7 +296,11 @@ function DayCheckCard({ iso }: { iso: string }) {
           <ChoiceGrid
             options={DAY_SCORES}
             value={check?.[part]}
-            onChange={(v) => A.setDayCheckPart(iso, part, v)}
+            onChange={(v) => {
+              A.setDayCheckPart(iso, part, v)
+              // blijf open: wie slaap invult wil meestal ook de energie nog zetten
+              setEdit(true)
+            }}
             buttonClass="min-h-[48px] text-sm"
           />
         </div>
@@ -338,6 +365,25 @@ function DeloadCard({ iso, plan }: { iso: string; plan: DayPlan }) {
 }
 
 function CheckIn({ iso, value }: { iso: string; value: number | undefined }) {
+  const [edit, setEdit] = useState(false)
+
+  // ingevuld en niet aan het wijzigen: één regel is genoeg, de sessie moet bovenaan
+  if (value !== undefined && !edit) {
+    return (
+      <Card>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-slate-300">
+            Benen en pezen: <b className="text-slate-100">{value}</b>
+            <span className="text-slate-400"> / 5</span>
+          </span>
+          <button className="btn-quiet btn-sm shrink-0" onClick={() => setEdit(true)}>
+            Wijzig
+          </button>
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <p className="font-semibold mb-1">Hoe voelen benen en pezen?</p>
@@ -345,7 +391,11 @@ function CheckIn({ iso, value }: { iso: string; value: number | undefined }) {
       <ChoiceGrid
         options={[1, 2, 3, 4, 5].map((n) => ({ id: n, label: n }))}
         value={value}
-        onChange={(n) => (value === n ? A.clearCheckin(iso) : A.setCheckin(iso, n))}
+        onChange={(n) => {
+          if (value === n) A.clearCheckin(iso)
+          else A.setCheckin(iso, n)
+          setEdit(false)
+        }}
         columns={5}
         buttonClass="min-h-[56px] text-xl"
       />
