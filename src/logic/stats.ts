@@ -1,5 +1,4 @@
 import { BY_ID } from '../data/exercises'
-import { DEFAULT_PROTEIN_FACTOR } from '../store/settings'
 import type { SessionLog, UserState } from '../types'
 import { buildDay } from './day'
 import { addDays, mondayOf, today } from './dates'
@@ -41,22 +40,6 @@ export function trainingStreak(state: UserState): number {
         // vandaag is nog niet voorbij: telt niet mee, breekt ook niet
       } else break
     }
-    iso = addDays(iso, -1)
-  }
-  return streak
-}
-
-/** Streak van de dagelijkse onderhoudschecklist. */
-export function maintenanceStreak(state: UserState): number {
-  const items = state.settings?.maintenanceItems ?? []
-  if (items.length === 0) return 0
-  let streak = 0
-  let iso = today()
-  for (let i = 0; i < 400; i++) {
-    const done = state.maintenance[iso] ?? []
-    const all = items.every((m) => done.includes(m.id))
-    if (all) streak++
-    else if (i > 0) break
     iso = addDays(iso, -1)
   }
   return streak
@@ -175,7 +158,7 @@ export interface ExportReminder {
  */
 export function exportReminder(state: UserState, now = new Date()): ExportReminder | null {
   const hasData =
-    completedSessions(state) > 0 || completedRuns(state) > 0 || Object.keys(state.protein).length > 0
+    completedSessions(state) > 0 || completedRuns(state) > 0 || state.activities.length > 0
   if (!hasData) return null
 
   if (!state.lastExportAt) {
@@ -233,9 +216,3 @@ export function dataSummary(state: UserState): DataSummary {
   }
 }
 
-export function proteinGoal(state: UserState): number | null {
-  const kg = state.settings?.bodyweightKg
-  if (!kg || kg <= 0) return null
-  const factor = state.settings?.proteinFactor
-  return Math.round((kg * (factor && factor > 0 ? factor : DEFAULT_PROTEIN_FACTOR)) / 5) * 5
-}

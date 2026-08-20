@@ -386,9 +386,9 @@ describe('opslag, export en migratie', () => {
     const s = getState()
     expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
     expect(s.activities).toEqual([])
-    // bestaande data blijft overeind
+    // bestaande data blijft overeind; het eiwitveld uit de oude export wordt opgeruimd
     expect(s.sessions[`${MON}:legs_a`].entries['legs_a:0']).toHaveLength(1)
-    expect(s.protein[MON]).toBe(150)
+    expect(Object.keys(s)).not.toContain('protein')
   })
 
   it('migreert vanaf v1 helemaal door naar een staat met activiteiten', () => {

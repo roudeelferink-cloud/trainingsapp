@@ -1,6 +1,6 @@
 import { BAR_IDS, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { DEFAULT_PLATES } from '../logic/plates'
-import type { LoadArea, MaintenanceItem, Sensitivity, Settings } from '../types'
+import type { LoadArea, Sensitivity, Settings } from '../types'
 
 /**
  * Eén plek waar een `Settings`-object heel gemaakt wordt.
@@ -29,8 +29,6 @@ export const ALL_AREAS: LoadArea[] = [
 
 const SENSITIVITIES: string[] = ['ok', 'careful', 'off']
 
-export const DEFAULT_PROTEIN_FACTOR = 1.8
-
 /**
  * Vaste gebruikersids van dit huishouden. Ze staan hier omdat de startinstellingen
  * per gebruiker verschillen; store.ts exporteert ze door voor de rest van de app.
@@ -38,21 +36,11 @@ export const DEFAULT_PROTEIN_FACTOR = 1.8
 export const ROB = 'rob'
 export const ANOUC = 'anouc'
 
-/** Vaste startlijst van de dagelijkse onderhoudschecklist. */
-export function defaultMaintenanceItems(): MaintenanceItem[] {
-  return [
-    { id: 'heeldrops', label: 'Excentrische heel drops (3x15 per been)' },
-    { id: 'heupmobiliteit', label: 'Mobiliteit heup 5 min' },
-  ]
-}
-
 export function defaultSettings(): Settings {
   return {
     bodyweightKg: null,
     sensitive: Object.fromEntries(ALL_AREAS.map((a) => [a, 'ok'])) as Record<LoadArea, Sensitivity>,
     travelMode: false,
-    maintenanceItems: defaultMaintenanceItems(),
-    proteinFactor: DEFAULT_PROTEIN_FACTOR,
     barWeights: { ...DEFAULT_BAR_WEIGHTS },
     plates: [...DEFAULT_PLATES],
   }
@@ -72,20 +60,6 @@ export function defaultSettingsFor(userId: string): Settings {
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v)
-}
-
-/** Alleen items met een bruikbaar id en label; ontbreekt de lijst, dan de terugval. */
-function normalizeMaintenance(raw: unknown, terugval: MaintenanceItem[]): MaintenanceItem[] {
-  if (!Array.isArray(raw)) return terugval
-  const out: MaintenanceItem[] = []
-  for (const item of raw) {
-    if (!isObject(item)) continue
-    const { id, label } = item
-    if (typeof id === 'string' && id && typeof label === 'string' && label.trim()) {
-      out.push({ id, label: label.trim() })
-    }
-  }
-  return out
 }
 
 /**
@@ -114,15 +88,12 @@ export function normalizeSettings(raw: unknown, fallback?: Settings): Settings {
   }
 
   const bodyweight = Number(s.bodyweightKg)
-  const factor = Number(s.proteinFactor)
 
   return {
     ...s,
     bodyweightKg: Number.isFinite(bodyweight) && bodyweight > 0 ? bodyweight : null,
     sensitive,
     travelMode: s.travelMode === true,
-    maintenanceItems: normalizeMaintenance(s.maintenanceItems, base.maintenanceItems),
-    proteinFactor: Number.isFinite(factor) && factor > 0 ? factor : base.proteinFactor,
     barWeights,
     plates: normalizePlates(s.plates, base.plates),
   }

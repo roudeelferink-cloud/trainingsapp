@@ -66,19 +66,17 @@ describe('twee gebruikers op één toestel', () => {
 
 describe('data van de twee gebruikers blijft gescheiden', () => {
   it('schrijft loggen alleen naar de gebruiker die actief is', () => {
-    A.setProtein(MON, 180)
     A.addActivity(MON, { type: 'fietsen', minutes: 40, intensity: 'rustig' })
     A.setCheckin(MON, 4)
 
-    expect(getUser(ROB)!.protein[MON]).toBe(180)
-    expect(getUser(ANOUC)!.protein).toEqual({})
+    expect(getUser(ROB)!.checkins[MON]).toBe(4)
     expect(activitiesOn(getUser(ANOUC)!, MON)).toHaveLength(0)
     expect(getUser(ANOUC)!.checkins).toEqual({})
 
     setCurrentUser(ANOUC)
-    A.setProtein(MON, 110)
-    expect(getUser(ANOUC)!.protein[MON]).toBe(110)
-    expect(getUser(ROB)!.protein[MON]).toBe(180) // ongemoeid
+    A.setCheckin(MON, 2)
+    expect(getUser(ANOUC)!.checkins[MON]).toBe(2)
+    expect(getUser(ROB)!.checkins[MON]).toBe(4) // ongemoeid
   })
 
   it('houdt sessielogs, loops en instellingen uit elkaar', () => {
@@ -139,17 +137,17 @@ describe('data van de twee gebruikers blijft gescheiden', () => {
   })
 
   it('bewaart beide gebruikers over een herlaadbeurt heen', () => {
-    A.setProtein(MON, 175)
+    A.setCheckin(MON, 4)
     setCurrentUser(ANOUC)
-    A.setProtein(MON, 95)
+    A.setCheckin(MON, 2)
 
     const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
     const herladen = migrate(JSON.parse(opgeslagen!))
 
     expect(herladen.schemaVersion).toBe(SCHEMA_VERSION)
     expect(herladen.currentUser).toBe(ANOUC)
-    expect(herladen.users[ROB].protein[MON]).toBe(175)
-    expect(herladen.users[ANOUC].protein[MON]).toBe(95)
+    expect(herladen.users[ROB].checkins[MON]).toBe(4)
+    expect(herladen.users[ANOUC].checkins[MON]).toBe(2)
   })
 })
 

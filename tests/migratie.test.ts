@@ -71,8 +71,9 @@ describe('migratie van bestaande localStorage-data', () => {
     expect(rob.settings.sensitive.knee_deep).toBe('off')
     expect(rob.permanentReplacements).toEqual({ 'legs_a:0': 'hack_squat_smith' })
     expect(rob.checkins).toEqual({ [MON]: 4 })
-    expect(rob.protein).toEqual({ [MON]: 165 })
-    expect(rob.maintenance).toEqual({ [MON]: ['heeldrops'] })
+    // eiwit en onderhoud zijn sinds v13 uit de app; de migratie ruimt de velden op
+    expect(Object.keys(rob)).not.toContain('protein')
+    expect(Object.keys(rob)).not.toContain('maintenance')
     expect(rob.sessions[`${MON}:legs_a`].entries['legs_a:0']).toHaveLength(1)
     expect(rob.runs[MON].km).toBe(6.5)
     expect(rob.activities).toHaveLength(1)
@@ -122,7 +123,7 @@ describe('migratie van bestaande localStorage-data', () => {
   it('laat een al gemigreerde staat ongemoeid', () => {
     const eenmaal = migrate(v5)
     const tweemaal = migrate(eenmaal)
-    expect(tweemaal.users[ROB].protein).toEqual(eenmaal.users[ROB].protein)
+    expect(tweemaal.users[ROB].checkins).toEqual(eenmaal.users[ROB].checkins)
     expect(tweemaal.users[ROB].sessions).toEqual(eenmaal.users[ROB].sessions)
     expect(Object.keys(tweemaal.users).sort()).toEqual([ANOUC, ROB])
   })
@@ -221,7 +222,7 @@ describe('v8 -> v9: de syncvelden eruit', () => {
     // en de historie staat er nog gewoon
     expect(root.users[ROB].sessions[`${MON}:legs_a`].entries['legs_a:0'][0].weight).toBe(120)
     expect(root.users[ROB].settings.barWeights.smith).toBe(7)
-    expect(root.users[ANOUC].protein[MON]).toBe(95)
+    expect(Object.keys(root.users[ANOUC])).not.toContain('protein')
   })
 })
 
@@ -284,7 +285,80 @@ describe('v10 -> v11: de guardrails-laag', () => {
     expect(log.feel).toBeUndefined()
     expect(root.users[ROB].runs[MON].feel).toBeUndefined()
     expect(root.users[ROB].checkins[MON]).toBe(4)
-    expect(root.users[ANOUC].protein[MON]).toBe(95)
+    expect(Object.keys(root.users[ANOUC])).not.toContain('protein')
+  })
+})
+
+describe('v12 -> v13: eiwit en onderhoud verdwijnen', () => {
+  const v12 = {
+    schemaVersion: 12,
+    currentUser: 'rob',
+    pin: '1234',
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        settings: {
+          bodyweightKg: 84,
+          barWeights: { smith: 7 },
+          proteinFactor: 1.8,
+          maintenanceItems: [{ id: 'heeldrops', label: 'Excentrische heel drops (3x15 per been)' }],
+        },
+        checkins: { [MON]: 4 },
+        dayChecks: { [MON]: { sleep: 2, energy: 3 } },
+        protein: { [MON]: 165 },
+        maintenance: { [MON]: ['heeldrops'] },
+        sessions: {
+          [`${MON}:legs_a`]: {
+            date: MON,
+            kind: 'legs_a',
+            short: false,
+            completedAt: '2026-08-03T18:00:00.000Z',
+            skippedSlots: [],
+            completedSlots: ['legs_a:0'],
+            exercises: { 'legs_a:0': 'leg_press' },
+            entries: { 'legs_a:0': [{ weight: 120, reps: 10, rir: 1, done: true }] },
+          },
+        },
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen', protein: { [MON]: 95 } },
+    },
+  }
+
+  it('ruimt de velden per gebruiker en in de instellingen op', () => {
+    const out = runMigrations(structuredClone(v12), 12, 13) as Record<string, any>
+
+    expect(out.schemaVersion).toBe(13)
+    for (const id of ['rob', 'anouc']) {
+      expect(Object.keys(out.users[id])).not.toContain('protein')
+      expect(Object.keys(out.users[id])).not.toContain('maintenance')
+    }
+    expect(Object.keys(out.users.rob.settings)).not.toContain('proteinFactor')
+    expect(Object.keys(out.users.rob.settings)).not.toContain('maintenanceItems')
+  })
+
+  it('laat alle andere data staan', () => {
+    const out = runMigrations(structuredClone(v12), 12, 13) as Record<string, any>
+
+    expect(out.users.rob.sessions).toEqual(v12.users.rob.sessions)
+    expect(out.users.rob.checkins).toEqual({ [MON]: 4 })
+    expect(out.users.rob.dayChecks).toEqual({ [MON]: { sleep: 2, energy: 3 } })
+    expect(out.users.rob.settings.bodyweightKg).toBe(84)
+    expect(out.users.rob.settings.barWeights.smith).toBe(7)
+    expect(out.pin).toBe('1234')
+    expect(out.currentUser).toBe('rob')
+  })
+
+  it('komt via de volledige migratie op een schone huidige staat uit', () => {
+    const root = migrate(structuredClone(v12))
+
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(JSON.stringify(root)).not.toContain('proteinFactor')
+    expect(JSON.stringify(root)).not.toContain('maintenanceItems')
+    expect(root.users[ROB].sessions[`${MON}:legs_a`].entries['legs_a:0'][0].weight).toBe(120)
+    expect(root.users[ROB].dayChecks[MON]).toEqual({ sleep: 2, energy: 3 })
   })
 })
 

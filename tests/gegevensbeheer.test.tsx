@@ -134,17 +134,17 @@ describe('van profiel wisselen wist niets', () => {
   it('houdt de historie van allebei', () => {
     setCurrentUser(ROB)
     vulHistorie()
-    A.setProtein(MON, 170)
+    A.setCheckin(MON, 4)
 
     setCurrentUser(ANOUC)
     expect(getState().id).toBe(ANOUC)
     expect(Object.keys(getState().sessions)).toHaveLength(0)
-    A.setProtein(MON, 95)
+    A.setCheckin(MON, 2)
 
     setCurrentUser(ROB)
     expect(Object.keys(getUser(ROB)!.sessions)).toHaveLength(1)
-    expect(getUser(ROB)!.protein[MON]).toBe(170)
-    expect(getUser(ANOUC)!.protein[MON]).toBe(95)
+    expect(getUser(ROB)!.checkins[MON]).toBe(4)
+    expect(getUser(ANOUC)!.checkins[MON]).toBe(2)
   })
 
   it('overleeft een herlaadbeurt', () => {

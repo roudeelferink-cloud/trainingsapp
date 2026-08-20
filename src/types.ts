@@ -159,11 +159,6 @@ export interface SessionTemplate {
 
 export type Sensitivity = 'ok' | 'careful' | 'off'
 
-export interface MaintenanceItem {
-  id: string
-  label: string
-}
-
 /** Stangen met een eigen gewicht. De schijven komen daar bovenop. */
 export type BarId = 'smith' | 'trap_bar' | 'barbell' | 'deadlift_bar' | 'curl_bar'
 
@@ -171,8 +166,6 @@ export interface Settings {
   bodyweightKg: number | null
   sensitive: Record<LoadArea, Sensitivity>
   travelMode: boolean
-  maintenanceItems: MaintenanceItem[]
-  proteinFactor: number
   /** eigen gewicht per stang in kg; per sportschool anders, dus instelbaar */
   barWeights: Record<BarId, number>
   /**
@@ -383,10 +376,6 @@ export interface UserState {
   checkins: Record<string, number>
   /** datum -> optionele dagcheck (slaap en energie) */
   dayChecks: Record<string, DayCheck>
-  /** datum -> gram eiwit */
-  protein: Record<string, number>
-  /** datum -> afgevinkte onderhoudsitems */
-  maintenance: Record<string, string[]>
   /** sessiesleutel -> log */
   sessions: Record<string, SessionLog>
   /** datum -> looplog */
