@@ -80,8 +80,9 @@ describe('instellingenscherm met oude of halve data', () => {
     const html = render(createElement(SettingsScreen))
     verwachtEenHeelScherm(html)
     // smith 15 en trap bar 20 komen uit de standaard, met één decimaal in het veld
-    expect(html).toContain('value="15.0"')
-    expect(html).toContain('value="20.0"')
+    // (Nederlandse notatie: komma als decimaalteken)
+    expect(html).toContain('value="15,0"')
+    expect(html).toContain('value="20,0"')
 
     const settings = store.getUser('rob')!.settings
     expect(settings.barWeights.smith).toBe(15)

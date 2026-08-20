@@ -1,4 +1,4 @@
-import { useEffect, useId, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`card ${className}`}>{children}</div>
@@ -182,6 +182,25 @@ export function Toggle({
  */
 export const NUMBER_INPUT_MIN_PX = 56
 
+/**
+ * Leest wat er in een getalveld getypt is. Komma en punt gelden allebei als
+ * decimaalteken: het Nederlandse iOS-toetsenbord toont een komma, en in een
+ * `type="number"`-veld maakte die de waarde leeg — daarom zijn de velden tekstvelden.
+ * Een half getal tijdens het typen ("7,") telt gewoon als 7; onleesbare invoer is null.
+ */
+export function parseDecimal(text: string): number | null {
+  const t = text.trim().replace(',', '.')
+  if (t === '' || t === '.' || !/^\d*\.?\d*$/.test(t)) return null
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
+}
+
+/** Nederlandse weergave: komma als decimaalteken. */
+export function formatDecimal(value: number, decimals = 0): string {
+  const text = decimals ? value.toFixed(decimals) : String(value)
+  return text.replace('.', ',')
+}
+
 export function Stepper({
   value,
   onChange,
@@ -208,13 +227,23 @@ export function Stepper({
   const empty = value === 0 && placeholder !== undefined
   const basis = empty ? placeholder : value
 
+  // wat er getypt wordt, letterlijk, zolang het veld de focus heeft. Zonder dit concept
+  // zou elke toetsaanslag meteen terugformatteren ("4" werd "4.0") en verdween een
+  // net getypte komma direct weer.
+  const [draft, setDraft] = useState<string | null>(null)
+
+  const stap = (richting: 1 | -1) => {
+    setDraft(null)
+    onChange(clamp(basis + richting * step))
+  }
+
   return (
     // flex-wrap: op een heel smal scherm (320px) wipt het veld naar een eigen regel
     // in plaats van dat het tussen de knoppen wordt platgedrukt.
     <div className="flex flex-wrap items-stretch gap-1">
       <button
         className="btn-ghost btn-sm w-11 flex-none text-xl"
-        onClick={() => onChange(clamp(basis - step))}
+        onClick={() => stap(-1)}
         aria-label="Minder"
       >
         −
@@ -222,25 +251,68 @@ export function Stepper({
       {/* min-w houdt het veld leesbaar; de knoppen ernaast mogen het nooit wegdrukken */}
       <div className="flex-1 min-w-[64px] flex items-center rounded-lg bg-ink-900 border border-ink-600 px-1 focus-within:border-accent">
         <input
-          type="number"
+          type="text"
           inputMode="decimal"
           aria-label={ariaLabel}
           // text-base = 16px: kleiner laat iOS bij focus inzoomen op het veld
           className="w-full min-w-[56px] bg-transparent text-center text-base tabular-nums font-bold focus:outline-none placeholder:text-slate-500 placeholder:font-normal"
-          value={empty ? '' : decimals ? value.toFixed(decimals) : String(value)}
-          placeholder={placeholder === undefined ? undefined : String(placeholder)}
-          onChange={(e) => onChange(e.target.value === '' ? 0 : clamp(Number(e.target.value)))}
+          value={draft ?? (empty ? '' : formatDecimal(value, decimals))}
+          placeholder={placeholder === undefined ? undefined : formatDecimal(placeholder, decimals)}
+          onChange={(e) => {
+            const text = e.target.value
+            setDraft(text)
+            if (text === '') return onChange(0)
+            const parsed = parseDecimal(text)
+            if (parsed !== null) onChange(clamp(parsed))
+          }}
+          onBlur={() => setDraft(null)}
         />
         {suffix && <span className="text-xs text-slate-400 pr-1">{suffix}</span>}
       </div>
       <button
         className="btn-ghost btn-sm w-11 flex-none text-xl"
-        onClick={() => onChange(clamp(basis + step))}
+        onClick={() => stap(1)}
         aria-label="Meer"
       >
         +
       </button>
     </div>
+  )
+}
+
+/**
+ * Los decimaal veld (zonder −/+): zelfde komma-afhandeling en hetzelfde concept
+ * tijdens het typen als de Stepper. Leeg veld betekent "niet ingevuld" (null).
+ */
+export function DecimalField({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: number | null
+  onChange: (v: number | null) => void
+  placeholder?: string
+  ariaLabel?: string
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  return (
+    <input
+      className="field"
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      value={draft ?? (value === null ? '' : formatDecimal(value))}
+      onChange={(e) => {
+        const text = e.target.value
+        setDraft(text)
+        if (text === '') return onChange(null)
+        const parsed = parseDecimal(text)
+        if (parsed !== null) onChange(parsed)
+      }}
+      onBlur={() => setDraft(null)}
+    />
   )
 }
 

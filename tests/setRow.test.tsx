@@ -80,7 +80,7 @@ describe('elke setrij, niet alleen de eerste', () => {
     const setVelden = inputs(html).filter((i) => /aria-label="(Gewicht|Reps) set/.test(i))
     expect(setVelden).toHaveLength(sets * 2) // kg + reps per set
 
-    const velden = inputs(html).filter((i) => i.includes('type="number"'))
+    const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
     for (const veld of velden) {
       expect(veld).toContain(MIN_WIDTH_CLASS)
       expect(veld).toContain('text-base')
@@ -98,7 +98,7 @@ describe('elke setrij, niet alleen de eerste', () => {
       const html = render(
         createElement(SessionScreen, { date: iso, kind: plan.strength.kind, onClose: () => {} }),
       )
-      const velden = inputs(html).filter((i) => i.includes('type="number"'))
+      const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
       expect(velden.length, plan.strength.naam).toBeGreaterThan(0)
       for (const veld of velden) expect(veld, plan.strength.naam).toContain(MIN_WIDTH_CLASS)
       gecontroleerd++

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, Chip, ConfirmCheck, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
+import { Card, Chip, ConfirmCheck, DecimalField, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { PLATE_OPTIONS, smallestPlate } from '../logic/plates'
@@ -109,13 +109,11 @@ export function SettingsScreen() {
       <Card>
         <SectionTitle>Lichaamsgewicht</SectionTitle>
         <div className="flex items-center gap-2">
-          <input
-            className="field"
-            type="number"
-            inputMode="decimal"
+          <DecimalField
+            ariaLabel="Lichaamsgewicht"
             placeholder="kg"
-            value={settings.bodyweightKg ?? ''}
-            onChange={(e) => A.setBodyweight(e.target.value === '' ? null : Number(e.target.value))}
+            value={settings.bodyweightKg}
+            onChange={A.setBodyweight}
           />
           <span className="text-slate-400">kg</span>
         </div>
