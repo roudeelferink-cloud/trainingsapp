@@ -4,7 +4,7 @@ import { mondayOf, today } from '../logic/dates'
 import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
 import { runMigrations, type RawState } from './migrations'
 
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 /** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
 const KEY = 'trainingsapp.state.v1'
 
@@ -26,8 +26,6 @@ export function defaultUser(id: string, naam: string, programId: ProgramId): Use
     permanentReplacements: {},
     checkins: {},
     dayChecks: {},
-    protein: {},
-    maintenance: {},
     sessions: {},
     runs: {},
     runPlans: {},
@@ -82,8 +80,6 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     permanentReplacements: s.permanentReplacements ?? {},
     checkins: s.checkins ?? {},
     dayChecks: s.dayChecks ?? {},
-    protein: s.protein ?? {},
-    maintenance: s.maintenance ?? {},
     sessions: s.sessions ?? {},
     runs: s.runs ?? {},
     runPlans: s.runPlans ?? {},

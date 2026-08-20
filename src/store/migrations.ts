@@ -340,6 +340,34 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 /**
+ * v12 -> v13: eiwitregistratie en de dagelijkse onderhoudschecklist zijn uit de app.
+ *
+ * Per gebruiker verdwijnen `protein` (datum -> gram) en `maintenance` (datum ->
+ * afgevinkte items), en uit de instellingen `maintenanceItems` en `proteinFactor`.
+ * Al het andere — sessies, loops, activiteiten, checkins, dagchecks, instellingen —
+ * blijft onaangeroerd.
+ */
+function v12_to_v13(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!raw || typeof raw !== 'object') {
+      next[id] = raw
+      continue
+    }
+    const { protein: _eiwit, maintenance: _onderhoud, ...user } = raw as Record<string, unknown>
+    if (isRecord(user.settings)) {
+      const { maintenanceItems: _items, proteinFactor: _factor, ...settings } = user.settings
+      user.settings = settings
+    }
+    next[id] = user
+  }
+
+  return { ...state, users: next }
+}
+
+/**
  * v11 -> v12: structurele meldingen zijn weg te klikken.
  *
  * Eén veld erbij per gebruiker: `dismissedWarnings`, een sleutel per patroon met de datum
@@ -377,6 +405,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   9: v9_to_v10,
   10: v10_to_v11,
   11: v11_to_v12,
+  12: v12_to_v13,
 }
 
 /**

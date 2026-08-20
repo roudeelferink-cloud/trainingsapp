@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { ActivityList, ActivitySheet } from '../components/Activities'
 import { MoveSheet } from '../components/MoveSheet'
-import { Bar, Card, ChoiceGrid, Chip, ConfirmCheck, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
+import { Card, ChoiceGrid, Chip, ConfirmCheck, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn, paceMinPerKm } from '../logic/activities'
 import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
 import { addDays, formatLong, formatShort, today } from '../logic/dates'
 import { warmupLabel } from '../logic/warmup'
-import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
+import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
 import { DAY_SCORES, FEELS, feelLabel } from '../logic/feel'
 import { DELOAD_RISK, weeksUntilDeload } from '../logic/deload'
@@ -93,8 +93,6 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
           onder de sessies in plaats van erboven */}
       <DayCheckCard iso={iso} />
       <ExtraActivities iso={iso} />
-      <Maintenance iso={iso} />
-      <Protein iso={iso} />
     </div>
   )
 }
@@ -806,82 +804,3 @@ export function SkipSheet({
   )
 }
 
-function Maintenance({ iso }: { iso: string }) {
-  const state = useStore()
-  const done = state.maintenance[iso] ?? []
-  const items = state.settings?.maintenanceItems ?? []
-  const streak = maintenanceStreak(state)
-
-  return (
-    <Card>
-      <SectionTitle right={<span className="text-sm text-slate-400">{streak} dagen op rij</span>}>
-        Dagelijks onderhoud
-      </SectionTitle>
-      {items.length === 0 && <Empty>Geen items. Toevoegen kan bij Instellingen.</Empty>}
-      <div className="space-y-2">
-        {items.map((m) => {
-          const on = done.includes(m.id)
-          return (
-            <button
-              key={m.id}
-              onClick={() => A.toggleMaintenance(iso, m.id)}
-              className={`w-full flex items-center gap-3 rounded-xl px-3 min-h-[52px] text-left border ${
-                on ? 'bg-emerald-500/15 border-emerald-500/40' : 'bg-ink-700 border-ink-600'
-              }`}
-            >
-              <span
-                className={`w-6 h-6 rounded-md border-2 shrink-0 flex items-center justify-center ${
-                  on ? 'bg-emerald-400 border-emerald-400 text-ink-900' : 'border-ink-500'
-                }`}
-              >
-                {on ? '✓' : ''}
-              </span>
-              <span className={on ? 'line-through text-slate-400' : ''}>{m.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </Card>
-  )
-}
-
-function Protein({ iso }: { iso: string }) {
-  const state = useStore()
-  const goal = proteinGoal(state)
-  const value = state.protein[iso] ?? 0
-
-  return (
-    <Card>
-      <SectionTitle right={goal ? <span className="text-sm text-slate-400">doel {goal} g</span> : undefined}>
-        Eiwit vandaag
-      </SectionTitle>
-      {goal === null ? (
-        <p className="text-sm text-slate-400">Vul je lichaamsgewicht in bij Instellingen voor een dagdoel.</p>
-      ) : (
-        <>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-bold tabular-nums">{value}</span>
-            <span className="text-slate-400">/ {goal} g</span>
-          </div>
-          <Bar value={value} max={goal} tone={value >= goal ? 'bg-emerald-400' : 'bg-accent'} />
-          <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
-            <input
-              className="field"
-              type="number"
-              inputMode="numeric"
-              value={value || ''}
-              placeholder="gram"
-              onChange={(e) => A.setProtein(iso, Math.max(0, Number(e.target.value) || 0))}
-            />
-            <button className="btn-ghost btn-sm" onClick={() => A.setProtein(iso, value + 25)}>
-              +25
-            </button>
-            <button className="btn-ghost btn-sm" onClick={() => A.setProtein(iso, value + 50)}>
-              +50
-            </button>
-          </div>
-        </>
-      )}
-    </Card>
-  )
-}

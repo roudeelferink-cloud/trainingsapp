@@ -5,9 +5,7 @@ import {
   completedRuns,
   completedSessions,
   exportReminder,
-  maintenanceStreak,
   oneRmSeries,
-  proteinGoal,
   trainingStreak,
 } from '../src/logic/stats'
 import { MON, baseState } from './helpers'
@@ -66,14 +64,8 @@ describe('statistiek', () => {
     expect(oneRmSeries(baseState({ sessions: kaal }))).toEqual([])
   })
 
-  it('berekent het eiwitdoel op gewicht × 1,8 afgerond op 5', () => {
-    expect(proteinGoal(baseState({ settings: { ...baseState().settings, bodyweightKg: 82 } }))).toBe(150)
-    expect(proteinGoal(baseState())).toBeNull()
-  })
-
   it('draait streaks zonder te crashen op lege data', () => {
     expect(typeof trainingStreak(baseState())).toBe('number')
-    expect(maintenanceStreak(baseState())).toBe(0)
   })
 })
 

@@ -31,7 +31,6 @@ const render = (el: Parameters<typeof renderToString>[0]) =>
 function verwachtEenHeelScherm(html: string) {
   expect(html).toContain('Gevoelige gebieden')
   expect(html).toContain('Stanggewicht')
-  expect(html).toContain('Dagelijks onderhoud')
   expect(html).toContain('Exporteer alles')
 }
 
@@ -53,7 +52,7 @@ describe('instellingenscherm met oude of halve data', () => {
 
     const html = render(createElement(SettingsScreen))
     verwachtEenHeelScherm(html)
-    expect(html).toContain('Eiwitdoel: 150 g per dag')
+    expect(html).toContain('startgewichtadvies')
 
     const rob = store.getUser('rob')!
     expect(rob.settings.bodyweightKg).toBe(82)
@@ -119,7 +118,7 @@ describe('instellingenscherm met oude of halve data', () => {
     const html = render(createElement(SettingsScreen))
     verwachtEenHeelScherm(html)
     expect(html).toContain('Anouc')
-    expect(html).toContain('Nodig voor het eiwitdoel.')
+    expect(html).toContain('startgewichtadvies')
 
     // en de weg terug werkt: Vandaag rendert op dezelfde staat
     expect(render(createElement(Today, { onOpenSession: () => {} })).length).toBeGreaterThan(500)
@@ -147,7 +146,6 @@ describe('instellingenscherm met oude of halve data', () => {
     const settings = store.getUser('rob')!.settings
     expect(settings.sensitive.knee_deep).toBe('ok')
     expect(settings.barWeights.smith).toBe(15)
-    expect(settings.maintenanceItems.length).toBeGreaterThan(0)
     expect(settings.bodyweightKg).toBe(80)
 
     verwachtEenHeelScherm(render(createElement(SettingsScreen)))
@@ -178,7 +176,5 @@ describe('instellingenscherm met oude of halve data', () => {
     expect(settings.sensitive.calf).toBe('ok')
     expect(settings.barWeights.smith).toBe(15) // 0 kg stang bestaat niet
     expect(settings.barWeights.trap_bar).toBe(20)
-    expect(settings.maintenanceItems).toEqual([{ id: 'ok', label: 'Heel drops' }])
-    expect(settings.proteinFactor).toBe(1.8)
   })
 })

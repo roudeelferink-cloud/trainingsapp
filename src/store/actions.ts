@@ -101,18 +101,6 @@ function recordDeviation(
   return { ...s, deviations: [...(s.deviations ?? []), deviation].slice(-200) }
 }
 
-export function setProtein(iso: string, grams: number): void {
-  setState((s) => ({ ...s, protein: { ...s.protein, [iso]: grams } }))
-}
-
-export function toggleMaintenance(iso: string, id: string): void {
-  setState((s) => {
-    const done = s.maintenance[iso] ?? []
-    const next = done.includes(id) ? done.filter((x) => x !== id) : [...done, id]
-    return { ...s, maintenance: { ...s.maintenance, [iso]: next } }
-  })
-}
-
 function patchOverride(s: UserState, iso: string, patch: Partial<UserState['overrides'][string]>): UserState {
   return { ...s, overrides: { ...s.overrides, [iso]: { ...(s.overrides[iso] ?? {}), ...patch } } }
 }
@@ -676,18 +664,4 @@ export function togglePlate(kg: number): void {
 
 export function setTravelMode(on: boolean): void {
   setState((s) => patchSettings(s, () => ({ travelMode: on })))
-}
-
-export function addMaintenanceItem(label: string): void {
-  setState((s) =>
-    patchSettings(s, (c) => ({
-      maintenanceItems: [...c.maintenanceItems, { id: `m${Date.now().toString(36)}`, label }],
-    })),
-  )
-}
-
-export function removeMaintenanceItem(id: string): void {
-  setState((s) =>
-    patchSettings(s, (c) => ({ maintenanceItems: c.maintenanceItems.filter((m) => m.id !== id) })),
-  )
 }

@@ -41,8 +41,6 @@ describe('export en import', () => {
       ...s,
       sessions: sessionLog,
       checkins: { [MON]: 4 },
-      protein: { [MON]: 160 },
-      maintenance: { [MON]: ['heeldrops'] },
       permanentReplacements: { 'legs_a:0': 'hack_squat_smith' },
       exerciseState: {
         leg_press: {
@@ -69,8 +67,6 @@ describe('export en import', () => {
     const after = getState()
     expect(after.sessions).toEqual(before.sessions)
     expect(after.checkins).toEqual(before.checkins)
-    expect(after.protein).toEqual(before.protein)
-    expect(after.maintenance).toEqual(before.maintenance)
     expect(after.permanentReplacements).toEqual(before.permanentReplacements)
     expect(after.exerciseState).toEqual(before.exerciseState)
     expect(after.settings).toEqual(before.settings)
@@ -107,7 +103,7 @@ describe('export en import', () => {
 
   it('overleeft een import die alleen schemaVersion bevat', () => {
     expect(importJSON(JSON.stringify({ schemaVersion: SCHEMA_VERSION })).ok).toBe(true)
-    expect(getState().settings.maintenanceItems.length).toBeGreaterThan(0)
+    expect(getState().settings.plates.length).toBeGreaterThan(0)
     expect(getState().sessions).toEqual({})
   })
 })
@@ -160,7 +156,8 @@ describe('migratie van oudere data', () => {
     const s = getState()
     expect(s.startDate).toBe(MON)
     expect(s.checkins).toEqual({ [MON]: 4 })
-    expect(s.protein).toEqual({ [MON]: 150 })
+    // het eiwitveld uit de oude data is sinds v13 opgeruimd
+    expect(Object.keys(s)).not.toContain('protein')
     expect(s.settings.bodyweightKg).toBe(80)
     expect(s.settings.sensitive.knee_deep).toBe('off')
     expect(s.sessions[`${MON}:legs_a`].entries['legs_a:0']).toEqual([
@@ -207,7 +204,7 @@ describe('migratie van oudere data', () => {
 
   it('overleeft kapotte of half-lege data', () => {
     expect(migrate(null).schemaVersion).toBe(SCHEMA_VERSION)
-    expect(migrate('kapot').users.rob.settings.maintenanceItems.length).toBeGreaterThan(0)
+    expect(migrate('kapot').users.rob.settings.plates.length).toBeGreaterThan(0)
     expect(migrate({ schemaVersion: 1 }).users.rob.sessions).toEqual({})
     expect(migrate({ schemaVersion: 1, sessions: { kapot: null } }).users.rob.sessions).toEqual({
       kapot: null,
@@ -297,7 +294,6 @@ describe('migratie van oudere data', () => {
     // wat er nooit is geweest krijgt het startpunt van die gebruiker
     expect(out.users.rob.settings.sensitive.lateral_hip).toBe('careful')
     expect(out.users.anouc.settings.sensitive.lateral_hip).toBe('ok')
-    expect(out.users.anouc.settings.maintenanceItems).toHaveLength(2)
     expect(out.users.anouc.settings.travelMode).toBe(false)
   })
 })
@@ -327,10 +323,10 @@ describe('acties op de gedeelde staat', () => {
   })
 
   it('bewaart de staat over een herlaadbeurt heen', () => {
-    A.setProtein(MON, 175)
+    A.setCheckin(MON, 4)
     const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
     expect(opgeslagen).not.toBeNull()
     replaceRoot(migrate(JSON.parse(opgeslagen!)))
-    expect(getState().protein[MON]).toBe(175)
+    expect(getState().checkins[MON]).toBe(4)
   })
 })

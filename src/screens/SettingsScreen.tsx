@@ -5,7 +5,7 @@ import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { PLATE_OPTIONS, smallestPlate } from '../logic/plates'
 import { TEMPLATES } from '../data/plan'
 import { programById } from '../data/programs'
-import { dataSummary, exportReminder, exportWarning, proteinGoal } from '../logic/stats'
+import { dataSummary, exportReminder, exportWarning } from '../logic/stats'
 import { formatShort } from '../logic/dates'
 import {
   MAX_ATTEMPTS,
@@ -81,10 +81,8 @@ function downloadExport(): void {
 export function SettingsScreen() {
   const state = safeUser(useStore())
   const settings = state.settings
-  const [newItem, setNewItem] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const goal = proteinGoal(state)
   const reminder = exportReminder(state)
 
   function doExport() {
@@ -118,7 +116,7 @@ export function SettingsScreen() {
           <span className="text-slate-400">kg</span>
         </div>
         <p className="text-sm text-slate-400 mt-2">
-          {goal ? `Eiwitdoel: ${goal} g per dag (gewicht × 1,8, afgerond op 5).` : 'Nodig voor het eiwitdoel.'}
+          Basis voor het startgewichtadvies bij nieuwe oefeningen.
         </p>
       </Card>
 
@@ -216,42 +214,6 @@ export function SettingsScreen() {
           label="Reismodus aan"
           hint="Alles naar lichaamsgewicht en band, max 30 min. Loopdagen blijven ongewijzigd."
         />
-      </Card>
-
-      <Card>
-        <SectionTitle>Dagelijks onderhoud</SectionTitle>
-        <div className="space-y-2">
-          {settings.maintenanceItems.map((m) => (
-            <div key={m.id} className="flex items-center gap-2">
-              <span className="flex-1 text-sm">{m.label}</span>
-              <button
-                className="btn-quiet btn-sm shrink-0"
-                onClick={() => A.removeMaintenanceItem(m.id)}
-              >
-                Verwijder
-              </button>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2 mt-3">
-          <input
-            className="field"
-            placeholder="Nieuw item"
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-          />
-          <button
-            className="btn-ghost btn-sm shrink-0"
-            onClick={() => {
-              if (newItem.trim()) {
-                A.addMaintenanceItem(newItem.trim())
-                setNewItem('')
-              }
-            }}
-          >
-            Toevoegen
-          </button>
-        </div>
       </Card>
 
       <Card>
