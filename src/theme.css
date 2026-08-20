@@ -34,9 +34,14 @@
   --c-bg: #fcfcfb;
   --c-raised: #f0f0ee;
   --c-fg: #1a1a1c;
-  --c-muted: #6b6b72;
-  --c-faint: #8c8c93;
-  --c-line: #e0e0dd;
+  /*
+   * De lichte grijzen staan bewust een stap donkerder dan hun donkere-modus
+   * tegenhangers doen vermoeden: op een lichte achtergrond vallen een 0,5px-lijn
+   * en gedempte tekst veel sneller weg, en de hele indeling drijft op die lijnen.
+   */
+  --c-muted: #5a5a60;
+  --c-faint: #77777d;
+  --c-line: #c9c9c4;
   --c-on-invert: #fcfcfb;
   --c-error: #ce2c31;
   --c-on-error: #ffffff;
