@@ -5,7 +5,7 @@ import { Bar, Card, ChoiceGrid, Chip, ConfirmCheck, Empty, SectionTitle, Sheet, 
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn } from '../logic/activities'
 import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
-import { formatLong, formatShort, today } from '../logic/dates'
+import { addDays, formatLong, formatShort, today } from '../logic/dates'
 import { warmupLabel } from '../logic/warmup'
 import { maintenanceStreak, proteinGoal, trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
@@ -80,9 +80,12 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
 
       {plan.strength && <StrengthCard iso={iso} plan={plan} onOpenSession={onOpenSession} />}
 
-      {!plan.isRest && !plan.run && !plan.strength && (
+      {!plan.isRest && !plan.run && !plan.strength && !plan.movedTo && !plan.runMovedTo && (
         <Card>
-          <Empty>Geen sessie ingepland vandaag.</Empty>
+          <Empty>
+            Geen sessie ingepland vandaag.
+            <NextSessionHint iso={iso} />
+          </Empty>
         </Card>
       )}
 
@@ -94,6 +97,34 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
       <Protein iso={iso} />
     </div>
   )
+}
+
+/**
+ * Wat er hierna op de rol staat. Een lege dag zonder vooruitblik is een doodlopende
+ * straat; dit is puur afgeleide informatie uit het bestaande weekschema.
+ */
+function NextSessionHint({ iso }: { iso: string }) {
+  const state = useStore()
+
+  for (let d = 1; d <= 7; d++) {
+    const date = addDays(iso, d)
+    const plan = buildDay(state, date)
+    const delen: string[] = []
+    if (plan.run && !plan.run.done && !plan.run.skipped) {
+      delen.push(plan.run.bike ? 'fietsen' : plan.run.kind === 'long' ? 'duurloop' : 'hardlopen')
+    }
+    if (plan.strength && !plan.strength.done && !plan.strength.skipped) {
+      delen.push(plan.strength.naam)
+    }
+    if (delen.length > 0) {
+      return (
+        <span className="block mt-1">
+          Volgende sessie: {formatShort(date)} — {delen.join(' + ')}.
+        </span>
+      )
+    }
+  }
+  return null
 }
 
 /**

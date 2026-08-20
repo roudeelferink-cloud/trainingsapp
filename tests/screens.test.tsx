@@ -116,6 +116,23 @@ describe('schermen renderen', () => {
     }
   })
 
+  it('wijst op een lege dag vooruit naar de volgende sessie', () => {
+    // Anouc heeft op donderdag niets gepland; vrijdag staat haar korte loop
+    setCurrentUser(ANOUC)
+    const donderdag = addDays(mondayOf(today()), 3)
+    setState((s) => ({ ...s, startDate: mondayOf(donderdag) }))
+    vi.useFakeTimers()
+    vi.setSystemTime(fromISO(donderdag))
+    try {
+      const html = render(createElement(Today, { onOpenSession: noop }))
+      expect(html).toContain('Geen sessie ingepland vandaag.')
+      expect(html).toContain('Volgende sessie:')
+      expect(html).toContain('hardlopen')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('toont in Instellingen welke schijven er liggen', () => {
     const html = render(createElement(SettingsScreen))
     expect(html).toContain('Schijven')
