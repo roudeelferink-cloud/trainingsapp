@@ -49,7 +49,7 @@ export function ProgressScreen() {
               bars={volume.map((v) => ({ label: `w${v.week}`, value: v.km, highlight: v.deload }))}
             />
             <p className="text-xs text-muted mt-2">
-              Oranje = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven het
+              Lichtere balk = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven het
               gemiddelde van de twee voorgaande weken zou uitkomen. Losse rondjes hardlopen tellen mee.
             </p>
           </>

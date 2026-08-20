@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
 import { ProgressScreen } from './screens/ProgressScreen'
@@ -36,11 +36,11 @@ export default function App() {
     )
   }
 
-  const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: 'vandaag', label: 'Vandaag', icon: <IconToday /> },
-    { id: 'week', label: 'Week', icon: <IconWeek /> },
-    { id: 'voortgang', label: 'Voortgang', icon: <IconProgress /> },
-    { id: 'instellingen', label: 'Instellingen', icon: <IconSettings /> },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'vandaag', label: 'Vandaag' },
+    { id: 'week', label: 'Week' },
+    { id: 'voortgang', label: 'Voortgang' },
+    { id: 'instellingen', label: 'Instellingen' },
   ]
 
   const kiesTab = (t: Tab) => {
@@ -67,17 +67,23 @@ export default function App() {
 
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-bg backdrop-blur border-t border-line safe-bottom">
         <div className="max-w-md mx-auto grid grid-cols-4">
+          {/* tekstlabels, geen iconen; de actieve tab draagt een lijn eronder */}
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => kiesTab(t.id)}
               aria-current={tab === t.id ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-medium ${
-                tab === t.id ? 'text-fg' : 'text-muted'
+              className={`flex items-center justify-center min-h-[52px] px-1 text-sm ${
+                tab === t.id ? 'text-fg font-medium' : 'text-muted font-normal'
               }`}
             >
-              <span aria-hidden>{t.icon}</span>
-              <span className="truncate max-w-full px-1">{t.label}</span>
+              <span
+                className={`truncate max-w-full border-b-2 pb-0.5 ${
+                  tab === t.id ? 'border-fg' : 'border-transparent'
+                }`}
+              >
+                {t.label}
+              </span>
             </button>
           ))}
         </div>
@@ -98,61 +104,3 @@ export default function App() {
     </div>
   )
 }
-
-/**
- * De iconen van de onderbalk. Inline SVG in plaats van tekstglyphs: die rendert iOS
- * klein en ongelijk van gewicht, en zo kleuren ze netjes mee met de actieve tab.
- */
-function TabIcon({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
-  )
-}
-
-function IconToday() {
-  return (
-    <TabIcon>
-      <circle cx="12" cy="12" r="8.5" />
-      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-    </TabIcon>
-  )
-}
-
-function IconWeek() {
-  return (
-    <TabIcon>
-      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
-      <path d="M3.5 10h17M8.5 5V3M15.5 5V3" />
-    </TabIcon>
-  )
-}
-
-function IconProgress() {
-  return (
-    <TabIcon>
-      <path d="M4 18l5.5-5.5 3.5 3.5L20 8" />
-      <path d="M14.5 8H20v5.5" />
-    </TabIcon>
-  )
-}
-
-function IconSettings() {
-  return (
-    <TabIcon>
-      <path d="M4 8h9M17 8h3M4 16h3M11 16h9" />
-      <circle cx="15" cy="8" r="2" />
-      <circle cx="9" cy="16" r="2" />
-    </TabIcon>
-  )
-}
-
