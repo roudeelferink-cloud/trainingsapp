@@ -26,16 +26,16 @@ export function ProgressScreen() {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{completedSessions(state)}</p>
-          <p className="text-xs text-slate-400">krachtsessies</p>
+          <p className="text-3xl font-medium num">{completedSessions(state)}</p>
+          <p className="text-xs text-muted">krachtsessies</p>
         </Card>
         <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{completedRuns(state)}</p>
-          <p className="text-xs text-slate-400">looptrainingen</p>
+          <p className="text-3xl font-medium num">{completedRuns(state)}</p>
+          <p className="text-xs text-muted">looptrainingen</p>
         </Card>
         <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{activityCount(state)}</p>
-          <p className="text-xs text-slate-400">extra activiteiten</p>
+          <p className="text-3xl font-medium num">{activityCount(state)}</p>
+          <p className="text-xs text-muted">extra activiteiten</p>
         </Card>
       </div>
 
@@ -48,7 +48,7 @@ export function ProgressScreen() {
             <BarChart
               bars={volume.map((v) => ({ label: `w${v.week}`, value: v.km, highlight: v.deload }))}
             />
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-muted mt-2">
               Oranje = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven het
               gemiddelde van de twee voorgaande weken zou uitkomen. Losse rondjes hardlopen tellen mee.
             </p>
@@ -65,7 +65,7 @@ export function ProgressScreen() {
             <BarChart
               bars={tonnage.map((v) => ({ label: `w${v.week}`, value: v.kg, highlight: v.deload }))}
             />
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-muted mt-2">
               Gewicht × reps over alle sets. Bij dumbbells telt het gewicht van beide dumbbells mee,
               en bij werk per kant beide kanten.
             </p>
@@ -86,21 +86,21 @@ export function ProgressScreen() {
               const delta = last.value - first.value
               const isOpen = open === s.exerciseId
               return (
-                <div key={s.exerciseId} className="rounded-xl border border-ink-600 overflow-hidden">
+                <div key={s.exerciseId} className="rounded border border-line overflow-hidden">
                   <button
                     className="w-full flex items-center justify-between gap-2 p-3 text-left"
                     onClick={() => setOpen(isOpen ? null : s.exerciseId)}
                   >
                     <span className="min-w-0">
-                      <span className="block font-semibold truncate">{s.naam}</span>
-                      <span className="block text-xs text-slate-400">
+                      <span className="block font-medium truncate">{s.naam}</span>
+                      <span className="block text-xs text-muted">
                         streef {fmt(es.targetWeight)} kg × {es.targetReps ?? '—'} · {s.points.length} sessies
                       </span>
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
-                      <span className="tabular-nums font-bold">{last.value} kg</span>
+                      <span className="num font-medium">{last.value} kg</span>
                       {delta !== 0 && (
-                        <Chip tone={delta > 0 ? 'ok' : 'warn'}>
+                        <Chip>
                           {delta > 0 ? '+' : ''}
                           {Math.round(delta * 10) / 10}
                         </Chip>
@@ -131,8 +131,8 @@ export function ProgressScreen() {
               .reverse()
               .slice(0, 15)
               .map((n, i) => (
-                <li key={i} className="text-sm text-slate-300">
-                  <span className="text-slate-500">{n.date}</span> — {n.text}
+                <li key={i} className="text-sm text-fg">
+                  <span className="text-faint">{n.date}</span> — {n.text}
                 </li>
               ))}
           </ul>
@@ -155,7 +155,7 @@ function Deviations() {
 
   return (
     <Card>
-      <SectionTitle right={items.length > 0 ? <Chip tone="off">{state.deviations.length}</Chip> : undefined}>
+      <SectionTitle right={items.length > 0 ? <Chip>{state.deviations.length}</Chip> : undefined}>
         Afwijkingen van het voorstel
       </SectionTitle>
       {items.length === 0 ? (
@@ -163,8 +163,8 @@ function Deviations() {
       ) : (
         <ul className="space-y-2">
           {items.map((d) => (
-            <li key={d.id} className="text-sm text-slate-300">
-              <span className="text-slate-500">{d.date}</span> — {d.note}
+            <li key={d.id} className="text-sm text-fg">
+              <span className="text-faint">{d.date}</span> — {d.note}
             </li>
           ))}
         </ul>
@@ -190,7 +190,7 @@ function ExtraActivityHistory() {
       ) : (
         <>
           <ActivityList items={items} showDate onEdit={setEdit} />
-          <p className="text-xs text-slate-400 mt-2">
+          <p className="text-xs text-muted mt-2">
             Deze tellen niet mee in de 1RM-grafiek. Een los rondje hardlopen telt wél mee in je
             weekkilometers: je pezen weten niet of het in het schema stond.
           </p>

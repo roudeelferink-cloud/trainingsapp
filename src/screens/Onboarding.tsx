@@ -24,15 +24,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Welkom</h1>
-        <p className="text-slate-400 mt-1">
+        <h1 className="text-2xl font-medium">Welkom</h1>
+        <p className="text-muted mt-1">
           Eén ding instellen, daarna kun je loggen. Later te wijzigen bij Instellingen.
         </p>
       </div>
 
       <Card>
-        <h2 className="font-bold mb-1">Wie ben je?</h2>
-        <p className="text-sm text-slate-400 mb-3">
+        <h2 className="font-medium mb-1">Wie ben je?</h2>
+        <p className="text-sm text-muted mb-3">
           Je logt alleen voor jezelf. De voortgang van de ander kun je wel bekijken.
         </p>
         <div className="space-y-2">
@@ -46,12 +46,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   setUser(u.id)
                   setError(null)
                 }}
-                className={`w-full text-left rounded-xl border px-4 py-3 ${
-                  on ? 'bg-accent/15 border-accent' : 'bg-ink-700 border-ink-600'
+                className={`w-full text-left rounded border px-4 py-3 ${
+                  on ? 'bg-raised border-fg' : 'bg-raised border-line'
                 }`}
               >
-                <span className="block font-semibold">{root.users[u.id]?.naam ?? u.naam}</span>
-                <span className="block text-sm text-slate-400">{program.naam}</span>
+                <span className="block font-medium">{root.users[u.id]?.naam ?? u.naam}</span>
+                <span className="block text-sm text-muted">{program.naam}</span>
               </button>
             )
           })}
@@ -59,7 +59,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       </Card>
 
       {error && (
-        <p className="text-sm text-rose-300" role="alert">
+        <p className="text-sm text-error" role="alert">
           {error}
         </p>
       )}
@@ -68,7 +68,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         Beginnen
       </button>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-faint">
         Alles blijft op dit toestel staan: er gaat niets naar internet en er is geen account
         nodig. Naar een ander toestel verhuizen gaat via Exporteer alles bij Instellingen, en daar
         het bestand importeren.

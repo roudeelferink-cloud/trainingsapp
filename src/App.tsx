@@ -26,7 +26,7 @@ export default function App() {
 
   if (!klaar) {
     return (
-      <div className="min-h-dvh bg-ink-900">
+      <div className="min-h-dvh bg-bg">
         <main className="max-w-md mx-auto px-4 pt-6 pb-10 safe-top">
           <ErrorBoundary scherm="Start">
             <Onboarding onDone={() => setTab('vandaag')} />
@@ -50,7 +50,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh bg-ink-900">
+    <div className="min-h-dvh bg-bg">
       <main className="max-w-md mx-auto px-4 pt-5 pb-28 safe-top">
         {/* key op de tab: bij het wisselen van scherm begint het vangnet weer schoon */}
         <ErrorBoundary
@@ -65,15 +65,15 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-ink-800/95 backdrop-blur border-t border-ink-600 safe-bottom">
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-bg backdrop-blur border-t border-line safe-bottom">
         <div className="max-w-md mx-auto grid grid-cols-4">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => kiesTab(t.id)}
               aria-current={tab === t.id ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-semibold ${
-                tab === t.id ? 'text-accent' : 'text-slate-400'
+              className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-medium ${
+                tab === t.id ? 'text-fg' : 'text-muted'
               }`}
             >
               <span aria-hidden>{t.icon}</span>

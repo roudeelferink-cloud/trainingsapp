@@ -50,7 +50,7 @@ export function RestTimer({ seconds = 120 }: { seconds?: number }) {
   return (
     <button
       onClick={stop}
-      className={`btn w-full ${left === 0 ? 'bg-emerald-500 text-ink-900' : 'bg-ink-700 border border-ink-600'}`}
+      className={`btn w-full ${left === 0 ? 'bg-fg text-on-invert' : 'bg-raised border border-line'}`}
     >
       {left === 0 ? 'Rust voorbij — tik om te sluiten' : `Rust ${mm}:${ss} — tik om te stoppen`}
     </button>

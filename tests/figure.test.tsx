@@ -132,7 +132,9 @@ describe('Figure rendert', () => {
   it('gebruikt de themakleuren', () => {
     const spec = getFigure('smith_squat')!
     const html = renderToString(createElement(Figure, { pose: spec.start, props: spec.props?.start }))
-    expect(html).toContain('#38bdf8') // accent
-    expect(html).toContain('#f59e0b') // materiaal
+    // monochroom via tokens: dichtstbijzijnde ledemaat helder, materiaal gedempt
+    expect(html).toContain('var(--c-fg)')
+    expect(html).toContain('var(--c-faint)')
+    expect(html).not.toContain('#38bdf8')
   })
 })

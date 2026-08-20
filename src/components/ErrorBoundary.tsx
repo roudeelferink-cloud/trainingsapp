@@ -23,17 +23,17 @@ export function ErrorFallback({
 }) {
   return (
     <div className="card space-y-3" role="alert">
-      <h2 className="text-lg font-bold text-rose-300">
+      <h2 className="text-lg font-medium text-error">
         {scherm ? `Het scherm ${scherm} liep vast` : 'Dit scherm liep vast'}
       </h2>
-      <p className="text-sm text-slate-300">
+      <p className="text-sm text-fg">
         Er is niets kwijt: je gegevens staan gewoon op dit toestel. Ga terug naar Vandaag en
         probeer het opnieuw. Blijft het gebeuren, maak dan een export en meld deze tekst.
       </p>
-      <p className="rounded-xl bg-ink-900 border border-ink-600 p-3 text-xs font-mono text-slate-400 break-words">
+      <p className="rounded bg-bg border border-line p-3 text-xs font-mono text-muted break-words">
         {error?.message || 'Onbekende fout'}
       </p>
-      <button className="btn w-full bg-accent text-ink-900" onClick={onReset}>
+      <button className="btn w-full bg-fg text-on-invert" onClick={onReset}>
         Terug naar Vandaag
       </button>
     </div>

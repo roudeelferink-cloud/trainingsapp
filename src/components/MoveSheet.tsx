@@ -29,7 +29,7 @@ export function MoveSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title="Verplaats naar">
-      <p className="text-sm text-slate-400 mb-3">{hint}</p>
+      <p className="text-sm text-muted mb-3">{hint}</p>
       <div className="space-y-2">
         {eerder.length > 0 && <Kop>Naar voren halen</Kop>}
         {eerder.map((t) => (
@@ -51,26 +51,26 @@ function Kop({ children }: { children: string }) {
 function Rij({ target, onPick }: { target: MoveTarget; onPick: (date: string) => void }) {
   if (target.blocked) {
     return (
-      <div className="w-full rounded-xl border border-ink-600 bg-ink-900/40 px-4 py-3 opacity-60">
-        <p className="font-semibold text-slate-400">{formatShort(target.date)}</p>
-        <p className="text-xs text-slate-400">{target.blocked}</p>
+      <div className="w-full rounded border border-line bg-raised px-4 py-3 opacity-60">
+        <p className="font-medium text-muted">{formatShort(target.date)}</p>
+        <p className="text-xs text-muted">{target.blocked}</p>
       </div>
     )
   }
 
   return (
     <button
-      className={`btn-ghost w-full flex-col !items-start py-2 ${
-        target.warnings.length > 0 ? 'border-amber-500/40' : ''
-      }`}
+      className="btn-ghost w-full flex-col !items-start py-2"
       onClick={() => onPick(target.date)}
     >
       <span>{formatShort(target.date)}</span>
       {target.swapWith && (
-        <span className="text-xs font-normal text-slate-400">ruilt met {target.swapWith}</span>
+        <span className="text-xs font-normal text-muted">ruilt met {target.swapWith}</span>
       )}
+      {/* waarschuwing: gedempte regel met een subtiel markeringsteken, geen kleur */}
       {target.warnings.map((w, i) => (
-        <span key={i} className="text-xs font-normal text-amber-300 text-left whitespace-normal">
+        <span key={i} className="text-xs font-normal text-muted text-left whitespace-normal">
+          <span aria-hidden>▲ </span>
           {w}
         </span>
       ))}

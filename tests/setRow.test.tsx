@@ -55,7 +55,7 @@ describe('invoervelden in een setrij', () => {
   it('houdt het veld zelf breed genoeg binnen zijn omhulsel', () => {
     const html = render(createElement(Stepper, { value: 40, onChange: () => {} }))
     // het omhulsel is minstens zo breed als het veld plus zijn padding
-    const wrapper = html.match(/min-w-\[(\d+)px\][^>]*flex items-center rounded-lg/)
+    const wrapper = html.match(/min-w-\[(\d+)px\][^>]*flex items-center rounded/)
     expect(wrapper).not.toBeNull()
     expect(Number(wrapper![1])).toBeGreaterThanOrEqual(NUMBER_INPUT_MIN_PX)
   })

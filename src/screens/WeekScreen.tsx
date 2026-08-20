@@ -31,8 +31,8 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
           ←
         </button>
         <div className="text-center">
-          <p className="font-bold text-lg">Week {info.week}</p>
-          <p className="text-xs text-slate-400">
+          <p className="font-medium text-lg">Week {info.week}</p>
+          <p className="text-xs text-muted">
             cyclus {info.cycle} ·{' '}
             {deload.active ? 'deloadweek' : `deload over ${weeksUntilDeload(info.week)} wk`}
           </p>
@@ -44,19 +44,19 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
 
       <div className="flex flex-wrap gap-2 justify-center">
         {deload.active && (
-          <Chip tone="deload">
+          <Chip>
             Deloadweek — 1 set minder, −{DELOAD_WEIGHT_PCT}% gewicht, −{DELOAD_RUN_PCT}% loopvolume
           </Chip>
         )}
-        {deload.skipped && <Chip tone="off">Deload overgeslagen</Chip>}
-        {info.calibration && <Chip tone="lift">Kalibratie — op gevoel, RIR 2-3</Chip>}
+        {deload.skipped && <Chip>Deload overgeslagen</Chip>}
+        {info.calibration && <Chip>Kalibratie — op gevoel, RIR 2-3</Chip>}
         {vrijLopen ? (
-          <Chip tone="run">3 loopdagen · eigen afstand</Chip>
+          <Chip>3 loopdagen · eigen afstand</Chip>
         ) : (
-          <Chip tone="run">loopvolume ~{week.km} km{week.capped ? ' (teruggeschaald)' : ''}</Chip>
+          <Chip>loopvolume ~{week.km} km{week.capped ? ' (teruggeschaald)' : ''}</Chip>
         )}
         {offset !== 0 && (
-          <button className="chip bg-ink-600 text-slate-200" onClick={() => setOffset(0)}>
+          <button className="chip bg-line text-fg" onClick={() => setOffset(0)}>
             terug naar deze week
           </button>
         )}
@@ -66,7 +66,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
       {(week.reasons.length > 0 || week.overCapReason) && (
         <ul className="space-y-1">
           {[...week.reasons, ...(week.overCapReason ? [week.overCapReason] : [])].map((reden, i) => (
-            <li key={i} className="text-sm text-slate-400 flex gap-2">
+            <li key={i} className="text-sm text-muted flex gap-2">
               <span aria-hidden>•</span>
               <span>{reden}</span>
             </li>
@@ -81,11 +81,11 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
           const extras = activitiesOn(state, iso)
           const isToday = iso === today()
           return (
-            <Card key={iso} className={isToday ? 'border-accent/60' : ''}>
+            <Card key={iso} className={isToday ? 'border-fg' : ''}>
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm text-slate-400 min-w-0">
+                <p className="text-sm text-muted min-w-0">
                   {spec.label} · {formatShort(iso)}
-                  {isToday && <span className="text-accent font-semibold"> · vandaag</span>}
+                  {isToday && <span className="text-fg font-medium"> · vandaag</span>}
                 </p>
                 <span className="shrink-0">
                   <StatusChip plan={plan} />
@@ -93,7 +93,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
               </div>
 
               {plan.isRest ? (
-                <p className="font-semibold text-slate-400 mt-1">Rustdag</p>
+                <p className="font-medium text-muted mt-1">Rustdag</p>
               ) : (
                 /*
                  * Elke sessie krijgt zijn eigen regel mét eigen knop. Eén knop naast
@@ -103,8 +103,8 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                 <div className="mt-1 space-y-1">
                   {plan.run && (
                     <div className="flex items-center justify-between gap-2 min-h-[36px]">
-                      <p className="font-semibold min-w-0 truncate">
-                        <span className="text-amber-300">1.</span>{' '}
+                      <p className="font-medium min-w-0 truncate">
+                        <span className="text-muted">1.</span>{' '}
                         {plan.run.bike
                           ? 'Fietsen 30 min'
                           : plan.run.free
@@ -123,10 +123,10 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                   )}
                   {plan.strength && (
                     <div className="flex items-center justify-between gap-2 min-h-[36px]">
-                      <p className="font-semibold min-w-0 truncate">
-                        <span className="text-sky-300">{plan.run ? '2.' : '1.'}</span>{' '}
+                      <p className="font-medium min-w-0 truncate">
+                        <span className="text-muted">{plan.run ? '2.' : '1.'}</span>{' '}
                         {plan.strength.naam}
-                        {plan.strength.short && <span className="text-slate-400 text-sm"> · kort</span>}
+                        {plan.strength.short && <span className="text-muted text-sm"> · kort</span>}
                       </p>
                       {!plan.strength.skipped && (
                         <button
@@ -139,24 +139,24 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
                     </div>
                   )}
                   {plan.movedTo && (
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted">
                       kracht verplaatst naar {formatShort(plan.movedTo)}
                     </p>
                   )}
                   {plan.runMovedTo && (
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted">
                       loop verplaatst naar {formatShort(plan.runMovedTo)}
                     </p>
                   )}
                   {!plan.run && !plan.strength && !plan.movedTo && !plan.runMovedTo && (
-                    <p className="text-slate-400">Niets ingepland</p>
+                    <p className="text-muted">Niets ingepland</p>
                   )}
                 </div>
               )}
 
               {extras.length > 0 && (
-                <p className="text-sm text-slate-300 mt-1">
-                  <span className="text-slate-500">extra: </span>
+                <p className="text-sm text-fg mt-1">
+                  <span className="text-faint">extra: </span>
                   {extras
                     .map((a) => {
                       const km = activityKm(a)
@@ -189,13 +189,13 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
 }
 
 function StatusChip({ plan }: { plan: ReturnType<typeof buildDay> }) {
-  if (plan.isRest) return <Chip tone="off">rust</Chip>
+  if (plan.isRest) return <Chip>rust</Chip>
   const skipped = plan.strength?.skipped || plan.run?.skipped
-  if (skipped) return <Chip tone="off">overgeslagen</Chip>
+  if (skipped) return <Chip>overgeslagen</Chip>
   const items = [plan.run, plan.strength].filter(Boolean) as { done: boolean }[]
-  if (items.length === 0) return <Chip tone="off">vrij</Chip>
-  if (items.every((x) => x.done)) return <Chip tone="ok">gedaan</Chip>
-  if (items.some((x) => x.done)) return <Chip tone="lift">deels</Chip>
-  if (plan.strength?.optional) return <Chip tone="off">optioneel</Chip>
-  return <Chip tone="neutral">open</Chip>
+  if (items.length === 0) return <Chip>vrij</Chip>
+  if (items.every((x) => x.done)) return <Chip>gedaan</Chip>
+  if (items.some((x) => x.done)) return <Chip>deels</Chip>
+  if (plan.strength?.optional) return <Chip>optioneel</Chip>
+  return <Chip>open</Chip>
 }

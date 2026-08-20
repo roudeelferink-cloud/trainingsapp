@@ -1,20 +1,21 @@
+@import './theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-ink-900 text-slate-100 antialiased;
+    @apply bg-bg text-fg antialiased;
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     overscroll-behavior-y: none;
   }
   /* zichtbare focus voor toetsenbord en schakelbediening; tikken toont hem niet */
   :focus-visible {
-    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline: 2px solid var(--c-fg);
     outline-offset: 2px;
   }
   input[type='number']::-webkit-outer-spin-button,
@@ -28,34 +29,43 @@
 }
 
 @layer components {
+  /*
+   * Geen kaartjes: een "card" is een sectie met een hairline erboven. Alleen de
+   * actieve sessie mag een echte omkadering hebben (.frame).
+   */
   .card {
-    @apply rounded-2xl bg-ink-800 border border-ink-600/60 p-4;
+    @apply border-t border-line py-4;
+  }
+  .frame {
+    @apply border border-line rounded p-4;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 min-h-[52px] text-tap font-semibold
-           active:scale-[0.98] transition select-none;
+    @apply inline-flex items-center justify-center gap-2 rounded px-4 min-h-[48px] text-base font-medium
+           active:opacity-70 transition select-none;
   }
   .btn-primary {
-    @apply btn bg-accent text-ink-900;
+    @apply btn bg-fg text-on-invert;
   }
   .btn-ghost {
-    @apply btn bg-ink-700 text-slate-100 border border-ink-600;
+    @apply btn bg-transparent text-fg border border-line;
   }
   .btn-quiet {
-    @apply btn bg-transparent text-slate-300 border border-ink-600;
+    @apply btn bg-transparent text-muted;
   }
   .btn-sm {
-    @apply min-h-[44px] px-3 text-sm rounded-lg;
+    @apply min-h-[44px] px-3 text-sm;
   }
   .field {
-    @apply w-full rounded-xl bg-ink-900 border border-ink-600 px-3 py-3 text-lg text-slate-100
-           focus:outline-none focus:border-accent;
+    @apply w-full rounded bg-transparent border border-line px-3 py-3 text-base text-fg
+           focus:outline-none focus:border-fg;
   }
-  .chip {
-    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
-  }
+  /* labels: klein, gedempt, kleine letters met ruime letterafstand */
   .label {
-    @apply text-xs uppercase tracking-wide text-slate-400 font-semibold;
+    @apply text-[11px] lowercase tracking-[0.08em] text-muted font-normal;
+  }
+  /* cijfers zijn de inhoud: monospace, gelijk uitgelijnd */
+  .num {
+    @apply font-mono tabular-nums;
   }
 }
 

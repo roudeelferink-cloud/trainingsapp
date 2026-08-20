@@ -22,22 +22,22 @@ export function LineChart({ points, unit = 'kg' }: { points: Point[]; unit?: str
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto" role="img" aria-label="Verloop">
-      <line x1={pad.l} y1={h - pad.b} x2={w - pad.r} y2={h - pad.b} stroke="#334156" strokeWidth="1" />
-      <text x="2" y={y(max) + 4} fill="#94a3b8" fontSize="9">
+      <line x1={pad.l} y1={h - pad.b} x2={w - pad.r} y2={h - pad.b} stroke="var(--c-line)" strokeWidth="1" />
+      <text x="2" y={y(max) + 4} fill="var(--c-muted)" fontSize="9">
         {Math.round(max)}
       </text>
-      <text x="2" y={y(min) + 4} fill="#94a3b8" fontSize="9">
+      <text x="2" y={y(min) + 4} fill="var(--c-muted)" fontSize="9">
         {Math.round(min)}
       </text>
-      <path d={area} fill="#38bdf8" opacity="0.12" />
-      <path d={d} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={area} fill="var(--c-fg)" opacity="0.08" />
+      <path d={d} fill="none" stroke="var(--c-fg)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       {points.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p.value)} r="3" fill="#38bdf8" />
+        <circle key={i} cx={x(i)} cy={y(p.value)} r="3" fill="var(--c-fg)" />
       ))}
-      <text x={pad.l} y={h - 4} fill="#64748b" fontSize="9">
+      <text x={pad.l} y={h - 4} fill="var(--c-faint)" fontSize="9">
         {formatShort(points[0].date)}
       </text>
-      <text x={w - pad.r} y={h - 4} fill="#64748b" fontSize="9" textAnchor="end">
+      <text x={w - pad.r} y={h - 4} fill="var(--c-faint)" fontSize="9" textAnchor="end">
         {formatShort(points[points.length - 1].date)} · {unit}
       </text>
     </svg>
@@ -51,11 +51,11 @@ export function BarChart({ bars }: { bars: { label: string; value: number; highl
       {bars.map((b, i) => (
         <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0">
           <div
-            className={`w-full rounded-t ${b.highlight ? 'bg-amber-400/70' : 'bg-accent/70'}`}
+            className={`w-full rounded-t ${b.highlight ? 'bg-faint' : 'bg-muted'}`}
             style={{ height: `${(b.value / max) * 88}px` }}
             title={`${b.value} km`}
           />
-          <span className="text-[9px] text-slate-500 truncate w-full text-center">{b.label}</span>
+          <span className="text-[9px] text-faint truncate w-full text-center">{b.label}</span>
         </div>
       ))}
     </div>

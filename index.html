@@ -1,7 +1,20 @@
 <!doctype html>
-<html lang="nl" class="dark">
+<html lang="nl">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // thema vóór de eerste paint, zodat er geen verkeerde flits is; dezelfde
+      // sleutel en dezelfde regels als src/theme.ts
+      try {
+        var voorkeur = localStorage.getItem('trainingsapp.theme')
+        var donker =
+          voorkeur === 'dark' ||
+          (voorkeur !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = donker ? 'dark' : 'light'
+      } catch (e) {
+        document.documentElement.dataset.theme = 'dark'
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <!-- geen maximum-scale: inzoomen moet kunnen; velden zijn 16px+, dus iOS zoomt zelf al niet -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -11,7 +24,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <title>Trainingsschema</title>
   </head>
-  <body class="bg-ink-900">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

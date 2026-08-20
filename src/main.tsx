@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { initTheme } from './theme'
 import './index.css'
 
 registerSW({ immediate: true })
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

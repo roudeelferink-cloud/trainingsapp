@@ -45,24 +45,24 @@ function OtherUser({ user }: { user: UserState }) {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">{user.naam}</h1>
-          <p className="text-sm text-slate-400">{program.naam}</p>
+          <h1 className="text-2xl font-medium leading-tight">{user.naam}</h1>
+          <p className="text-sm text-muted">{program.naam}</p>
         </div>
-        <Chip tone="off">meekijken</Chip>
+        <Chip>meekijken</Chip>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{trainingStreak(user)}</p>
-          <p className="text-xs text-slate-400">dagen streak</p>
+          <p className="text-3xl font-medium num">{trainingStreak(user)}</p>
+          <p className="text-xs text-muted">dagen streak</p>
         </Card>
         <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{completedSessions(user)}</p>
-          <p className="text-xs text-slate-400">krachtsessies</p>
+          <p className="text-3xl font-medium num">{completedSessions(user)}</p>
+          <p className="text-xs text-muted">krachtsessies</p>
         </Card>
         <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{completedRuns(user)}</p>
-          <p className="text-xs text-slate-400">looptrainingen</p>
+          <p className="text-3xl font-medium num">{completedRuns(user)}</p>
+          <p className="text-xs text-muted">looptrainingen</p>
         </Card>
       </div>
 
@@ -74,8 +74,8 @@ function OtherUser({ user }: { user: UserState }) {
           <ul className="space-y-1">
             {[...weeks].reverse().map((w) => (
               <li key={w.weekStart} className="flex justify-between text-sm">
-                <span className="text-slate-400">week {w.week}</span>
-                <span className="tabular-nums font-semibold">{w.km} km</span>
+                <span className="text-muted">week {w.week}</span>
+                <span className="num font-medium">{w.km} km</span>
               </li>
             ))}
           </ul>
@@ -91,7 +91,7 @@ function OtherUser({ user }: { user: UserState }) {
             {sessions.map((s) => (
               <li key={`${s.date}:${s.kind}`} className="flex justify-between gap-2 text-sm">
                 <span className="truncate">{DAY_LABEL[s.kind] ?? s.kind}</span>
-                <span className="text-slate-400 shrink-0">{formatShort(s.date)}</span>
+                <span className="text-muted shrink-0">{formatShort(s.date)}</span>
               </li>
             ))}
           </ul>
@@ -107,14 +107,14 @@ function OtherUser({ user }: { user: UserState }) {
                 <span className="truncate">
                   {a.type} {a.minutes} min
                 </span>
-                <span className="text-slate-400 shrink-0">{formatShort(a.date)}</span>
+                <span className="text-muted shrink-0">{formatShort(a.date)}</span>
               </li>
             ))}
           </ul>
         </Card>
       )}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-faint">
         Alleen om te kijken. Wat {user.naam} logt telt niet mee in jouw progressie of
         gewichtsadvies, en andersom net zo min.
       </p>

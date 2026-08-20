@@ -80,7 +80,7 @@ function ActivityForm({
           options={ACTIVITY_TYPES}
           value={type}
           onChange={setType}
-          buttonClass="min-h-[44px] px-3 text-sm rounded-lg"
+          buttonClass="min-h-[44px] px-3 text-sm rounded"
         />
       </div>
 
@@ -110,7 +110,7 @@ function ActivityForm({
             decimals={1}
             suffix="km"
           />
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             {tempoHint(type, minutes, km) ?? 'Laat op 0 staan als je de afstand niet weet.'}
           </p>
         </div>
@@ -122,7 +122,7 @@ function ActivityForm({
           options={ACTIVITY_INTENSITIES}
           value={intensity}
           onChange={setIntensity}
-          buttonClass="min-h-[44px] px-3 text-sm rounded-lg"
+          buttonClass="min-h-[44px] px-3 text-sm rounded"
         />
       </div>
 
@@ -135,7 +135,7 @@ function ActivityForm({
           value={day}
           onChange={(e) => e.target.value && setDay(e.target.value)}
         />
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-muted mt-1">
           Staat op {formatShort(day)}. Achteraf invullen mag.
         </p>
       </div>
@@ -158,7 +158,7 @@ function ActivityForm({
         (confirmDelete ? (
           <div className="space-y-2">
             <button
-              className="btn w-full bg-rose-500 text-ink-900"
+              className="btn w-full bg-error text-on-error"
               onClick={() => {
                 A.removeActivity(activity.id)
                 onDone()
@@ -206,20 +206,20 @@ export function ActivityList({
       {items.map((a) => (
         <li
           key={a.id}
-          className="flex items-start justify-between gap-2 rounded-xl border border-ink-600 bg-ink-700/40 p-3"
+          className="flex items-start justify-between gap-2 rounded border border-line bg-raised p-3"
         >
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Chip tone="neutral">Extra</Chip>
-              {showDate && <span className="text-xs text-slate-400">{formatShort(a.date)}</span>}
+              <Chip>Extra</Chip>
+              {showDate && <span className="text-xs text-muted">{formatShort(a.date)}</span>}
             </div>
-            <p className="font-semibold mt-1">{activitySummary(a)}</p>
+            <p className="font-medium mt-1">{activitySummary(a)}</p>
             {activityPace(a) && (
-              <p className="text-sm text-slate-400 tabular-nums">
+              <p className="text-sm text-muted num">
                 gemiddeld {activityPace(a)}
               </p>
             )}
-            {a.note && <p className="text-sm text-slate-400 break-words">{a.note}</p>}
+            {a.note && <p className="text-sm text-muted break-words">{a.note}</p>}
           </div>
           <button className="btn-ghost btn-sm shrink-0" onClick={() => onEdit(a)}>
             Bewerk

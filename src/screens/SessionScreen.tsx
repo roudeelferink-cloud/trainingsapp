@@ -94,7 +94,7 @@ export function SessionScreen({
     return (
       <Full onClose={onClose} title="Sessie">
         <Card>
-          <p className="text-slate-300">Er staat geen sessie meer open op {formatShort(date)}.</p>
+          <p className="text-fg">Er staat geen sessie meer open op {formatShort(date)}.</p>
           <button className="btn-primary w-full mt-4" onClick={onClose}>
             Terug
           </button>
@@ -187,13 +187,13 @@ export function SessionScreen({
   return (
     <Full onClose={onClose} title={strength.naam}>
       <div className="mb-3">
-        <div className="h-2 rounded-full bg-ink-700 overflow-hidden">
+        <div className="h-2 rounded-full bg-raised overflow-hidden">
           <div
-            className="h-full bg-accent transition-all"
+            className="h-full bg-fg transition-all"
             style={{ width: `${totalSets ? (doneSets / totalSets) * 100 : 0}%` }}
           />
         </div>
-        <div className="flex justify-between text-xs text-slate-400 mt-1">
+        <div className="flex justify-between text-xs text-muted mt-1">
           <span>
             {completedCount} van {slots.length} afgerond
           </span>
@@ -204,7 +204,7 @@ export function SessionScreen({
       </div>
 
       {plan.cycle.calibration && (
-        <p className="text-sm text-rose-300 mb-3">Kalibratieweek: {CALIBRATION_TEXT}.</p>
+        <p className="text-sm text-error mb-3">Kalibratieweek: {CALIBRATION_TEXT}.</p>
       )}
 
       {/*
@@ -217,7 +217,7 @@ export function SessionScreen({
           {plan.guardrails.map((g) => (
             <li
               key={g.id}
-              className={`text-sm flex gap-2 ${g.tone === 'warn' ? 'text-amber-300' : 'text-slate-400'}`}
+              className={`text-sm flex gap-2 ${g.tone === 'warn' ? 'text-muted' : 'text-muted'}`}
             >
               <span aria-hidden>•</span>
               <span>{g.text}</span>
@@ -226,7 +226,7 @@ export function SessionScreen({
         </ul>
       )}
 
-      <p className="text-sm text-slate-400 mb-2 tabular-nums">
+      <p className="text-sm text-muted mb-2 num">
         Geschatte duur {strength.estimatedMin} min
         {strength.tooLong?.dropName && ` · zonder ${strength.tooLong.dropName} ${strength.tooLong.minutesWithoutDrop} min`}
       </p>
@@ -258,9 +258,9 @@ export function SessionScreen({
           ?
         </RoundButton>
       </div>
-      {orderHelp && <p className="text-sm text-slate-300 mb-2">{ORDER_RATIONALE}</p>}
+      {orderHelp && <p className="text-sm text-fg mb-2">{ORDER_RATIONALE}</p>}
 
-      <div className="rounded-2xl border border-ink-600 bg-ink-800 overflow-hidden">
+      <div className="rounded border border-line bg-bg overflow-hidden">
         {slots.map((r, i) => {
           const isActive = active === r.slot.key
           const isHelp = helpOpen.includes(r.slot.key)
@@ -276,22 +276,22 @@ export function SessionScreen({
           return (
             <div
               key={r.slot.key}
-              className={`${i > 0 ? 'border-t border-ink-600' : ''} ${isActive ? 'bg-ink-700/40' : ''}`}
+              className={`${i > 0 ? 'border-t border-line' : ''} ${isActive ? 'bg-raised' : ''}`}
             >
               <div className="flex items-center gap-2 px-3 py-2.5">
                 <button
                   className="flex-1 min-w-0 text-left py-1.5"
                   onClick={() => setActive(isActive ? null : r.slot.key)}
                 >
-                  <span className="block font-semibold truncate">
+                  <span className="block font-medium truncate">
                     {isCompleted && (
-                      <span className="text-emerald-400 mr-1" aria-hidden>
+                      <span className="text-muted mr-1" aria-hidden>
                         ✓
                       </span>
                     )}
                     {r.exercise.naam}
                   </span>
-                  <span className="block text-xs text-slate-400 tabular-nums">
+                  <span className="block text-xs text-muted num">
                     {r.sets} × {r.repMin === r.repMax ? r.repMin : `${r.repMin}-${r.repMax}`}
                     {r.exercise.perSide && ' p/kant'}
                     {filled > 0 && ` · ${filled} afgevinkt`}
@@ -320,10 +320,10 @@ export function SessionScreen({
               {isActive && (
                 <div className="px-3 pb-3 space-y-3">
                   {loadHint(r.exercise, state.settings) && (
-                    <p className="text-xs text-slate-400">{loadHint(r.exercise, state.settings)}</p>
+                    <p className="text-xs text-muted">{loadHint(r.exercise, state.settings)}</p>
                   )}
                   {advice && (
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted">
                       Schatting {advice.weight} kg
                       {bar > 0
                         ? ' totaal (stang inbegrepen)'
@@ -340,8 +340,8 @@ export function SessionScreen({
                   {sets.map((s, si) => (
                     <div
                       key={si}
-                      className={`rounded-xl border p-2 ${
-                        s.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-900/40'
+                      className={`rounded border p-2 ${
+                        s.done ? 'border-line bg-transparent' : 'border-line bg-raised'
                       }`}
                     >
                       {/*
@@ -350,14 +350,14 @@ export function SessionScreen({
                         en knijpen de invoervelden dicht.
                       */}
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-xs font-bold text-slate-400">Set {si + 1}</span>
+                        <span className="text-xs font-medium text-muted">Set {si + 1}</span>
                         <button
                           aria-label={`Set ${si + 1} ${s.done ? 'weer openzetten' : 'afvinken'}`}
                           onClick={() => setSetDone(r.slot.key, si, !s.done)}
-                          className={`flex-none w-11 h-11 rounded-lg border text-lg font-bold ${
+                          className={`flex-none w-11 h-11 rounded border text-lg font-medium ${
                             s.done
-                              ? 'bg-emerald-500 text-ink-900 border-emerald-500'
-                              : 'bg-ink-700 border-ink-600 text-slate-400'
+                              ? 'bg-fg text-on-invert border-fg'
+                              : 'bg-raised border-line text-muted'
                           }`}
                         >
                           ✓
@@ -375,7 +375,7 @@ export function SessionScreen({
                               min={MIN_BAND_LEVEL}
                               max={MAX_BAND_LEVEL}
                             />
-                            <p className="text-xs text-slate-400 mt-1">{bandLabel(levelOf(s))}</p>
+                            <p className="text-xs text-muted mt-1">{bandLabel(levelOf(s))}</p>
                           </>
                         ) : (
                           <>
@@ -394,7 +394,7 @@ export function SessionScreen({
                               placeholder={s.weight === 0 ? advicePlates : undefined}
                             />
                             {bar > 0 && (s.weight > 0 || advicePlates !== undefined) && (
-                              <p className="text-xs text-slate-400 mt-1 tabular-nums">
+                              <p className="text-xs text-muted mt-1 num">
                                 {barTotalLabel(
                                   s.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(s.weight, bar),
                                   bar,
@@ -416,13 +416,13 @@ export function SessionScreen({
                         />
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-slate-400 w-10">RIR</span>
+                        <span className="text-xs font-medium text-muted w-10">RIR</span>
                         {[0, 1, 2, 3, 4].map((n) => (
                           <button
                             key={n}
                             onClick={() => updateSet(r.slot.key, si, { rir: n })}
-                            className={`flex-1 min-h-[40px] rounded-lg text-sm font-bold ${
-                              s.rir === n ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+                            className={`flex-1 min-h-[40px] rounded text-sm font-medium ${
+                              s.rir === n ? 'bg-fg text-on-invert' : 'bg-raised border border-line'
                             }`}
                           >
                             {n}
@@ -437,7 +437,7 @@ export function SessionScreen({
                   <RestTimer seconds={r.slot.role === 'core' ? 150 : 90} />
                   {justDone === r.slot.key && (
                     <div className="flex justify-center" aria-hidden>
-                      <span className="pop-check inline-flex w-12 h-12 items-center justify-center rounded-full bg-emerald-500 text-ink-900 text-2xl font-bold">
+                      <span className="pop-check inline-flex w-12 h-12 items-center justify-center rounded-full bg-fg text-on-invert text-2xl font-medium">
                         ✓
                       </span>
                     </div>
@@ -473,7 +473,7 @@ export function SessionScreen({
       <Sheet open={doneOpen} onClose={() => setDoneOpen(false)} title="Sessie afronden">
         {messages === null ? (
           <>
-            <p className="text-sm text-slate-400 mb-1">
+            <p className="text-sm text-muted mb-1">
               {doneSets} van {totalSets} sets afgevinkt. Alleen afgevinkte sets tellen mee.
             </p>
             {/*
@@ -481,7 +481,7 @@ export function SessionScreen({
               bewust — een los schermpje erna wordt overgeslagen, en zonder beoordeling
               moet de progressie terugvallen op de RIR per set.
             */}
-            <p className="font-semibold mt-4 mb-2">Hoe ging het?</p>
+            <p className="font-medium mt-4 mb-2">Hoe ging het?</p>
             <ChoiceGrid
               options={FEELS}
               buttonClass="min-h-[56px] text-sm"
@@ -512,13 +512,13 @@ export function SessionScreen({
           </>
         ) : (
           <>
-            <p className="font-semibold text-emerald-300 mb-2">Sessie opgeslagen.</p>
+            <p className="font-medium text-muted mb-2">Sessie opgeslagen.</p>
             {messages.length === 0 ? (
-              <p className="text-sm text-slate-400 mb-4">Streefwaarden blijven gelijk.</p>
+              <p className="text-sm text-muted mb-4">Streefwaarden blijven gelijk.</p>
             ) : (
               <ul className="space-y-2 mb-4">
                 {messages.map((m, i) => (
-                  <li key={i} className="text-sm text-slate-200">
+                  <li key={i} className="text-sm text-fg">
                     {m}
                   </li>
                 ))}
@@ -553,21 +553,21 @@ function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warm
 
   return (
     <div
-      className={`rounded-2xl border p-3 mb-3 ${
-        warmup.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-800'
+      className={`rounded border p-3 mb-3 ${
+        warmup.done ? 'border-line bg-transparent' : 'border-line bg-bg'
       }`}
     >
       <div className="flex items-center gap-2">
         <span className="flex-1 min-w-0">
-          <span className="block font-semibold">
+          <span className="block font-medium">
             {warmup.done && (
-              <span className="text-emerald-400 mr-1" aria-hidden>
+              <span className="text-muted mr-1" aria-hidden>
                 ✓
               </span>
             )}
             Warming-up
           </span>
-          <span className="block text-xs text-slate-400 tabular-nums">{warmupLabel(warmup)}</span>
+          <span className="block text-xs text-muted num">{warmupLabel(warmup)}</span>
         </span>
         <RoundButton label="Uitleg warming-up" active={help} onClick={() => setHelp((x) => !x)}>
           ?
@@ -575,17 +575,17 @@ function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warm
         <button
           aria-label={`Warming-up ${warmup.done ? 'weer openzetten' : 'afvinken'}`}
           onClick={() => A.setWarmupDone(date, kind, !warmup.done)}
-          className={`shrink-0 w-11 h-11 rounded-lg border text-lg font-bold ${
+          className={`shrink-0 w-11 h-11 rounded border text-lg font-medium ${
             warmup.done
-              ? 'bg-emerald-500 text-ink-900 border-emerald-500'
-              : 'bg-ink-700 border-ink-600 text-slate-400'
+              ? 'bg-fg text-on-invert border-fg'
+              : 'bg-raised border-line text-muted'
           }`}
         >
           ✓
         </button>
       </div>
 
-      {help && <p className="text-sm text-slate-300 mt-2">{WARMUP_HINT}</p>}
+      {help && <p className="text-sm text-fg mt-2">{WARMUP_HINT}</p>}
 
       <div className="mt-3">
         <ChoiceGrid
@@ -628,8 +628,8 @@ function RoundButton({
     <button
       aria-label={label}
       onClick={onClick}
-      className={`shrink-0 w-11 h-11 rounded-full border flex items-center justify-center text-lg font-bold ${
-        active ? 'bg-accent text-ink-900 border-accent' : 'bg-ink-700 border-ink-600 text-slate-300'
+      className={`shrink-0 w-11 h-11 rounded-full border flex items-center justify-center text-lg font-medium ${
+        active ? 'bg-fg text-on-invert border-fg' : 'bg-raised border-line text-fg'
       }`}
     >
       {children}
@@ -650,7 +650,7 @@ function Explanation({ exercise }: { exercise: Exercise }) {
           <ul className="space-y-1">
             {c.execution.map((line, i) => (
               <li key={i} className="flex gap-2">
-                <span className="text-slate-500" aria-hidden>
+                <span className="text-faint" aria-hidden>
                   ·
                 </span>
                 <span>{line}</span>
@@ -662,7 +662,7 @@ function Explanation({ exercise }: { exercise: Exercise }) {
         {c.note && <Block label="Apparaat">{c.note}</Block>}
       </div>
       {exercise.loads.length > 0 && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-faint">
           Belast: {exercise.loads.map((l) => LOAD_LABEL[l]).join(', ')}
         </p>
       )}
@@ -674,7 +674,7 @@ function Block({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <p className="label mb-0.5">{label}</p>
-      <div className="text-slate-300">{children}</div>
+      <div className="text-fg">{children}</div>
     </div>
   )
 }
@@ -712,18 +712,18 @@ function SlotOptions({
           <div className="flex flex-wrap gap-1.5 mb-2">
             {!target.byFeel &&
               (target.level !== null ? (
-                <Chip tone="lift">streef {bandLabel(target.level)}</Chip>
+                <Chip>streef {bandLabel(target.level)}</Chip>
               ) : (
-                <Chip tone="lift">streef {fmt(target.weight)} kg</Chip>
+                <Chip>streef {fmt(target.weight)} kg</Chip>
               ))}
-            <Chip tone="off">{ORDER_CATEGORY_LABEL[resolved.exercise.orderCategory]}</Chip>
+            <Chip>{ORDER_CATEGORY_LABEL[resolved.exercise.orderCategory]}</Chip>
             {resolved.reasons.map((x) => (
-              <Chip key={x} tone="off">
+              <Chip key={x}>
                 {x}
               </Chip>
             ))}
           </div>
-          {resolved.warning && <p className="text-sm text-rose-300">{resolved.warning}</p>}
+          {resolved.warning && <p className="text-sm text-error">{resolved.warning}</p>}
           <div className="grid grid-cols-2 gap-2">
             <button
               className="btn-ghost disabled:opacity-40"
@@ -769,13 +769,13 @@ function SlotOptions({
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-sm text-slate-400 mb-2">
+          <p className="text-sm text-muted mb-2">
             {picking === 'once'
               ? 'Alleen voor vandaag.'
               : 'Wordt vanaf nu de standaard en rouleert niet mee.'}
           </p>
           {candidates.length === 0 && (
-            <p className="text-sm text-slate-400">Geen alternatief beschikbaar binnen je instellingen.</p>
+            <p className="text-sm text-muted">Geen alternatief beschikbaar binnen je instellingen.</p>
           )}
           {candidates.map((c) => (
             <button
@@ -809,13 +809,13 @@ function Full({
   children: ReactNode
 }) {
   return (
-    <div className="fixed inset-0 z-40 bg-ink-900 overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-ink-900/95 backdrop-blur border-b border-ink-700 safe-top">
+    <div className="fixed inset-0 z-40 bg-bg overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-bg backdrop-blur border-b border-line safe-top">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
           <button className="btn-ghost btn-sm" onClick={onClose}>
             ← Terug
           </button>
-          <span className="font-bold truncate">{title}</span>
+          <span className="font-medium truncate">{title}</span>
         </div>
       </div>
       <div className="max-w-md mx-auto px-4 py-4 pb-24">{children}</div>

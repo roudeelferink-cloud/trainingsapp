@@ -57,7 +57,9 @@ describe('de keuzelijst bij verplaatsen', () => {
     )
     expect(html).toContain('duurloop')
     // de dag is nog steeds een knop, geen uitgeschakelde regel
-    expect(html).toContain(`<button class="btn-ghost w-full flex-col !items-start py-2 border-amber-500/40"`)
+    expect(html).toContain(`<button class="btn-ghost w-full flex-col !items-start py-2"`)
+    // en de waarschuwing draagt het markeringsteken
+    expect(html).toContain('▲')
   })
 
   it('noemt de ruil als er al iets staat', () => {

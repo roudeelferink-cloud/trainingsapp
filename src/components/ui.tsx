@@ -7,24 +7,22 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between mb-2">
-      <h2 className="text-lg font-bold text-slate-100">{children}</h2>
+      <h2 className="text-lg font-medium text-fg">{children}</h2>
       {right}
     </div>
   )
 }
 
-export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'run' | 'lift' | 'warn' | 'ok' | 'off' | 'deload' }) {
-  const tones: Record<string, string> = {
-    neutral: 'bg-ink-600 text-slate-200',
-    run: 'bg-amber-500/20 text-amber-300',
-    lift: 'bg-sky-500/20 text-sky-300',
-    warn: 'bg-rose-500/20 text-rose-300',
-    ok: 'bg-emerald-500/20 text-emerald-300',
-    off: 'bg-ink-700 text-slate-400',
-    // amber, net als de deloadbalken in de grafieken ("Oranje = deloadweek")
-    deload: 'bg-amber-500/20 text-amber-300',
-  }
-  return <span className={`chip ${tones[tone]}`}>{children}</span>
+/**
+ * Klein tekstlabel met een hairline eromheen. Monochroom en zonder tonen: de
+ * betekenis zit in de tekst, niet in een kleur.
+ */
+export function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded border border-line px-1.5 py-0.5 text-[11px] text-muted whitespace-nowrap">
+      {children}
+    </span>
+  )
 }
 
 export function Sheet({
@@ -61,10 +59,10 @@ export function Sheet({
       aria-modal="true"
       aria-labelledby={titleId}
     >
-      <button aria-label="Sluiten" className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-ink-800 border-t border-ink-600 rounded-t-3xl p-4 pb-6 max-h-[85vh] overflow-y-auto safe-bottom">
-        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-ink-500" />
-        <h3 id={titleId} className="text-lg font-bold mb-3">
+      <button aria-label="Sluiten" className="absolute inset-0 bg-scrim" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-bg border-t border-line rounded-t p-4 pb-6 max-h-[85vh] overflow-y-auto safe-bottom">
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-line" />
+        <h3 id={titleId} className="text-lg font-medium mb-3">
           {title}
         </h3>
         {children}
@@ -103,7 +101,7 @@ export function ChoiceGrid<T extends string | number>({
           aria-pressed={value !== undefined ? value === o.id : undefined}
           onClick={() => onChange(o.id)}
           className={`btn ${buttonClass} ${
-            value === o.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+            value === o.id ? 'bg-fg text-on-invert' : 'bg-raised border border-line'
           }`}
         >
           {o.label}
@@ -128,14 +126,14 @@ export function ConfirmCheck({
 }) {
   return (
     <button
-      className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
+      className="w-full flex items-center gap-3 rounded border border-line bg-bg p-3 text-left"
       role="checkbox"
       aria-checked={checked}
       onClick={onToggle}
     >
       <span
-        className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
-          checked ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
+        className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-medium ${
+          checked ? 'bg-error border-error text-on-error' : 'border-line text-transparent'
         }`}
         aria-hidden
       >
@@ -163,14 +161,14 @@ export function Toggle({
       className="w-full flex items-center justify-between gap-3 py-3 text-left"
     >
       <span>
-        <span className="block font-semibold">{label}</span>
-        {hint && <span className="block text-sm text-slate-400">{hint}</span>}
+        <span className="block font-medium">{label}</span>
+        {hint && <span className="block text-sm text-muted">{hint}</span>}
       </span>
       <span
-        className={`shrink-0 w-14 h-8 rounded-full p-1 transition ${checked ? 'bg-accent' : 'bg-ink-600'}`}
+        className={`shrink-0 w-14 h-8 rounded-full p-1 transition ${checked ? 'bg-fg' : 'bg-line'}`}
       >
         <span
-          className={`block w-6 h-6 rounded-full bg-white transition ${checked ? 'translate-x-6' : ''}`}
+          className={`block w-6 h-6 rounded-full bg-bg transition ${checked ? 'translate-x-6' : ''}`}
         />
       </span>
     </button>
@@ -251,13 +249,13 @@ export function Stepper({
         −
       </button>
       {/* min-w houdt het veld leesbaar; de knoppen ernaast mogen het nooit wegdrukken */}
-      <div className="flex-1 min-w-[64px] flex items-center rounded-lg bg-ink-900 border border-ink-600 px-1 focus-within:border-accent">
+      <div className="flex-1 min-w-[64px] flex items-center rounded bg-bg border border-line px-1 focus-within:border-fg">
         <input
           type="text"
           inputMode="decimal"
           aria-label={ariaLabel}
           // text-base = 16px: kleiner laat iOS bij focus inzoomen op het veld
-          className="w-full min-w-[56px] bg-transparent text-center text-base tabular-nums font-bold focus:outline-none placeholder:text-slate-500 placeholder:font-normal"
+          className="w-full min-w-[56px] bg-transparent text-center text-base num font-medium focus:outline-none placeholder:text-faint placeholder:font-normal"
           value={draft ?? (empty ? '' : formatDecimal(value, decimals))}
           placeholder={placeholder === undefined ? undefined : formatDecimal(placeholder, decimals)}
           onChange={(e) => {
@@ -269,7 +267,7 @@ export function Stepper({
           }}
           onBlur={() => setDraft(null)}
         />
-        {suffix && <span className="text-xs text-slate-400 pr-1">{suffix}</span>}
+        {suffix && <span className="text-xs text-muted pr-1">{suffix}</span>}
       </div>
       <button
         className="btn-ghost btn-sm w-11 flex-none text-xl"
@@ -318,15 +316,15 @@ export function DecimalField({
   )
 }
 
-export function Bar({ value, max, tone = 'bg-accent' }: { value: number; max: number; tone?: string }) {
+export function Bar({ value, max, tone = 'bg-fg' }: { value: number; max: number; tone?: string }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
   return (
-    <div className="h-3 rounded-full bg-ink-600 overflow-hidden">
+    <div className="h-3 rounded-full bg-line overflow-hidden">
       <div className={`h-full ${tone} transition-all`} style={{ width: `${pct}%` }} />
     </div>
   )
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-slate-400 text-sm py-6 text-center">{children}</p>
+  return <p className="text-muted text-sm py-6 text-center">{children}</p>
 }

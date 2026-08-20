@@ -1,0 +1,51 @@
+/**
+ * Het volledige ontwerpsysteem in tokens. Componenten lezen uitsluitend deze
+ * variabelen (via de Tailwind-koppeling in tailwind.config.js); nergens anders
+ * staan kleuren, radii of lijndiktes.
+ *
+ * Monochroom: grijstinten plus zwart/wit. Het enige "accent" is de voorgrondkleur
+ * zelf — de primaire actieknop is massief in --c-invert. Semantische kleur bestaat
+ * alleen als --c-error, voor echte fouten.
+ *
+ * Donker is het uitgangspunt; licht is dezelfde structuur met omgekeerde grijzen.
+ * De keuze (systeem/donker/licht) staat in localStorage en wordt vóór de eerste
+ * paint op <html data-theme> gezet (inline script in index.html, daarna theme.ts).
+ */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-bg: #0b0b0c; /* achtergrond van de hele app */
+  --c-raised: #17171a; /* vandaag-rij, open sheet, actieve sessie */
+  --c-fg: #f2f2f0; /* tekst, en de vulling van de primaire knop */
+  --c-muted: #9b9ba1; /* secundaire tekst; wat gedaan is */
+  --c-faint: #5f5f66; /* tertiaire tekst; wat ver weg is */
+  --c-line: #2a2a2e; /* hairlines */
+  --c-on-invert: #0b0b0c; /* tekst óp de primaire knop */
+  --c-error: #e5484d; /* alleen voor echte fouten en destructieve acties */
+  --c-on-error: #ffffff;
+  --c-scrim: rgba(0, 0, 0, 0.6); /* achter een open sheet */
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --c-bg: #fcfcfb;
+  --c-raised: #f0f0ee;
+  --c-fg: #1a1a1c;
+  --c-muted: #6b6b72;
+  --c-faint: #a3a3aa;
+  --c-line: #e0e0dd;
+  --c-on-invert: #fcfcfb;
+  --c-error: #ce2c31;
+  --c-on-error: #ffffff;
+  --c-scrim: rgba(0, 0, 0, 0.4);
+}
+
+:root {
+  /* hoeken: 4px, overal */
+  --radius: 4px;
+  /* scheidingslijnen: hairlines, geen kaders */
+  --hairline: 0.5px;
+}

@@ -137,11 +137,11 @@ const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
 
 /* ---------------- tekenen ---------------- */
 
-const NEAR = '#38bdf8' // accent: dichtstbijzijnde ledemaat
-const FAR = '#334156' // ink-500: verste ledemaat
-const BODY = '#cbd5e1'
-const GEAR = '#f59e0b' // run/oranje voor materiaal
-const FLOOR = '#222d3d'
+const NEAR = 'var(--c-fg)' // dichtstbijzijnde ledemaat: het helderst
+const FAR = 'var(--c-faint)' // verste ledemaat: gedempt
+const BODY = 'var(--c-muted)'
+const GEAR = 'var(--c-faint)' // materiaal: monochroom, gedempt
+const FLOOR = 'var(--c-line)'
 
 function Limb({ pts, color, width = 3.2 }: { pts: Pt[]; color: string; width?: number }) {
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
@@ -271,7 +271,7 @@ export function Figure({
           ))}
       </svg>
       {label && (
-        <figcaption className="text-center text-xs font-semibold text-slate-400 mt-0.5">{label}</figcaption>
+        <figcaption className="text-center text-xs font-medium text-muted mt-0.5">{label}</figcaption>
       )}
     </figure>
   )
@@ -288,7 +288,7 @@ export function FigurePair({
   props?: { start: Prop[]; end: Prop[] }
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-xl bg-ink-900/60 border border-ink-600 p-2">
+    <div className="grid grid-cols-2 gap-2 rounded bg-bg border border-line p-2">
       <Figure pose={start} props={gear?.start} label="start" />
       <Figure pose={end} props={gear?.end} label="eind" />
     </div>
