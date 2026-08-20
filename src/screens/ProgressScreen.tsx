@@ -24,19 +24,19 @@ export function ProgressScreen() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="text-center">
-          <p className="text-3xl font-medium num">{completedSessions(state)}</p>
-          <p className="text-xs text-muted">krachtsessies</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-medium num">{completedRuns(state)}</p>
-          <p className="text-xs text-muted">looptrainingen</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-medium num">{activityCount(state)}</p>
-          <p className="text-xs text-muted">extra activiteiten</p>
-        </Card>
+      <div className="grid grid-cols-3 divide-x divide-line border-y border-line">
+        <div className="py-3 px-2 text-center">
+          <p className="text-2xl num leading-tight">{completedSessions(state)}</p>
+          <p className="label mt-0.5">krachtsessies</p>
+        </div>
+        <div className="py-3 px-2 text-center">
+          <p className="text-2xl num leading-tight">{completedRuns(state)}</p>
+          <p className="label mt-0.5">looptrainingen</p>
+        </div>
+        <div className="py-3 px-2 text-center">
+          <p className="text-2xl num leading-tight">{activityCount(state)}</p>
+          <p className="label mt-0.5">extra activiteiten</p>
+        </div>
       </div>
 
       <Card>

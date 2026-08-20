@@ -51,19 +51,19 @@ function OtherUser({ user }: { user: UserState }) {
         <Chip>meekijken</Chip>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="text-center">
-          <p className="text-3xl font-medium num">{trainingStreak(user)}</p>
-          <p className="text-xs text-muted">dagen streak</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-medium num">{completedSessions(user)}</p>
-          <p className="text-xs text-muted">krachtsessies</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-medium num">{completedRuns(user)}</p>
-          <p className="text-xs text-muted">looptrainingen</p>
-        </Card>
+      <div className="grid grid-cols-3 divide-x divide-line border-y border-line">
+        <div className="py-3 px-2 text-center">
+          <p className="text-2xl num leading-tight">{trainingStreak(user)}</p>
+          <p className="label mt-0.5">dagen streak</p>
+        </div>
+        <div className="py-3 px-2 text-center">
+          <p className="text-2xl num leading-tight">{completedSessions(user)}</p>
+          <p className="label mt-0.5">krachtsessies</p>
+        </div>
+        <div className="py-3 px-2 text-center">
+          <p className="text-2xl num leading-tight">{completedRuns(user)}</p>
+          <p className="label mt-0.5">looptrainingen</p>
+        </div>
       </div>
 
       <Card>

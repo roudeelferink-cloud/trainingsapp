@@ -799,8 +799,8 @@ function RoundButton({
     <button
       aria-label={label}
       onClick={onClick}
-      className={`shrink-0 w-11 h-11 rounded-full border flex items-center justify-center text-lg font-medium ${
-        active ? 'bg-fg text-on-invert border-fg' : 'bg-raised border-line text-fg'
+      className={`shrink-0 w-11 h-11 rounded border flex items-center justify-center text-lg font-medium ${
+        active ? 'bg-fg text-on-invert border-fg' : 'bg-transparent border-line text-muted'
       }`}
     >
       {children}
