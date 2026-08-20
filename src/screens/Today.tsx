@@ -3,7 +3,7 @@ import { ActivityList, ActivitySheet } from '../components/Activities'
 import { MoveSheet } from '../components/MoveSheet'
 import { Bar, Card, ChoiceGrid, Chip, ConfirmCheck, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
-import { activitiesOn } from '../logic/activities'
+import { activitiesOn, paceMinPerKm } from '../logic/activities'
 import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
 import { addDays, formatLong, formatShort, today } from '../logic/dates'
 import { warmupLabel } from '../logic/warmup'
@@ -187,7 +187,7 @@ function Header({ plan }: { plan: DayPlan }) {
           </span>
         </h1>
         <div className="flex gap-2 mt-2 flex-wrap">
-          {plan.deload.active && <Chip tone="warn">Deload</Chip>}
+          {plan.deload.active && <Chip tone="deload">Deload</Chip>}
           {plan.deload.skipped && <Chip tone="off">Deload overgeslagen</Chip>}
           {plan.cycle.calibration && <Chip tone="lift">Kalibratie</Chip>}
           {state.settings?.travelMode && <Chip tone="off">Reismodus</Chip>}
@@ -356,7 +356,7 @@ function DeloadCard({ iso, plan }: { iso: string; plan: DayPlan }) {
 
   return (
     <Card className={deload.active ? 'border-amber-500/40' : 'border-rose-500/40'}>
-      <SectionTitle right={<Chip tone={deload.active ? 'warn' : 'off'}>week {deload.week}</Chip>}>
+      <SectionTitle right={<Chip tone={deload.active ? 'deload' : 'off'}>week {deload.week}</Chip>}>
         {deload.active ? 'Deloadweek' : 'Deload overgeslagen'}
       </SectionTitle>
       <p className="text-sm text-slate-300">{deload.explanation}</p>
@@ -591,7 +591,7 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
             <p className="label mb-1">Duur (min) — optioneel</p>
             <Stepper value={min} onChange={setMin} step={5} max={300} suffix="min" />
             {!run.bike && km > 0 && min > 0 && (
-              <p className="text-xs text-slate-400 mt-1 tabular-nums">Tempo {paceLabel(km, min)}</p>
+              <p className="text-xs text-slate-400 mt-1 tabular-nums">Tempo {paceMinPerKm(km, min)}</p>
             )}
           </div>
           {/* dezelfde afsluitende beoordeling als bij kracht: één tik, en het staat erin */}
@@ -672,12 +672,6 @@ function SkippedCard({
       </button>
     </Card>
   )
-}
-
-/** Gemiddeld tempo in min/km, zoals het op een horloge staat. */
-function paceLabel(km: number, minutes: number): string {
-  const secPerKm = Math.round((minutes * 60) / km)
-  return `${Math.floor(secPerKm / 60)}:${String(secPerKm % 60).padStart(2, '0')} min/km`
 }
 
 function StrengthCard({

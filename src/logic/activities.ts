@@ -61,6 +61,15 @@ export function activityKm(a: Activity): number | null {
   return typeof km === 'number' && Number.isFinite(km) && km > 0 ? km : null
 }
 
+/** Gemiddeld tempo in min/km, zoals het op een horloge staat: '5:30 min/km'. */
+export function paceMinPerKm(km: number, minutes: number): string | null {
+  if (km <= 0 || minutes <= 0) return null
+  const secPerKm = Math.round((minutes * 60) / km)
+  const min = Math.floor(secPerKm / 60)
+  const sec = secPerKm % 60
+  return `${min}:${String(sec).padStart(2, '0')} min/km`
+}
+
 /**
  * Gemiddeld tempo, alleen waar het iets zegt: min/km bij hardlopen en wandelen,
  * km/u bij fietsen. Zonder afstand of zonder tijd valt er niets te rekenen.
@@ -74,10 +83,7 @@ export function activityPace(a: Activity): string | null {
     return `${fmtNumber(Math.round(kmh * 10) / 10)} km/u`
   }
 
-  const secPerKm = Math.round((a.minutes * 60) / km)
-  const min = Math.floor(secPerKm / 60)
-  const sec = secPerKm % 60
-  return `${min}:${String(sec).padStart(2, '0')} min/km`
+  return paceMinPerKm(km, a.minutes)
 }
 
 /** Nederlandse notatie: komma als decimaalteken, geen nullen die niets toevoegen. */

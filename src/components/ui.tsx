@@ -13,7 +13,7 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
   )
 }
 
-export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'run' | 'lift' | 'warn' | 'ok' | 'off' }) {
+export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'run' | 'lift' | 'warn' | 'ok' | 'off' | 'deload' }) {
   const tones: Record<string, string> = {
     neutral: 'bg-ink-600 text-slate-200',
     run: 'bg-amber-500/20 text-amber-300',
@@ -21,6 +21,8 @@ export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone
     warn: 'bg-rose-500/20 text-rose-300',
     ok: 'bg-emerald-500/20 text-emerald-300',
     off: 'bg-ink-700 text-slate-400',
+    // amber, net als de deloadbalken in de grafieken ("Oranje = deloadweek")
+    deload: 'bg-amber-500/20 text-amber-300',
   }
   return <span className={`chip ${tones[tone]}`}>{children}</span>
 }

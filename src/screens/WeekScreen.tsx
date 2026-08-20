@@ -27,7 +27,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <button className="btn-ghost btn-sm" onClick={() => setOffset((o) => o - 1)}>
+        <button aria-label="Vorige week" className="btn-ghost btn-sm" onClick={() => setOffset((o) => o - 1)}>
           ←
         </button>
         <div className="text-center">
@@ -37,14 +37,14 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
             {deload.active ? 'deloadweek' : `deload over ${weeksUntilDeload(info.week)} wk`}
           </p>
         </div>
-        <button className="btn-ghost btn-sm" onClick={() => setOffset((o) => o + 1)}>
+        <button aria-label="Volgende week" className="btn-ghost btn-sm" onClick={() => setOffset((o) => o + 1)}>
           →
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center">
         {deload.active && (
-          <Chip tone="warn">
+          <Chip tone="deload">
             Deloadweek — 1 set minder, −{DELOAD_WEIGHT_PCT}% gewicht, −{DELOAD_RUN_PCT}% loopvolume
           </Chip>
         )}
