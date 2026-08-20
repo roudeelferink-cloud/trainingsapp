@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildDay } from '../src/logic/day'
-import { addDays, mondayOf, today } from '../src/logic/dates'
+import { addDays, fromISO, mondayOf, today } from '../src/logic/dates'
 import { Onboarding } from '../src/screens/Onboarding'
 import { OtherScreen } from '../src/screens/OtherScreen'
 import { ProgressScreen } from '../src/screens/ProgressScreen'
@@ -101,11 +101,19 @@ describe('schermen renderen', () => {
   })
 
   it('laat de geplande loopafstand zien en aanpassen', () => {
+    // de duurloop staat op zondag; de klok gaat naar die dag zodat Vandaag hem toont,
+    // anders slaagt deze test alleen als de suite toevallig op een zondag draait
     const zondag = addDays(mondayOf(today()), 6)
     setState((s) => ({ ...s, startDate: mondayOf(zondag) }))
-    const html = render(createElement(Today, { onOpenSession: noop }))
-    expect(html).toContain('Duurloop 10 km')
-    expect(html).toContain('Geplande afstand aanpassen')
+    vi.useFakeTimers()
+    vi.setSystemTime(fromISO(zondag))
+    try {
+      const html = render(createElement(Today, { onOpenSession: noop }))
+      expect(html).toContain('Duurloop 10 km')
+      expect(html).toContain('Geplande afstand aanpassen')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('toont in Instellingen welke schijven er liggen', () => {
