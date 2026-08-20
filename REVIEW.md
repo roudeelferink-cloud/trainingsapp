@@ -99,8 +99,9 @@ Groter of raakt datamodel/logica → **Voorstellen voor later** onderaan.
 7. **Getalnotatie is drie keer uitgevonden.** `fmt` (runningLoad), `fmtKm` (day),
    `fmtNumber` (activities) en `paceLabel` (Today) doen varianten van hetzelfde;
    `paceLabel` dupliceert bovendien de min/km-tak van `activityPace`. Samentrekken zou
-   door de logica-bestanden heen woelen voor weinig winst → alleen de UI-kant opgeruimd
-   (paceLabel hergebruikt), de rest genoteerd en bewust laten liggen.
+   door de logica-bestanden heen woelen voor weinig winst → alleen het tempo ontdubbeld
+   (`paceMinPerKm` in activities.ts, gedeeld door Today en de activiteiten), de rest
+   genoteerd en bewust laten liggen.
 8. **`tempoHint` (Activities.tsx) bouwt een nep-`Activity`** om `activityPace` te kunnen
    aanroepen. Werkt, maar het is een teken dat de functie een te zware invoer vraagt.
    Laten staan; opruimen zou de logica-API wijzigen.
