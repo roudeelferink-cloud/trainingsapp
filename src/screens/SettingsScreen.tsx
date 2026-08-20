@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, Chip, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
+import { Card, Chip, ConfirmCheck, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { PLATE_OPTIONS, smallestPlate } from '../logic/plates'
@@ -729,27 +729,12 @@ export function WisDialoog({
         </div>
 
         {ander && (
-          <button
-            className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
-            onClick={() => setOokAnder((v) => !v)}
-            role="checkbox"
-            aria-checked={ookAnder}
-          >
-            <span
-              className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
-                ookAnder ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
-              }`}
-              aria-hidden
-            >
-              ✓
+          <ConfirmCheck checked={ookAnder} onToggle={() => setOokAnder((v) => !v)}>
+            Ook het profiel van {ander.naam} wissen
+            <span className="block text-xs text-slate-500">
+              Standaard blijft dat staan; alleen {state.naam} wordt gewist.
             </span>
-            <span className="text-sm">
-              Ook het profiel van {ander.naam} wissen
-              <span className="block text-xs text-slate-500">
-                Standaard blijft dat staan; alleen {state.naam} wordt gewist.
-              </span>
-            </span>
-          </button>
+          </ConfirmCheck>
         )}
 
         <div>

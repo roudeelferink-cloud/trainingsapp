@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ActivityList, ActivitySheet } from '../components/Activities'
 import { MoveSheet } from '../components/MoveSheet'
-import { Bar, Card, Chip, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
+import { Bar, Card, ChoiceGrid, Chip, ConfirmCheck, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn } from '../logic/activities'
 import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
@@ -270,19 +270,12 @@ function DayCheckCard({ iso }: { iso: string }) {
       ).map(({ part, label }) => (
         <div key={part} className="mb-2 last:mb-0">
           <p className="label mb-1">{label}</p>
-          <div className="grid grid-cols-3 gap-2">
-            {DAY_SCORES.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => A.setDayCheckPart(iso, part, s.id)}
-                className={`btn min-h-[48px] text-sm ${
-                  check?.[part] === s.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+          <ChoiceGrid
+            options={DAY_SCORES}
+            value={check?.[part]}
+            onChange={(v) => A.setDayCheckPart(iso, part, v)}
+            buttonClass="min-h-[48px] text-sm"
+          />
         </div>
       ))}
     </Card>
@@ -322,22 +315,9 @@ function DeloadCard({ iso, plan }: { iso: string; plan: DayPlan }) {
 
       <Sheet open={open} onClose={() => setOpen(false)} title="Deload overslaan">
         <p className="text-sm text-slate-300 mb-3">{DELOAD_RISK}</p>
-        <button
-          className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
-          role="checkbox"
-          aria-checked={gelezen}
-          onClick={() => setGelezen((v) => !v)}
-        >
-          <span
-            className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
-              gelezen ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
-            }`}
-            aria-hidden
-          >
-            ✓
-          </span>
-          <span className="text-sm">Ik heb het risico gelezen en sla de deload bewust over</span>
-        </button>
+        <ConfirmCheck checked={gelezen} onToggle={() => setGelezen((v) => !v)}>
+          Ik heb het risico gelezen en sla de deload bewust over
+        </ConfirmCheck>
         <button
           className="btn w-full bg-rose-500 text-ink-900 disabled:opacity-40 mt-3"
           disabled={!gelezen}
@@ -362,19 +342,13 @@ function CheckIn({ iso, value }: { iso: string; value: number | undefined }) {
     <Card>
       <p className="font-semibold mb-1">Hoe voelen benen en pezen?</p>
       <p className="text-xs text-slate-400 mb-3">Optioneel. Niet invullen = normaal programma.</p>
-      <div className="grid grid-cols-5 gap-2">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            onClick={() => (value === n ? A.clearCheckin(iso) : A.setCheckin(iso, n))}
-            className={`btn min-h-[56px] text-xl ${
-              value === n ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-            }`}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
+      <ChoiceGrid
+        options={[1, 2, 3, 4, 5].map((n) => ({ id: n, label: n }))}
+        value={value}
+        onChange={(n) => (value === n ? A.clearCheckin(iso) : A.setCheckin(iso, n))}
+        columns={5}
+        buttonClass="min-h-[56px] text-xl"
+      />
       <p className="text-xs text-slate-400 mt-2">1 = brak · 5 = fris</p>
     </Card>
   )
@@ -399,17 +373,7 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
   const kanVerplaatsen = canMove(state, iso, 'run')
 
   if (run.skipped) {
-    return (
-      <Card>
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-slate-300">Loop overgeslagen</span>
-          <Chip tone="off">{REASONS.find((r) => r.id === run.skipped)?.label}</Chip>
-        </div>
-        <button className="btn-quiet btn-sm mt-3 w-full" onClick={() => A.undoSkip(iso, 'run')}>
-          Toch doen
-        </button>
-      </Card>
-    )
+    return <SkippedCard label="Loop overgeslagen" reason={run.skipped} onUndo={() => A.undoSkip(iso, 'run')} />
   }
 
   return (
@@ -552,26 +516,19 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
           {/* dezelfde afsluitende beoordeling als bij kracht: één tik, en het staat erin */}
           <div>
             <p className="label mb-1">Hoe ging het?</p>
-            <div className="grid grid-cols-3 gap-2">
-              {FEELS.map((f) => (
-                <button
-                  key={f.id}
-                  className="btn bg-ink-700 border border-ink-600 min-h-[52px] text-sm"
-                  onClick={() => {
-                    A.completeRun(iso, run.kind, {
-                      plannedKm: run.km,
-                      km: run.bike ? 0 : km,
-                      minutes: min,
-                      bike: run.bike,
-                      feel: f.id,
-                    })
-                    setLogOpen(false)
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <ChoiceGrid
+              options={FEELS}
+              onChange={(feel) => {
+                A.completeRun(iso, run.kind, {
+                  plannedKm: run.km,
+                  km: run.bike ? 0 : km,
+                  minutes: min,
+                  bike: run.bike,
+                  feel,
+                })
+                setLogOpen(false)
+              }}
+            />
           </div>
           <button
             className="btn-quiet w-full"
@@ -613,6 +570,29 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
   )
 }
 
+/** Een overgeslagen sessie: wat het was, waarom, en de weg terug. Loop en kracht delen hem. */
+function SkippedCard({
+  label,
+  reason,
+  onUndo,
+}: {
+  label: string
+  reason: SkipReason
+  onUndo: () => void
+}) {
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-slate-300">{label}</span>
+        <Chip tone="off">{REASONS.find((r) => r.id === reason)?.label}</Chip>
+      </div>
+      <button className="btn-quiet btn-sm mt-3 w-full" onClick={onUndo}>
+        Toch doen
+      </button>
+    </Card>
+  )
+}
+
 /** Gemiddeld tempo in min/km, zoals het op een horloge staat. */
 function paceLabel(km: number, minutes: number): string {
   const secPerKm = Math.round((minutes * 60) / km)
@@ -637,15 +617,11 @@ function StrengthCard({
 
   if (s.skipped) {
     return (
-      <Card>
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-slate-300">{s.naam} overgeslagen</span>
-          <Chip tone="off">{REASONS.find((r) => r.id === s.skipped)?.label}</Chip>
-        </div>
-        <button className="btn-quiet btn-sm mt-3 w-full" onClick={() => A.undoSkip(iso, 'strength')}>
-          Toch doen
-        </button>
-      </Card>
+      <SkippedCard
+        label={`${s.naam} overgeslagen`}
+        reason={s.skipped}
+        onUndo={() => A.undoSkip(iso, 'strength')}
+      />
     )
   }
 

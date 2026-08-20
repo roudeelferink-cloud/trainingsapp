@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { FigurePair } from '../components/Figure'
 import { RestTimer } from '../components/RestTimer'
-import { Card, Chip, Sheet, Stepper } from '../components/ui'
+import { Card, ChoiceGrid, Chip, Sheet, Stepper } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
 import { MAX_BAND_LEVEL, MIN_BAND_LEVEL, bandLabel, isBandExercise, levelOf } from '../logic/band'
@@ -482,29 +482,23 @@ export function SessionScreen({
               moet de progressie terugvallen op de RIR per set.
             */}
             <p className="font-semibold mt-4 mb-2">Hoe ging het?</p>
-            <div className="grid grid-cols-3 gap-2">
-              {FEELS.map((f) => (
-                <button
-                  key={f.id}
-                  className="btn bg-ink-700 border border-ink-600 min-h-[56px]"
-                  onClick={() =>
-                    setMessages(
-                      A.completeSession(
-                        date,
-                        kind,
-                        slots,
-                        effectiveEntries(),
-                        strength.short,
-                        completed,
-                        f.id,
-                      ),
-                    )
-                  }
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <ChoiceGrid
+              options={FEELS}
+              buttonClass="min-h-[56px] text-sm"
+              onChange={(feel) =>
+                setMessages(
+                  A.completeSession(
+                    date,
+                    kind,
+                    slots,
+                    effectiveEntries(),
+                    strength.short,
+                    completed,
+                    feel,
+                  ),
+                )
+              }
+            />
             <button
               className="btn-quiet w-full mt-2"
               onClick={() =>
@@ -593,18 +587,14 @@ function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warm
 
       {help && <p className="text-sm text-slate-300 mt-2">{WARMUP_HINT}</p>}
 
-      <div className="grid grid-cols-2 gap-2 mt-3">
-        {WARMUP_TYPES.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => A.setWarmupType(date, kind, t.id)}
-            className={`btn min-h-[44px] text-sm ${
-              warmup.type === t.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mt-3">
+        <ChoiceGrid
+          options={WARMUP_TYPES}
+          value={warmup.type}
+          onChange={(t) => A.setWarmupType(date, kind, t)}
+          columns={2}
+          buttonClass="min-h-[44px] text-sm"
+        />
       </div>
 
       <div className="mt-2">

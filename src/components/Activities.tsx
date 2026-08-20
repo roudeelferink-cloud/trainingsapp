@@ -10,7 +10,7 @@ import {
 import { formatShort } from '../logic/dates'
 import * as A from '../store/actions'
 import type { Activity, ActivityIntensity, ActivityType } from '../types'
-import { Chip, Sheet, Stepper } from './ui'
+import { ChoiceGrid, Chip, Sheet, Stepper } from './ui'
 
 /**
  * Invoer en weergave van losse activiteiten. Bewust licht: type, duur, intensiteit
@@ -76,19 +76,12 @@ function ActivityForm({
     <div className="space-y-4">
       <div>
         <p className="label mb-1">Wat</p>
-        <div className="grid grid-cols-3 gap-2">
-          {ACTIVITY_TYPES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setType(t.id)}
-              className={`btn btn-sm ${
-                type === t.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <ChoiceGrid
+          options={ACTIVITY_TYPES}
+          value={type}
+          onChange={setType}
+          buttonClass="min-h-[44px] px-3 text-sm rounded-lg"
+        />
       </div>
 
       <div>
@@ -125,19 +118,12 @@ function ActivityForm({
 
       <div>
         <p className="label mb-1">Intensiteit</p>
-        <div className="grid grid-cols-3 gap-2">
-          {ACTIVITY_INTENSITIES.map((i) => (
-            <button
-              key={i.id}
-              onClick={() => setIntensity(i.id)}
-              className={`btn btn-sm ${
-                intensity === i.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-              }`}
-            >
-              {i.label}
-            </button>
-          ))}
-        </div>
+        <ChoiceGrid
+          options={ACTIVITY_INTENSITIES}
+          value={intensity}
+          onChange={setIntensity}
+          buttonClass="min-h-[44px] px-3 text-sm rounded-lg"
+        />
       </div>
 
       <div>

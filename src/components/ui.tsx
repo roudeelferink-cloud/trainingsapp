@@ -56,6 +56,79 @@ export function Sheet({
   )
 }
 
+/**
+ * Rooster met keuzeknoppen: de gekozen knop kleurt accent, de rest blijft donker.
+ * Hetzelfde blok stond op zeven plekken met de hand nagebouwd (check-in, dagcheck,
+ * beoordeling, warming-uptype, activiteit); dit is die ene plek. Werkt ook zonder
+ * gekozen waarde — dan zijn het actieknoppen in dezelfde stijl, zoals bij de
+ * beoordeling na een sessie.
+ */
+export function ChoiceGrid<T extends string | number>({
+  options,
+  value,
+  onChange,
+  columns = 3,
+  buttonClass = 'min-h-[52px] text-sm',
+}: {
+  options: readonly { id: T; label: ReactNode }[]
+  value?: T
+  onChange: (id: T) => void
+  columns?: 2 | 3 | 5
+  /** hoogte en tekstgrootte van de knoppen; de standaard past de meeste kiezers */
+  buttonClass?: string
+}) {
+  const cols = { 2: 'grid-cols-2', 3: 'grid-cols-3', 5: 'grid-cols-5' }[columns]
+  return (
+    <div className={`grid ${cols} gap-2`}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          aria-pressed={value !== undefined ? value === o.id : undefined}
+          onClick={() => onChange(o.id)}
+          className={`btn ${buttonClass} ${
+            value === o.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Bevestigingsvinkje voor een ingreep met gevolgen (deload overslaan, gegevens
+ * wissen): één rij die je aan- en uitzet, met het rode vinkje als het aanstaat.
+ */
+export function ConfirmCheck({
+  checked,
+  onToggle,
+  children,
+}: {
+  checked: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onToggle}
+    >
+      <span
+        className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
+          checked ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
+        }`}
+        aria-hidden
+      >
+        ✓
+      </span>
+      <span className="text-sm">{children}</span>
+    </button>
+  )
+}
+
 export function Toggle({
   checked,
   onChange,
