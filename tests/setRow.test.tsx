@@ -61,10 +61,10 @@ describe('invoervelden in een setrij', () => {
   })
 })
 
-describe('elke setrij, niet alleen de eerste', () => {
+describe('één set tegelijk bewerkbaar', () => {
   const monday = () => mondayOf(today())
 
-  it('geeft alle kg- en repsvelden dezelfde minimumbreedte', () => {
+  it('toont alleen de actieve set als velden en houdt die breed en groot genoeg', () => {
     const iso = monday()
     const plan = buildDay(getState(), iso)
     const kind = plan.strength!.kind
@@ -73,19 +73,24 @@ describe('elke setrij, niet alleen de eerste', () => {
 
     const html = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
 
-    // de laatste setrij staat er ook echt
-    expect(html).toContain(`Set ${sets}`)
+    // de teller laat zien hoeveel sets er in totaal zijn
+    expect(html).toContain(`Set 1 van ${sets}`)
 
-    // alleen de setvelden; de warming-up heeft ook een getalveld, maar geen setrij
+    // alleen de actieve set is bewerkbaar: precies één kg- en één repsveld
     const setVelden = inputs(html).filter((i) => /aria-label="(Gewicht|Reps) set/.test(i))
-    expect(setVelden).toHaveLength(sets * 2) // kg + reps per set
+    expect(setVelden).toHaveLength(2)
+    expect(html).not.toContain('aria-label="Gewicht set 2"')
 
+    // alle decimale velden houden hun minimumbreedte en zijn 16px of groter,
+    // anders zoomt iOS bij focus in op het veld
     const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
     for (const veld of velden) {
       expect(veld).toContain(MIN_WIDTH_CLASS)
-      expect(veld).toContain('text-base')
+      expect(veld).toMatch(/text-(base|lg|xl|2xl)/)
       expect(veld).toContain('inputMode="decimal"')
     }
+    // de getallen staan in monospace
+    for (const veld of setVelden) expect(veld).toContain('num')
   })
 
   it('geldt voor iedere krachtsessie van de week', () => {
@@ -101,20 +106,23 @@ describe('elke setrij, niet alleen de eerste', () => {
       const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
       expect(velden.length, plan.strength.naam).toBeGreaterThan(0)
       for (const veld of velden) expect(veld, plan.strength.naam).toContain(MIN_WIDTH_CLASS)
+      // en per sessie is er precies één set tegelijk bewerkbaar
+      const setVelden = velden.filter((i) => /aria-label="(Gewicht|Reps|Bandniveau) set/.test(i))
+      expect(setVelden.length, plan.strength.naam).toBe(2)
       gecontroleerd++
     }
     expect(gecontroleerd).toBeGreaterThanOrEqual(4)
   })
 
-  it('zet kg en reps onder elkaar, zodat een smal scherm ze niet samenknijpt', () => {
+  it('zet de komende sets als voorgevulde regels klaar, met de opslagknop bij de actieve set', () => {
     const iso = monday()
-    const kind = buildDay(getState(), iso).strength!.kind
+    const plan = buildDay(getState(), iso)
+    const kind = plan.strength!.kind
+    const sets = plan.strength!.slots[0].sets
     const html = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
 
-    // vanaf de eerste setrij: alles daarboven (warming-up, volgorde) is geen setrij
-    const setrijen = html.slice(html.indexOf('Set 1'))
-    expect(setrijen).not.toBe('')
-    // geen tweekolomsraster meer om de invoervelden heen
-    expect(setrijen).not.toContain('grid-cols-2 gap-2')
+    expect(html).toContain('Set opslaan')
+    // de laatste set staat als regel klaar (regelnummer in monospace)
+    expect(html).toContain(`<span class="num w-5 shrink-0">${sets}</span>`)
   })
 })

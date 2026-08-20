@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
-/** Simpele rusttimer per oefening. Telt af, trilt kort als hij op nul staat. */
+/**
+ * Rusttimer per oefening: een rustige regel, geen opvallend blok. Telt af en
+ * trilt kort als hij op nul staat.
+ */
 export function RestTimer({ seconds = 120 }: { seconds?: number }) {
   const [left, setLeft] = useState<number | null>(null)
   const ref = useRef<number | null>(null)
@@ -34,12 +37,13 @@ export function RestTimer({ seconds = 120 }: { seconds?: number }) {
 
   if (left === null) {
     return (
-      <div className="flex gap-2">
-        <button className="btn-ghost btn-sm flex-1" onClick={() => start(90)}>
-          Rust 1:30
+      <div className="flex items-center gap-2 text-sm text-muted min-h-[44px]">
+        <span className="label">rust</span>
+        <button className="btn-quiet btn-sm num" onClick={() => start(90)}>
+          1:30
         </button>
-        <button className="btn-ghost btn-sm flex-1" onClick={() => start(seconds)}>
-          Rust {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+        <button className="btn-quiet btn-sm num" onClick={() => start(seconds)}>
+          {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
         </button>
       </div>
     )
@@ -50,9 +54,9 @@ export function RestTimer({ seconds = 120 }: { seconds?: number }) {
   return (
     <button
       onClick={stop}
-      className={`btn w-full ${left === 0 ? 'bg-fg text-on-invert' : 'bg-raised border border-line'}`}
+      className={`w-full min-h-[44px] text-left text-sm num ${left === 0 ? 'text-fg' : 'text-muted'}`}
     >
-      {left === 0 ? 'Rust voorbij — tik om te sluiten' : `Rust ${mm}:${ss} — tik om te stoppen`}
+      {left === 0 ? '✓ Rust voorbij — tik om te sluiten' : `rust ${mm}:${ss} — tik om te stoppen`}
     </button>
   )
 }

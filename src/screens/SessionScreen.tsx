@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { FigurePair } from '../components/Figure'
 import { RestTimer } from '../components/RestTimer'
-import { Card, ChoiceGrid, Chip, Sheet, Stepper } from '../components/ui'
+import { Card, ChoiceGrid, Chip, Sheet, Stepper, formatDecimal, parseDecimal } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
 import { MAX_BAND_LEVEL, MIN_BAND_LEVEL, bandLabel, isBandExercise, levelOf } from '../logic/band'
@@ -204,7 +204,9 @@ export function SessionScreen({
       </div>
 
       {plan.cycle.calibration && (
-        <p className="text-sm text-error mb-3">Kalibratieweek: {CALIBRATION_TEXT}.</p>
+        <p className="text-sm text-muted mb-3">
+          <span aria-hidden>▲ </span>Kalibratieweek: {CALIBRATION_TEXT}.
+        </p>
       )}
 
       {/*
@@ -215,11 +217,8 @@ export function SessionScreen({
       {plan.guardrails.length > 0 && (
         <ul className="mb-3 space-y-1">
           {plan.guardrails.map((g) => (
-            <li
-              key={g.id}
-              className={`text-sm flex gap-2 ${g.tone === 'warn' ? 'text-muted' : 'text-muted'}`}
-            >
-              <span aria-hidden>•</span>
+            <li key={g.id} className="text-sm flex gap-2 text-muted">
+              <span aria-hidden>▲</span>
               <span>{g.text}</span>
             </li>
           ))}
@@ -260,7 +259,7 @@ export function SessionScreen({
       </div>
       {orderHelp && <p className="text-sm text-fg mb-2">{ORDER_RATIONALE}</p>}
 
-      <div className="rounded border border-line bg-bg overflow-hidden">
+      <div className="border-y border-line">
         {slots.map((r, i) => {
           const isActive = active === r.slot.key
           const isHelp = helpOpen.includes(r.slot.key)
@@ -337,100 +336,40 @@ export function SessionScreen({
                       . {ADVICE_HINT}
                     </p>
                   )}
-                  {sets.map((s, si) => (
-                    <div
-                      key={si}
-                      className={`rounded border p-2 ${
-                        s.done ? 'border-line bg-transparent' : 'border-line bg-raised'
-                      }`}
-                    >
-                      {/*
-                        kg en reps staan onder elkaar, elk over de volle breedte. Naast
-                        elkaar houdt een setrij op een 320px-scherm te weinig ruimte over
-                        en knijpen de invoervelden dicht.
-                      */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-xs font-medium text-muted">Set {si + 1}</span>
-                        <button
-                          aria-label={`Set ${si + 1} ${s.done ? 'weer openzetten' : 'afvinken'}`}
-                          onClick={() => setSetDone(r.slot.key, si, !s.done)}
-                          className={`flex-none w-11 h-11 rounded border text-lg font-medium ${
-                            s.done
-                              ? 'bg-fg text-on-invert border-fg'
-                              : 'bg-raised border-line text-muted'
-                          }`}
-                        >
-                          ✓
-                        </button>
-                      </div>
-                      <div className="mb-2">
-                        <p className="label mb-0.5">{weightInputLabel(r.exercise, state.settings)}</p>
-                        {isBandExercise(r.exercise) ? (
-                          <>
-                            <Stepper
-                              ariaLabel={`Bandniveau set ${si + 1}`}
-                              value={levelOf(s)}
-                              onChange={(v) => updateSet(r.slot.key, si, { weight: 0, level: v })}
-                              step={1}
-                              min={MIN_BAND_LEVEL}
-                              max={MAX_BAND_LEVEL}
-                            />
-                            <p className="text-xs text-muted mt-1">{bandLabel(levelOf(s))}</p>
-                          </>
-                        ) : (
-                          <>
-                            <Stepper
-                              ariaLabel={`Gewicht set ${si + 1}`}
-                              value={bar > 0 ? platesFromTotal(s.weight, bar) : s.weight}
-                              onChange={(v) =>
-                                updateSet(r.slot.key, si, {
-                                  weight: bar > 0 ? totalFromPlates(v, bar) : v,
-                                })
-                              }
-                              step={r.exercise.minIncrement || 2.5}
-                              max={400}
-                              // alleen zolang er niets ingevuld is; anders zou 0 schijven
-                              // (de kale stang) weer als schatting worden weergegeven
-                              placeholder={s.weight === 0 ? advicePlates : undefined}
-                            />
-                            {bar > 0 && (s.weight > 0 || advicePlates !== undefined) && (
-                              <p className="text-xs text-muted mt-1 num">
-                                {barTotalLabel(
-                                  s.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(s.weight, bar),
-                                  bar,
-                                )}
-                                {s.weight === 0 && ' (schatting)'}
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <div className="mb-2">
-                        <p className="label mb-0.5">{repsInputLabel(r.exercise)}</p>
-                        <Stepper
-                          ariaLabel={`Reps set ${si + 1}`}
-                          value={s.reps}
-                          onChange={(v) => updateSet(r.slot.key, si, { reps: v })}
-                          step={1}
-                          max={100}
+                  {/*
+                    Eén set tegelijk groot en bewerkbaar. Afgeronde sets krimpen tot één
+                    regel (tikken maakt ze weer bewerkbaar), komende sets staan gedempt
+                    en voorgevuld klaar.
+                  */}
+                  {(() => {
+                    const editIndex = sets.findIndex((s) => !s.done)
+                    return sets.map((s, si) =>
+                      si === editIndex ? (
+                        <SetEditor
+                          key={`${r.slot.key}:${si}`}
+                          index={si}
+                          count={sets.length}
+                          set={s}
+                          exercise={r.exercise}
+                          bar={bar}
+                          advicePlates={advicePlates}
+                          weightLabel={weightInputLabel(r.exercise, state.settings)}
+                          repsLabel={repsInputLabel(r.exercise)}
+                          onPatch={(patch) => updateSet(r.slot.key, si, patch)}
+                          onSave={() => setSetDone(r.slot.key, si, true)}
                         />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium text-muted w-10">RIR</span>
-                        {[0, 1, 2, 3, 4].map((n) => (
-                          <button
-                            key={n}
-                            onClick={() => updateSet(r.slot.key, si, { rir: n })}
-                            className={`flex-1 min-h-[40px] rounded text-sm font-medium ${
-                              s.rir === n ? 'bg-fg text-on-invert' : 'bg-raised border border-line'
-                            }`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                      ) : (
+                        <SetRegel
+                          key={si}
+                          index={si}
+                          set={s}
+                          exercise={r.exercise}
+                          advice={advice?.weight}
+                          onReopen={s.done ? () => setSetDone(r.slot.key, si, false) : undefined}
+                        />
+                      ),
+                    )
+                  })()}
                   <button className="btn-quiet btn-sm w-full" onClick={() => addSet(r.slot.key)}>
                     + set toevoegen
                   </button>
@@ -464,7 +403,11 @@ export function SessionScreen({
         })}
       </div>
 
-      <button className="btn-primary w-full mt-4" onClick={() => setDoneOpen(true)}>
+      {/* pas dé primaire actie zodra alles afgerond is; tot die tijd is de set aan de beurt */}
+      <button
+        className={`${completedCount === slots.length ? 'btn-primary' : 'btn-ghost'} w-full mt-4`}
+        onClick={() => setDoneOpen(true)}
+      >
         Sessie afronden
       </button>
 
@@ -552,11 +495,7 @@ function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warm
   const [help, setHelp] = useState(false)
 
   return (
-    <div
-      className={`rounded border p-3 mb-3 ${
-        warmup.done ? 'border-line bg-transparent' : 'border-line bg-bg'
-      }`}
-    >
+    <div className={`border-t border-line py-3 mb-3 ${warmup.done ? 'text-muted' : ''}`}>
       <div className="flex items-center gap-2">
         <span className="flex-1 min-w-0">
           <span className="block font-medium">
@@ -608,6 +547,238 @@ function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warm
           max={60}
           suffix="min"
         />
+      </div>
+    </div>
+  )
+}
+
+/** Nederlandse weergave van een gewicht op een setregel. */
+function kgLabel(weight: number): string {
+  return `${formatDecimal(weight)} kg`
+}
+
+/**
+ * Een set die nu niet bewerkt wordt: één regel. Afgerond is gedempt met een vinkje
+ * en weer te openen; een komende set staat er nog vager, voorgevuld en wacht op
+ * zijn beurt.
+ */
+function SetRegel({
+  index,
+  set,
+  exercise,
+  advice,
+  onReopen,
+}: {
+  index: number
+  set: LoggedSet
+  exercise: Exercise
+  /** schatting voor het gewicht zolang er niets ingevuld is */
+  advice?: number
+  onReopen?: () => void
+}) {
+  const band = isBandExercise(exercise)
+  const gewicht = band
+    ? bandLabel(levelOf(set))
+    : set.weight > 0
+      ? kgLabel(set.weight)
+      : advice !== undefined
+        ? `${kgLabel(advice)} (schatting)`
+        : '—'
+  const inhoud = (
+    <>
+      <span className="num w-5 shrink-0">{index + 1}</span>
+      <span className="num flex-1 text-left">
+        {gewicht} × {set.reps}
+      </span>
+      {set.done && <span className="num">RIR {set.rir}</span>}
+      {set.done && <span aria-hidden>✓</span>}
+    </>
+  )
+
+  if (onReopen) {
+    return (
+      <button
+        aria-label={`Set ${index + 1} aanpassen`}
+        onClick={onReopen}
+        className="w-full flex items-center gap-2 min-h-[44px] px-1 text-sm text-muted border-t border-line first:border-t-0"
+      >
+        {inhoud}
+      </button>
+    )
+  }
+  return (
+    <div className="w-full flex items-center gap-2 min-h-[44px] px-1 text-sm text-faint border-t border-line first:border-t-0">
+      {inhoud}
+    </div>
+  )
+}
+
+/**
+ * De set die nu aan de beurt is: kg en reps als twee grote velden naast elkaar,
+ * het getal in monospace, en één primaire knop — Set opslaan.
+ */
+function SetEditor({
+  index,
+  count,
+  set,
+  exercise,
+  bar,
+  advicePlates,
+  weightLabel,
+  repsLabel,
+  onPatch,
+  onSave,
+}: {
+  index: number
+  count: number
+  set: LoggedSet
+  exercise: Exercise
+  /** stanggewicht in kg; 0 = geen stang, dan is het veld het hele gewicht */
+  bar: number
+  advicePlates?: number
+  weightLabel: string
+  repsLabel: string
+  onPatch: (patch: Partial<LoggedSet>) => void
+  onSave: () => void
+}) {
+  const band = isBandExercise(exercise)
+
+  return (
+    <div className="border border-line rounded p-3">
+      <p className="label mb-2">
+        Set {index + 1} van {count}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        {band ? (
+          <GrootVeld
+            label={weightLabel}
+            ariaLabel={`Bandniveau set ${index + 1}`}
+            value={levelOf(set)}
+            onChange={(v) => onPatch({ weight: 0, level: Math.round(v) })}
+            step={1}
+            min={MIN_BAND_LEVEL}
+            max={MAX_BAND_LEVEL}
+          />
+        ) : (
+          <GrootVeld
+            label={weightLabel}
+            ariaLabel={`Gewicht set ${index + 1}`}
+            value={bar > 0 ? platesFromTotal(set.weight, bar) : set.weight}
+            onChange={(v) => onPatch({ weight: bar > 0 ? totalFromPlates(v, bar) : v })}
+            step={exercise.minIncrement || 2.5}
+            max={400}
+            placeholder={set.weight === 0 ? advicePlates : undefined}
+          />
+        )}
+        <GrootVeld
+          label={repsLabel}
+          ariaLabel={`Reps set ${index + 1}`}
+          value={set.reps}
+          onChange={(v) => onPatch({ reps: Math.round(v) })}
+          step={1}
+          max={100}
+        />
+      </div>
+
+      {band && <p className="text-xs text-muted mt-1">{bandLabel(levelOf(set))}</p>}
+      {!band && bar > 0 && (set.weight > 0 || advicePlates !== undefined) && (
+        <p className="text-xs text-muted mt-1 num">
+          {barTotalLabel(set.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(set.weight, bar), bar)}
+          {set.weight === 0 && ' (schatting)'}
+        </p>
+      )}
+
+      <div className="flex items-center gap-1 mt-3">
+        <span className="label w-10">RIR</span>
+        {[0, 1, 2, 3, 4].map((n) => (
+          <button
+            key={n}
+            onClick={() => onPatch({ rir: n })}
+            className={`flex-1 min-h-[44px] rounded text-sm font-medium num ${
+              set.rir === n ? 'bg-fg text-on-invert' : 'bg-raised border border-line'
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+
+      <button className="btn-primary w-full mt-3" onClick={onSave}>
+        Set opslaan
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Groot invoerveld voor de actieve set: het getal in monospace, komma-invoer zoals
+ * overal (zie parseDecimal), en de −/+ eronder zodat het veld zelf de breedte houdt.
+ */
+function GrootVeld({
+  label,
+  ariaLabel,
+  value,
+  onChange,
+  step,
+  min = 0,
+  max,
+  placeholder,
+}: {
+  label: string
+  ariaLabel: string
+  value: number
+  onChange: (v: number) => void
+  step: number
+  min?: number
+  max: number
+  placeholder?: number
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 100) / 100))
+  const empty = value === 0 && placeholder !== undefined
+  const basis = empty ? placeholder : value
+
+  return (
+    <div>
+      <p className="label mb-1">{label}</p>
+      <input
+        type="text"
+        inputMode="decimal"
+        aria-label={ariaLabel}
+        className="w-full min-w-[56px] rounded border border-line bg-transparent px-2 py-2 text-center text-2xl num font-medium focus:outline-none focus:border-fg placeholder:text-faint placeholder:font-normal"
+        value={draft ?? (empty ? '' : formatDecimal(value))}
+        placeholder={placeholder === undefined ? undefined : formatDecimal(placeholder)}
+        onChange={(e) => {
+          const text = e.target.value
+          setDraft(text)
+          if (text === '') return onChange(0)
+          const parsed = parseDecimal(text)
+          if (parsed !== null) onChange(clamp(parsed))
+        }}
+        onBlur={() => setDraft(null)}
+      />
+      <div className="grid grid-cols-2 gap-1 mt-1">
+        <button
+          aria-label={`${ariaLabel} minder`}
+          className="btn-ghost btn-sm"
+          onClick={() => {
+            setDraft(null)
+            onChange(clamp(basis - step))
+          }}
+        >
+          −
+        </button>
+        <button
+          aria-label={`${ariaLabel} meer`}
+          className="btn-ghost btn-sm"
+          onClick={() => {
+            setDraft(null)
+            onChange(clamp(basis + step))
+          }}
+        >
+          +
+        </button>
       </div>
     </div>
   )
