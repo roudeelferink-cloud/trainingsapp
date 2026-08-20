@@ -20,7 +20,7 @@
   --c-raised: #17171a; /* vandaag-rij, open sheet, actieve sessie */
   --c-fg: #f2f2f0; /* tekst, en de vulling van de primaire knop */
   --c-muted: #9b9ba1; /* secundaire tekst; wat gedaan is */
-  --c-faint: #5f5f66; /* tertiaire tekst; wat ver weg is */
+  --c-faint: #7c7c84; /* tertiaire tekst; wat ver weg is */
   --c-line: #2a2a2e; /* hairlines */
   --c-on-invert: #0b0b0c; /* tekst óp de primaire knop */
   --c-error: #e5484d; /* alleen voor echte fouten en destructieve acties */
@@ -35,7 +35,7 @@
   --c-raised: #f0f0ee;
   --c-fg: #1a1a1c;
   --c-muted: #6b6b72;
-  --c-faint: #a3a3aa;
+  --c-faint: #8c8c93;
   --c-line: #e0e0dd;
   --c-on-invert: #fcfcfb;
   --c-error: #ce2c31;
