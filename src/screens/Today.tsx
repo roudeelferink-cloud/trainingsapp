@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { ActivityList, ActivitySheet } from '../components/Activities'
 import { MoveSheet } from '../components/MoveSheet'
 import { Card, ChoiceGrid, Chip, ConfirmCheck, Empty, SectionTitle, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn, paceMinPerKm } from '../logic/activities'
 import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
-import { addDays, formatLong, formatShort, today } from '../logic/dates'
+import { addDays, formatLong, formatShort, mondayOf, today } from '../logic/dates'
 import { warmupLabel } from '../logic/warmup'
 import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
@@ -34,51 +34,50 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
           eenmaal ingevuld klapt hij in, zodat de sessie zelf bovenaan komt te staan */}
       <CheckIn iso={iso} value={plan.checkin} />
 
-      <Notes plan={plan} />
-      <GuardrailCards plan={plan} />
+      <Meldingen plan={plan} />
 
       <DeloadCard iso={iso} plan={plan} />
 
       {plan.isRest && (
-        <Card className="text-center py-8">
+        <div className="border-y border-line py-8 text-center">
           <p className="text-2xl font-medium mb-1">Rustdag</p>
-          <p className="text-muted">Woensdag. Niks doen is vandaag het programma.</p>
-        </Card>
-      )}
-
-      {plan.movedTo && !plan.strength && (
-        <Card>
-          <p className="text-sm text-fg">
-            Krachtsessie verplaatst naar <b>{formatShort(plan.movedTo)}</b>.
-          </p>
-          <button className="btn-quiet btn-sm mt-3 w-full" onClick={() => A.undoMove(iso)}>
-            Verplaatsing ongedaan maken
-          </button>
-        </Card>
-      )}
-
-      {plan.runMovedTo && !plan.run && (
-        <Card>
-          <p className="text-sm text-fg">
-            Loop verplaatst naar <b>{formatShort(plan.runMovedTo)}</b>.
-          </p>
-          <button className="btn-quiet btn-sm mt-3 w-full" onClick={() => A.undoRunMove(iso)}>
-            Verplaatsing ongedaan maken
-          </button>
-        </Card>
-      )}
-
-      {plan.run && <RunCard iso={iso} plan={plan} />}
-
-      {plan.run && plan.strength && (
-        <div className="flex items-center gap-3 px-1">
-          <div className="h-px flex-1 bg-line" />
-          <span className="text-sm font-medium text-muted">10-15 min pauze</span>
-          <div className="h-px flex-1 bg-line" />
+          <p className="text-muted">Niks doen is vandaag het programma.</p>
         </div>
       )}
 
-      {plan.strength && <StrengthCard iso={iso} plan={plan} onOpenSession={onOpenSession} />}
+      {plan.movedTo && !plan.strength && (
+        <VerplaatstRegel onUndo={() => A.undoMove(iso)}>
+          Krachtsessie verplaatst naar {formatShort(plan.movedTo)}.
+        </VerplaatstRegel>
+      )}
+
+      {plan.runMovedTo && !plan.run && (
+        <VerplaatstRegel onUndo={() => A.undoRunMove(iso)}>
+          Loop verplaatst naar {formatShort(plan.runMovedTo)}.
+        </VerplaatstRegel>
+      )}
+
+      {/* de sessie van vandaag: het enige blok met een echte omkadering */}
+      {(plan.run || plan.strength) && (
+        <section className="frame p-0 overflow-hidden">
+          <Kerncijfers plan={plan} />
+          {plan.run && (
+            <div className="p-4">
+              <RunPart iso={iso} plan={plan} />
+            </div>
+          )}
+          {plan.run && plan.strength && (
+            <p className="border-t border-line px-4 py-2 text-center text-xs text-muted">
+              10-15 min pauze tussen loop en kracht
+            </p>
+          )}
+          {plan.strength && (
+            <div className={`p-4 ${plan.run ? 'border-t border-line' : ''}`}>
+              <StrengthPart iso={iso} plan={plan} onOpenSession={onOpenSession} />
+            </div>
+          )}
+        </section>
+      )}
 
       {!plan.isRest && !plan.run && !plan.strength && !plan.movedTo && !plan.runMovedTo && (
         <Card>
@@ -89,12 +88,104 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
         </Card>
       )}
 
+      <RestVanDeWeek iso={iso} />
+
       {/* stuurt vandaag niets (hij voedt alleen de deloadbeslissing) en staat daarom
           onder de sessies in plaats van erboven */}
       <DayCheckCard iso={iso} />
       <ExtraActivities iso={iso} />
     </div>
   )
+}
+
+/**
+ * De kerncijfers van vandaag in een raster met scheidingslijnen: afstand, geschatte
+ * duur en het aantal oefeningen. Alleen de cellen die vandaag van toepassing zijn.
+ */
+function Kerncijfers({ plan }: { plan: DayPlan }) {
+  const cellen: { value: string; label: string }[] = []
+  const run = plan.run
+  if (run && !run.skipped) {
+    if (run.bike) cellen.push({ value: String(BIKE_MINUTES), label: 'min fietsen' })
+    else if (run.done && run.log) cellen.push({ value: fmtKm(run.log.km), label: 'km gelopen' })
+    else if (!run.free) cellen.push({ value: fmtKm(run.km), label: 'km loop' })
+  }
+  const s = plan.strength
+  if (s && !s.skipped) {
+    cellen.push({ value: `~${s.estimatedMin}`, label: 'min kracht' })
+    cellen.push({ value: String(s.slots.length), label: 'oefeningen' })
+  }
+  if (cellen.length === 0) return null
+
+  const cols = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }[cellen.length] ?? 'grid-cols-3'
+  return (
+    <div className={`grid ${cols} divide-x divide-line border-b border-line`}>
+      {cellen.map((c) => (
+        <div key={c.label} className="py-3 px-2 text-center">
+          <p className="num text-2xl leading-tight">{c.value}</p>
+          <p className="label mt-0.5">{c.label}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Nederlandse notatie voor kilometers in de kerncijfers. */
+function fmtKm(km: number): string {
+  return String(Math.round(km * 10) / 10).replace('.', ',')
+}
+
+/** Een verplaatste sessie: één gedempte regel met de weg terug ernaast. */
+function VerplaatstRegel({ children, onUndo }: { children: ReactNode; onUndo: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2 border-y border-line py-2">
+      <p className="text-sm text-muted">{children}</p>
+      <button className="btn-quiet btn-sm shrink-0" onClick={onUndo}>
+        Verplaatsing ongedaan maken
+      </button>
+    </div>
+  )
+}
+
+/**
+ * De resterende dagen van deze week, als lijstregels onder de sessie van vandaag.
+ * Alleen kijken; plannen en verplaatsen gebeurt op het weekscherm.
+ */
+function RestVanDeWeek({ iso }: { iso: string }) {
+  const state = useStore()
+  const monday = mondayOf(iso)
+  const rest: { iso: string; afkorting: string; plan: DayPlan }[] = []
+  const program = programFor(state)
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(monday, i)
+    if (date <= iso) continue
+    rest.push({ iso: date, afkorting: program.week[i]?.short ?? '', plan: buildDay(state, date) })
+  }
+  if (rest.length === 0) return null
+
+  return (
+    <div>
+      <p className="label mb-1">verderop deze week</p>
+      <div className="border-y border-line divide-y divide-line">
+        {rest.map(({ iso: date, afkorting, plan }) => (
+          <div key={date} className="flex items-center gap-3 min-h-[44px] px-2 text-muted">
+            <span className="num text-xs w-6 shrink-0 text-faint">{afkorting}</span>
+            <span className="flex-1 min-w-0 truncate text-sm">{restLabel(plan)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function restLabel(plan: DayPlan): string {
+  if (plan.isRest) return 'Rustdag'
+  const delen: string[] = []
+  if (plan.run && !plan.run.skipped) {
+    delen.push(plan.run.bike ? 'Fietsen' : plan.run.free ? 'Hardlopen' : `Hardlopen ${fmtKm(plan.run.km)} km`)
+  }
+  if (plan.strength && !plan.strength.skipped) delen.push(plan.strength.naam)
+  return delen.length > 0 ? delen.join(' + ') : '—'
 }
 
 /**
@@ -200,43 +291,35 @@ function Header({ plan }: { plan: DayPlan }) {
 }
 
 /**
- * De losse regels van vandaag. Bijsturingen met een knop eronder staan niet hier maar in
- * `GuardrailCards`; die zouden als opsommingsteken niets te kiezen geven.
+ * Alles wat de app vandaag bijstuurt, als korte gedempte regels met een subtiel
+ * markeringsteken — geen gekleurde balken. Een bijsturing waar iets mee te doen
+ * valt krijgt zijn knoppen er klein onder: een waarschuwing zonder knop om hem op
+ * te lossen is een verwijt; met knop is het een voorstel.
  */
-function Notes({ plan }: { plan: DayPlan }) {
-  const metKnop = new Set(plan.guardrails.filter((g) => g.move || g.dismissKey).map((g) => g.text))
-  const regels = plan.notes.filter((n) => !metKnop.has(n))
-  if (regels.length === 0) return null
-
-  return (
-    <ul className="space-y-1">
-      {regels.map((n, i) => (
-        <li key={i} className="text-sm text-muted flex gap-2">
-          <span aria-hidden>•</span>
-          <span>{n}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-/**
- * Bijsturingen waar iets mee te doen valt: de uitleg, en meteen de knop om het op te
- * lossen. Een waarschuwing over een sessie die verkeerd staat zonder knop om hem te
- * verzetten is een verwijt; met knop is het een voorstel.
- */
-function GuardrailCards({ plan }: { plan: DayPlan }) {
+function Meldingen({ plan }: { plan: DayPlan }) {
   const state = useStore()
   const [moveFrom, setMoveFrom] = useState<{ date: string; what: MoveWhat } | null>(null)
-  const items = plan.guardrails.filter((g) => g.move || g.dismissKey)
-  if (items.length === 0) return null
+  const metKnop = plan.guardrails.filter((g) => g.move || g.dismissKey)
+  const knopTeksten = new Set(metKnop.map((g) => g.text))
+  const regels = plan.notes.filter((n) => !knopTeksten.has(n))
+  if (regels.length === 0 && metKnop.length === 0) return null
 
   return (
-    <>
-      {items.map((g) => (
-        <Card key={g.id} className="border-line">
-          <p className="text-sm text-fg">{g.text}</p>
-          <div className="grid grid-cols-2 gap-2 mt-3">
+    <div className="space-y-1">
+      {regels.map((n, i) => (
+        <p key={i} className="text-sm text-muted">
+          <span aria-hidden>▲ </span>
+          {n}
+        </p>
+      ))}
+
+      {metKnop.map((g) => (
+        <div key={g.id}>
+          <p className="text-sm text-muted">
+            <span aria-hidden>▲ </span>
+            {g.text}
+          </p>
+          <div className="flex gap-2 mt-1 mb-2">
             {g.move && (
               <button className="btn-ghost btn-sm" onClick={() => setMoveFrom(g.move!)}>
                 Verplaatsen
@@ -251,7 +334,7 @@ function GuardrailCards({ plan }: { plan: DayPlan }) {
               </button>
             )}
           </div>
-        </Card>
+        </div>
       ))}
 
       {moveFrom && (
@@ -267,7 +350,7 @@ function GuardrailCards({ plan }: { plan: DayPlan }) {
           }}
         />
       )}
-    </>
+    </div>
   )
 }
 
@@ -433,7 +516,7 @@ function CheckIn({ iso, value }: { iso: string; value: number | undefined }) {
   )
 }
 
-function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
+function RunPart({ iso, plan }: { iso: string; plan: DayPlan }) {
   const state = useStore()
   const run = plan.run!
   const [logOpen, setLogOpen] = useState(false)
@@ -456,11 +539,11 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
   }
 
   return (
-    <Card className="border-line">
+    <div>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div>
-          <Chip>1 · Hardlopen</Chip>
-          <p className="text-xl font-medium mt-2">
+          <p className="label">1 · hardlopen</p>
+          <p className="text-xl font-medium mt-1">
             {run.bike
               ? `Fietsen ${BIKE_MINUTES} min`
               : run.free
@@ -645,7 +728,7 @@ function RunCard({ iso, plan }: { iso: string; plan: DayPlan }) {
           setSkipOpen(false)
         }}
       />
-    </Card>
+    </div>
   )
 }
 
@@ -672,7 +755,7 @@ function SkippedCard({
   )
 }
 
-function StrengthCard({
+function StrengthPart({
   iso,
   plan,
   onOpenSession,
@@ -699,15 +782,12 @@ function StrengthCard({
   }
 
   return (
-    <Card className="border-line">
+    <div>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <Chip>{plan.run ? '2 · Kracht' : '1 · Kracht'}</Chip>
-          <p className="text-xl font-medium mt-2">{s.naam}</p>
-          <p className="text-sm text-muted">
-            ~{s.estimatedMin} min · {s.slots.length} oefeningen
-            {s.short && ' · korte versie'}
-          </p>
+          <p className="label">{plan.run ? '2 · kracht' : 'kracht'}</p>
+          <p className="text-xl font-medium mt-1">{s.naam}</p>
+          {s.short && <p className="text-sm text-muted">korte versie</p>}
           {s.log?.feel && (
             <p className="text-sm text-muted">Beoordeeld als {feelLabel(s.log.feel).toLowerCase()}</p>
           )}
@@ -777,7 +857,7 @@ function StrengthCard({
           setSkipOpen(false)
         }}
       />
-    </Card>
+    </div>
   )
 }
 
