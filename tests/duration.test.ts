@@ -38,7 +38,7 @@ describe('geschatte duur', () => {
     const perKant = duwen[0]
     const dubbel: ResolvedSlot = {
       ...perKant,
-      exercise: { ...perKant.exercise, perSide: true },
+      exercise: { ...perKant.exercise, unilateral: true },
     }
     expect(slotMinutes(dubbel)).toBeGreaterThanOrEqual(slotMinutes(perKant))
   })

@@ -6,16 +6,22 @@ import type { Exercise, LoggedSet } from '../types'
  *
  * 1. GEWICHT wordt PER DUMBBELL ingevoerd, niet als totaal. Twee dumbbells van
  *    12,5 kg log je als 12,5, niet als 25. Zo staat het ook op de dumbbell zelf.
- * 2. REPS worden PER ZIJDE geteld. 10 links en 10 rechts tegelijk is 10 reps,
- *    niet 20. Bij een eenzijdige oefening (`perSide`) doe je die 10 dus per kant.
+ *    Dit geldt voor álle dumbbelloefeningen, eenarmig of niet.
+ * 2. REPS worden PER ZIJDE geteld, maar **alleen bij eenarmig of eenbenig werk**
+ *    (`unilateral`). Doe je de beweging met beide armen tegelijk — bankdrukken met
+ *    twee dumbbells, lateral raises — dan is een rep gewoon een rep en staat er
+ *    nergens "per zijde". Alleen bij eenzijdig werk doe je die 10 per kant.
  * 3. INTERN telt een tweezijdige dumbbell-oefening dubbel: je tilt twee
  *    dumbbells, dus is de belasting 2 × het ingevoerde gewicht. Dat geldt voor
  *    volumeberekeningen en voor het omrekenen van startgewichtadvies tussen
  *    oefeningen met verschillend materiaal.
  *
- * Bij een eenzijdige oefening komt de factor 2 aan de andere kant terug: één
+ * Bij een eenzijdige oefening komt die factor 2 aan de andere kant terug: één
  * dumbbell, maar twee kanten. Het totale werk van een set is daardoor voor beide
  * varianten op dezelfde manier te berekenen.
+ *
+ * De vlag zit op de oefening en niet op het materiaal: eenbenige leg press en side
+ * plank zijn ook per kant, zonder dat er een dumbbell aan te pas komt.
  */
 
 export const DUMBBELL_WEIGHT_UNIT = 'per dumbbell'
@@ -53,9 +59,14 @@ export function isDumbbell(ex: Exercise): boolean {
   return ex.equipment.includes('dumbbells')
 }
 
+/** Eenarmig of eenbenig: de oefening wordt per kant uitgevoerd. */
+export function isUnilateral(ex: Exercise): boolean {
+  return ex.unilateral
+}
+
 /** Twee dumbbells tegelijk: beide kanten werken in dezelfde rep. */
 export function isBilateralDumbbell(ex: Exercise): boolean {
-  return isDumbbell(ex) && !ex.perSide
+  return isDumbbell(ex) && !isUnilateral(ex)
 }
 
 /**
@@ -68,7 +79,7 @@ export function loadFactor(ex: Exercise): number {
 
 /** Hoe vaak een set uitgevoerd wordt: 2 bij werk per kant, anders 1. */
 export function sideFactor(ex: Exercise): number {
-  return ex.perSide ? 2 : 1
+  return isUnilateral(ex) ? 2 : 1
 }
 
 /** Wat er per rep echt aan gewicht beweegt, uit het ingevoerde getal. */

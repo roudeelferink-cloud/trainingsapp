@@ -103,8 +103,13 @@ export interface Exercise {
   loads: LoadArea[]
   setsReps: SetsReps
   bodyweightAlternative: string
-  /** per been / per arm uitgevoerd */
-  perSide?: boolean
+  /**
+   * Eenarmig of eenbenig: je doet de oefening per kant, dus een set is twee keer werk
+   * en de herhalingen tellen per zijde. Bewust verplicht en expliciet per oefening —
+   * een ontbrekende vlag zou stilzwijgend "tweezijdig" betekenen, en dat is precies de
+   * aanname die de reps van eenarmig werk halveerde.
+   */
+  unilateral: boolean
   /** verfijning binnen pattern voor alternatieven */
   group?: MuscleGroup
   /** hoe de belasting wordt ingevoerd */

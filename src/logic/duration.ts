@@ -27,7 +27,7 @@ export const SETUP_SECONDS = 60
 export const MAX_SESSION_MINUTES = 60
 
 function setSeconds(slot: ResolvedSlot): number {
-  const reps = Math.max(1, slot.repMax) * (slot.exercise.perSide ? 2 : 1)
+  const reps = Math.max(1, slot.repMax) * (slot.exercise.unilateral ? 2 : 1)
   return Math.min(MAX_SET_SECONDS, Math.max(MIN_SET_SECONDS, reps * SECONDS_PER_REP))
 }
 

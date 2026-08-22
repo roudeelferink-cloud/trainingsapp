@@ -19,7 +19,7 @@ import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '.
 import { buildDay } from '../logic/day'
 import { formatShort } from '../logic/dates'
 import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
-import { loadHint, repsInputLabel, weightInputLabel } from '../logic/load'
+import { loadHint, repsHint, repsInputLabel, weightInputLabel } from '../logic/load'
 import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
 import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
 import { FEELS } from '../logic/feel'
@@ -373,7 +373,7 @@ export function SessionScreen({
         <div className="mt-in-block flex flex-wrap gap-meta text-label text-dim">
           <span>
             {resolved.sets} sets × {repBereik(resolved)}
-            {resolved.exercise.perSide && ' p/kant'}
+            {resolved.exercise.unilateral && ' p/kant'}
           </span>
           <span>rust {klokje(rustSeconden)}</span>
           {huidige && <span>RIR {huidige.rir}</span>}
@@ -471,6 +471,9 @@ export function SessionScreen({
               step={1}
               max={100}
             />
+            {repsHint(resolved.exercise) && (
+              <p className="text-meta text-dim">{repsHint(resolved.exercise)}</p>
+            )}
           </div>
 
           {/*
