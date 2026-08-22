@@ -1,7 +1,8 @@
+import { BY_ID } from '../data/exercises'
 import { programFor } from '../data/programs'
-import type { DayKind, UserState } from '../types'
+import type { DayKind, SessionSlot, UserState } from '../types'
 import { orderSlots } from './order'
-import { resolveSlot, type ResolvedSlot } from './select'
+import { isTravelSafe, offAreas, resolveSlot, type ResolvedSlot } from './select'
 
 /**
  * Welke oefeningen er in de sessie van één dag zitten, en met hoeveel sets.
@@ -78,5 +79,45 @@ export function resolveSession(
   // als laatste: de volgorde staat los van welke oefeningen er overblijven
   slots = orderSlots(slots, override?.order)
 
+  // De extra oefening van een te makkelijke sessie komt er altijd achteraan, ook als er
+  // zelf een volgorde gezet is: hij is er als toegift bij, niet als onderdeel van de opzet.
+  const extra = extraSlotFor(state, iso, override?.extraSlot, slots)
+  if (extra) slots = [...slots, extra]
+
   return { slots, before, hiddenCalf }
+}
+
+/**
+ * Het slot van de extra oefening, of null. Bewust met dezelfde filters als de rest: een
+ * oefening die vanwege een gevoelig gebied of de reismodus niet meer kan, hoort ook als
+ * extra niet meer te verschijnen — ook niet als hij gisteren nog wel kon.
+ */
+function extraSlotFor(
+  state: UserState,
+  iso: string,
+  extra: { key: string; exerciseId: string } | undefined,
+  slots: ResolvedSlot[],
+): ResolvedSlot | null {
+  if (!extra) return null
+  const ex = BY_ID[extra.exerciseId]
+  if (!ex) return null
+  if (slots.some((r) => r.exercise.id === ex.id)) return null
+  if (ex.loads.some((l) => offAreas(state.settings?.sensitive).includes(l))) return null
+  if (state.settings?.travelMode && !isTravelSafe(ex)) return null
+  if ((state.overrides?.[iso]?.skippedSlots ?? []).includes(extra.key)) return null
+
+  const slot: SessionSlot = {
+    key: extra.key,
+    exerciseId: ex.id,
+    role: 'accessory',
+    setsReps: ex.setsReps,
+  }
+  return {
+    slot,
+    exercise: ex,
+    sets: ex.setsReps.sets,
+    repMin: ex.setsReps.repMin,
+    repMax: ex.setsReps.repMax,
+    reasons: ['extra'],
+  }
 }

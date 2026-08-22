@@ -1,11 +1,12 @@
-import { getExercise } from '../data/exercises'
+import { BY_ID, getExercise } from '../data/exercises'
 import { supportsDistance } from '../logic/activities'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
 import { applyMove, buildDay, moveTargets, sessionKeyFor } from '../logic/day'
 import { moveKey } from '../logic/order'
 import type { ResolvedSlot } from '../logic/select'
-import { applyProgression, stateFor } from '../logic/progression'
+import { applyProgression, forceIncrease, stateFor } from '../logic/progression'
+import { bumpTargets, extraSlotKey } from '../logic/extra'
 import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
 import { DELOAD_RISK, deloadFor } from '../logic/deload'
 import { round05 } from '../logic/running'
@@ -190,7 +191,10 @@ function patchWarmup(iso: string, kind: DayKind, patch: Partial<Warmup>): void {
       completedSlots: [],
       completedAt: null,
     }
-    return { ...s, sessions: { ...s.sessions, [key]: { ...base, warmup } } }
+    return {
+      ...s,
+      sessions: { ...s.sessions, [key]: { ...base, warmup, startedAt: startedAt(cur) } },
+    }
   })
 }
 
@@ -478,6 +482,15 @@ export function removeActivity(id: string): void {
   setState((s) => ({ ...s, activities: s.activities.filter((a) => a.id !== id) }))
 }
 
+/**
+ * Wanneer deze sessie begon. De eerste aanraking telt — de warming-up instellen of de
+ * eerste set bijstellen — en daarna verandert hij niet meer. Zonder dit is er geen
+ * manier om te weten of een sessie binnen de geplande tijd bleef.
+ */
+function startedAt(cur: SessionLog | undefined): string {
+  return cur?.startedAt ?? new Date().toISOString()
+}
+
 export function saveSessionDraft(
   iso: string,
   kind: DayKind,
@@ -502,9 +515,20 @@ export function saveSessionDraft(
         completedAt: s.sessions[key]?.completedAt ?? null,
         // de warming-up hoort bij de sessie en mag niet door een setwijziging vervallen
         warmup: s.sessions[key]?.warmup,
+        startedAt: startedAt(s.sessions[key]),
+        extra: s.sessions[key]?.extra,
       },
     },
   }))
+}
+
+/** Zijn dit dezelfde sets? Gebruikt om te zien of een oefening al meegeteld is. */
+function sameSets(a: LoggedSet[] | undefined, b: LoggedSet[]): boolean {
+  if (!a || a.length !== b.length) return false
+  return a.every((x, i) => {
+    const y = b[i]
+    return x.weight === y.weight && x.reps === y.reps && x.rir === y.rir && x.level === y.level
+  })
 }
 
 /**
@@ -538,9 +562,21 @@ export function completeSession(
     const exerciseState = { ...s.exerciseState }
     let next = s
 
+    /*
+      Een sessie kan een tweede keer afgerond worden: er kwam een extra oefening bij na
+      een te makkelijke sessie. Wat er toen al in stond en niet veranderd is, mag de
+      progressie geen tweede keer sturen — anders levert één sessie twee stappen op.
+    */
+    const eerder = s.sessions[sessionKeyFor(iso, kind)]
+    const alGeteld = (slotKey: string, sets: LoggedSet[]) =>
+      !!eerder?.completedAt &&
+      eerder.exercises?.[slotKey] === slots.find((x) => x.slot.key === slotKey)?.exercise.id &&
+      sameSets(eerder.entries?.[slotKey], sets)
+
     for (const r of slots) {
       const sets = doneOnly[r.slot.key]
       if (sets.length === 0) continue
+      if (alGeteld(r.slot.key, sets)) continue
       const ex = getExercise(r.exercise.id)
       const before = stateFor({ ...s, exerciseState }, ex.id)
       const res = applyProgression(ex, { repMin: r.repMin, repMax: r.repMax }, sets, before, {
@@ -586,6 +622,8 @@ export function completeSession(
           completedSlots,
           completedAt: new Date().toISOString(),
           warmup: s.sessions[key]?.warmup,
+          startedAt: startedAt(s.sessions[key]),
+          extra: s.sessions[key]?.extra,
           feel,
         },
       },
@@ -665,3 +703,97 @@ export function togglePlate(kg: number): void {
 export function setTravelMode(on: boolean): void {
   setState((s) => patchSettings(s, () => ({ travelMode: on })))
 }
+
+/* ---- na een te makkelijke sessie ---- */
+
+/**
+ * Voegt de aangeboden extra oefening toe aan de sessie van deze dag.
+ *
+ * Drie dingen tegelijk, en die horen bij elkaar: het slot komt in de override van
+ * vandaag (dus alleen vandaag), het sessielog onthoudt dát er een extra bij kwam (zodat
+ * de volgende sessie er geen krijgt), en de sessie gaat weer open zodat je die ene
+ * oefening kunt loggen. Bij het opnieuw afronden telt alleen de nieuwe oefening mee —
+ * zie `sameSets` in `completeSession`.
+ */
+export function addExtraExercise(iso: string, kind: DayKind, exerciseId: string): { ok: boolean; reason?: string } {
+  const key = sessionKeyFor(iso, kind)
+  const log = getState().sessions[key]
+  if (!log?.completedAt) return { ok: false, reason: 'Deze sessie is nog niet afgerond.' }
+  if (log.extra) return { ok: false, reason: 'Er is al een extra oefening toegevoegd.' }
+  if (!BY_ID[exerciseId]) return { ok: false, reason: 'Die oefening bestaat niet.' }
+
+  setState((s) => {
+    const slotKey = extraSlotKey(kind)
+    const next = patchOverride(s, iso, { extraSlot: { key: slotKey, exerciseId } })
+    return {
+      ...next,
+      sessions: {
+        ...next.sessions,
+        [key]: { ...next.sessions[key], extra: exerciseId, completedAt: null },
+      },
+    }
+  })
+  return { ok: true }
+}
+
+/** De extra oefening er toch weer af, met sessielog en al. */
+export function removeExtraExercise(iso: string, kind: DayKind): void {
+  const key = sessionKeyFor(iso, kind)
+  setState((s) => {
+    const override = s.overrides[iso]
+    const { extraSlot: _weg, ...rest } = override ?? {}
+    const log = s.sessions[key]
+    return {
+      ...s,
+      overrides: { ...s.overrides, [iso]: rest },
+      sessions: log ? { ...s.sessions, [key]: { ...log, extra: undefined } } : s.sessions,
+    }
+  })
+}
+
+/**
+ * Twee makkelijke sessies op rij: het streefgewicht van het kernwerk gaat omhoog.
+ *
+ * Dit is een voorstel dat de app zelf doorvoert, dus het valt onder dezelfde rem als elke
+ * andere verhoging — nooit meer dan de maximale sprong per oefening per week, en nooit een
+ * gewicht dat niet te laden is. Past het gewicht niet, dan komen er reps bij.
+ *
+ * Geeft de regels terug die het opleverde, zodat het scherm ze kan tonen; die staan ook
+ * in de notities, net als bij een gewone sessie.
+ */
+export function applyEasyBump(iso: string, kind: DayKind, slots: ResolvedSlot[]): string[] {
+  const messages: string[] = []
+  setState((s) => {
+    const exerciseState = { ...s.exerciseState }
+    for (const r of bumpTargets(slots)) {
+      const ex = getExercise(r.exercise.id)
+      const before = stateFor({ ...s, exerciseState }, ex.id)
+      const res = forceIncrease(ex, { repMin: r.repMin, repMax: r.repMax }, before, {
+        allowIncrease: true,
+        pace: programFor(s).pace,
+        iso,
+        settings: s.settings,
+      })
+      exerciseState[ex.id] = res.next
+      if (res.message) messages.push(res.message)
+    }
+    const notices = [...s.notices, ...messages.map((text) => ({ date: iso, text }))].slice(-50)
+    const key = sessionKeyFor(iso, kind)
+    const log = s.sessions[key]
+    return {
+      ...s,
+      exerciseState,
+      notices,
+      // het voorstel is doorgevoerd; dit telt als "deze sessie is afgehandeld"
+      sessions: log ? { ...s.sessions, [key]: { ...log, extra: log.extra ?? BUMP_MARKER } } : s.sessions,
+    }
+  })
+  return messages
+}
+
+/**
+ * Markering dat een sessie zijn nabeschouwing gehad heeft zonder dat er een oefening bij
+ * kwam. Staat in hetzelfde veld, want hij doet hetzelfde werk: de volgende sessie krijgt
+ * geen aanbod meer over deze.
+ */
+export const BUMP_MARKER = 'volume_omhoog'

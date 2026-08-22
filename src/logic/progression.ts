@@ -438,6 +438,65 @@ function bandProgression(
   return { next, message: null }
 }
 
+/**
+ * Het streefgewicht bewust omhoog, buiten de gewone sessie-progressie om.
+ *
+ * Dit is het antwoord op twee makkelijke sessies op rij: er staat structureel te weinig
+ * op de stang. Dezelfde rem geldt als altijd — nooit meer dan de maximale sprong per
+ * oefening per week, en nooit een gewicht dat niet te laden is. Past het gewicht deze
+ * week niet, dan gaan er reps bij; die kant op is er altijd ruimte.
+ *
+ * Zonder streefgewicht (nog geen historie, of bandwerk) verandert er niets: dan valt er
+ * ook niets te verhogen, en gokken hoort hier niet.
+ */
+export function forceIncrease(
+  ex: Exercise,
+  bounds: { repMin: number; repMax: number },
+  prev: ExerciseState,
+  opts: ProgressionOptions,
+): ProgressionResult {
+  if (isBandExercise(ex)) {
+    const level = clampBandLevel(prev.targetLevel ?? MIN_BAND_LEVEL)
+    if (isTopBand(level)) {
+      const reps = Math.min((prev.targetReps ?? bounds.repMin) + 1, bounds.repMax + 2)
+      const msg = `${ex.naam}: al op ${bandLabel(level)} — één rep erbij, naar ${reps}.`
+      return { next: { ...prev, targetReps: reps, lastNote: msg }, message: msg }
+    }
+    const msg = `${ex.naam}: twee makkelijke sessies — door naar ${bandLabel(level + 1)}.`
+    return {
+      next: { ...prev, targetLevel: level + 1, targetReps: bounds.repMin, lastNote: msg },
+      message: msg,
+    }
+  }
+
+  const step = raise(ex, prev.targetWeight, prev, opts)
+  if (step.weight !== null) {
+    const msg = `${ex.naam}: twee makkelijke sessies — streefgewicht omhoog naar ${fmt(step.weight)} kg.`
+    return {
+      next: {
+        ...prev,
+        targetWeight: step.weight,
+        targetReps: bounds.repMin,
+        increaseWeek: mondayOf(opts.iso),
+        increasedKg: step.total,
+        lastNote: msg,
+      },
+      message: msg,
+    }
+  }
+
+  if (prev.targetWeight === null || prev.targetWeight <= 0) {
+    return { next: prev, message: null }
+  }
+
+  // gewicht kan deze week niet: dan het volume, en met de reden erbij
+  const reps = Math.min((prev.targetReps ?? bounds.repMin) + 1, bounds.repMax + 2)
+  const msg = step.blocked
+    ? `${step.blocked} Streefreps naar ${reps}.`
+    : `${ex.naam}: twee makkelijke sessies — één rep erbij, naar ${reps}.`
+  return { next: { ...prev, targetReps: reps, lastNote: msg }, message: msg }
+}
+
 export function fmt(n: number | null): string {
   if (n === null) return '—'
   return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, '').replace(/\.$/, '')

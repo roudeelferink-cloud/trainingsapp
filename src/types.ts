@@ -246,6 +246,18 @@ export interface SessionLog {
   warmup?: Warmup
   /** afsluitende beoordeling; ontbreekt bij oude logs en bij overslaan */
   feel?: Feel
+  /**
+   * Wanneer je aan deze sessie begon. Samen met `completedAt` is dit hoe lang hij echt
+   * duurde — de enige manier om te weten of een sessie binnen de geplande tijd bleef.
+   * Ontbreekt bij logs van vóór dit veld bestond; dan doet de app er geen uitspraak over.
+   */
+  startedAt?: string
+  /**
+   * De oefening die er na afloop bij is gekomen omdat de sessie te makkelijk viel.
+   * Staat er hooguit één; zolang dit veld gevuld is krijgt de volgende sessie geen
+   * aanbod, zodat er niet elke keer iets bij komt.
+   */
+  extra?: string
 }
 
 export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek'
@@ -360,6 +372,12 @@ export interface DayOverride {
   bike?: boolean
   /** loopafstand handmatig of automatisch geschaald */
   runScale?: number
+  /**
+   * De oefening die na afloop aan deze sessie is toegevoegd. Staat in de override en
+   * niet in het sjabloon: het is een keuze voor deze ene dag, en morgen begint de sessie
+   * weer zoals hij bedoeld is.
+   */
+  extraSlot?: { key: string; exerciseId: string }
 }
 
 /**

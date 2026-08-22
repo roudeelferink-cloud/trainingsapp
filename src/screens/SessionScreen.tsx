@@ -25,6 +25,7 @@ import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
 import { FEELS } from '../logic/feel'
 import { CALIBRATION_TEXT, fmt, targetFor, type Target } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
+import { afterEasySession } from '../logic/extra'
 import {
   checkSet,
   editIndex,
@@ -1039,6 +1040,16 @@ function SessieBladen(props: {
                 ))}
               </ul>
             )}
+            <NaAfloop
+              date={date}
+              kind={kind}
+              slots={slots}
+              plannedMinutes={strength.estimatedMin}
+              onExtra={(slotKey) => {
+                setDoneOpen(false)
+                onPick(slotKey)
+              }}
+            />
             <button className="btn-primary w-full" onClick={onClose}>
               Klaar
             </button>
@@ -1047,6 +1058,84 @@ function SessieBladen(props: {
       </Sheet>
     </>
   )
+}
+
+/**
+ * Wat er na een te makkelijke sessie te doen valt: één oefening erbij, of — als het twee
+ * keer op rij gebeurde — het streefgewicht omhoog. Er staat hier nooit iets als de sessie
+ * gewoon goed viel; dan valt het blok volledig weg.
+ *
+ * Het is bewust een aanbod met een knop en geen automatische ingreep: er komt werk bij, en
+ * dat hoort een keuze te zijn.
+ */
+function NaAfloop({
+  date,
+  kind,
+  slots,
+  plannedMinutes,
+  onExtra,
+}: {
+  date: string
+  kind: DayKind
+  slots: ResolvedSlot[]
+  plannedMinutes: number
+  onExtra: (slotKey: string) => void
+}) {
+  const state = useStore()
+  const [bump, setBump] = useState<string[] | null>(null)
+  const uitkomst = afterEasySession(state, date, kind, slots, plannedMinutes)
+
+  if (bump !== null) {
+    return (
+      <div className="flex flex-col gap-in-block border-t-hair border-rule pt-block">
+        <Caps tone="accent">Doorgevoerd</Caps>
+        {bump.length === 0 ? (
+          <p className="quote">Er was deze week geen ruimte meer om te verhogen.</p>
+        ) : (
+          bump.map((m, i) => (
+            <p key={i} className="quote">
+              {m}
+            </p>
+          ))
+        )}
+      </div>
+    )
+  }
+
+  if (uitkomst.kind === 'extra') {
+    return (
+      <div className="flex flex-col gap-in-block border-t-hair border-rule pt-block">
+        <Caps tone="accent">Te makkelijk</Caps>
+        <p className="quote">{uitkomst.text}</p>
+        <button
+          className="btn-ghost w-full"
+          onClick={() => {
+            const res = A.addExtraExercise(date, kind, uitkomst.exercise.id)
+            if (res.ok) onExtra(uitkomst.slotKey)
+          }}
+        >
+          Doe {uitkomst.exercise.naam} erbij
+        </button>
+      </div>
+    )
+  }
+
+  if (uitkomst.kind === 'bump') {
+    return (
+      <div className="flex flex-col gap-in-block border-t-hair border-rule pt-block">
+        <Caps tone="accent">Twee keer te makkelijk</Caps>
+        <p className="quote">{uitkomst.text}</p>
+        <button
+          className="btn-ghost w-full"
+          onClick={() => setBump(A.applyEasyBump(date, kind, slots))}
+        >
+          Voer het voorstel door
+        </button>
+      </div>
+    )
+  }
+
+  return null
 }
 
 /**

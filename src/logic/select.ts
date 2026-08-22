@@ -8,6 +8,8 @@ export type ReplaceReason =
   | 'gevoelig'
   | 'vandaag'
   | 'doorgegroeid'
+  /** er na afloop bij gekomen omdat de sessie te makkelijk viel */
+  | 'extra'
 
 export interface ResolvedSlot {
   slot: SessionSlot

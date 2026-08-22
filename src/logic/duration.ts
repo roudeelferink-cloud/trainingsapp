@@ -1,3 +1,4 @@
+import type { SessionLog } from '../types'
 import type { ResolvedSlot } from './select'
 
 /**
@@ -106,4 +107,17 @@ export function dropCandidate(slots: ResolvedSlot[]): ResolvedSlot | null {
     }
   }
   return best
+}
+
+/**
+ * Hoe lang de sessie echt geduurd heeft, in minuten. Null zolang er geen starttijd bekend
+ * is — dat is zo bij elk log van vóór `startedAt` bestond, en dan doet de app er liever
+ * geen uitspraak over dan een geschat getal te behandelen als een meting.
+ */
+export function actualSessionMinutes(log: SessionLog | null | undefined): number | null {
+  if (!log?.startedAt || !log.completedAt) return null
+  const start = Date.parse(log.startedAt)
+  const eind = Date.parse(log.completedAt)
+  if (!Number.isFinite(start) || !Number.isFinite(eind) || eind <= start) return null
+  return Math.round((eind - start) / 60000)
 }
