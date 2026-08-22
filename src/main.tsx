@@ -4,8 +4,12 @@ import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './index.css'
+import { applyTheme, readTheme } from './theme'
 
 registerSW({ immediate: true })
+
+// Voor de eerste render, anders zie je één frame van het verkeerde thema.
+applyTheme(readTheme())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

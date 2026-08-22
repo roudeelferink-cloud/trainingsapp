@@ -1,0 +1,211 @@
+/*
+ * Logboek — het enige bestand met echte ontwerpwaarden.
+ *
+ * Alles wat een kleur, een maat, een lettergrootte of een afstand is, staat hier
+ * als custom property. tailwind.config.js hangt er alleen namen aan; componenten
+ * lezen die namen. Staat er in een component een px-waarde of een hex, dan hoort
+ * die hier thuis en niet daar.
+ *
+ * Donker is de standaard: de waarden op :root zijn het donkere thema, zodat de app
+ * ook zonder thema-attribuut goed staat. Licht komt langs twee wegen binnen —
+ * `prefers-color-scheme` (volg systeem) en `data-theme="light"` (handmatig gekozen).
+ * De handmatige keuze moet het van het systeem winnen, dus die staat als laatste.
+ */
+
+:root {
+  /* --- kleuren, donker --- */
+  --bg: #131110;
+  --ink: #f7f2e8;
+  --ink-status: #f2ece1;
+  --ink-quote: #ded6c8;
+  --muted: #b9b0a2;
+  --dim: #8c857a;
+  --faint: #6f6a61;
+  --accent: #d9a441;
+  --accent-wash: rgba(217, 164, 65, 0.06);
+  --rule: rgba(242, 236, 225, 0.14);
+  --rule-faint: rgba(242, 236, 225, 0.12);
+  --rule-strong: rgba(242, 236, 225, 0.2);
+  --field-border: rgba(242, 236, 225, 0.14);
+  --field-bg: rgba(242, 236, 225, 0.04);
+  --chip-border: rgba(242, 236, 225, 0.16);
+  --checkbox-border: rgba(242, 236, 225, 0.3);
+  --checkbox-border-idle: rgba(242, 236, 225, 0.18);
+
+  /*
+   * De primaire knop is in donker oker met donkere tekst; in licht wordt hij zwart
+   * met papierkleurige tekst, want oker houdt op papier te weinig contrast. Daarom
+   * een eigen paar tokens in plaats van "gewoon accent".
+   */
+  --on-accent: #131110;
+  --primary-bg: var(--accent);
+  --primary-ink: #131110;
+
+  /* --- typografie --- */
+  --font-serif: Newsreader, ui-serif, Georgia, 'Times New Roman', serif;
+  --font-sans: Archivo, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --text-display: 62px; /* het grote cijfer op Vandaag */
+  --text-exercise: 38px; /* oefeningnaam op Sessie */
+  --text-input: 34px; /* waarde in een stepper */
+  --text-screen-title: 32px; /* "Week 3" */
+  --text-timer: 26px;
+  --text-stepper: 26px; /* de glyphs − en + */
+  --text-stat: 25px; /* meetwaarde in een kerncijferkolom */
+  --text-week-stat: 24px;
+  --text-set-value: 22px;
+  --text-lead: 21px; /* cursieve subtitel, en de sessietitel van de vandaag-rij */
+  --text-day-number: 19px;
+  --text-quote: 17px;
+  --text-button: 17px;
+  --text-note: 16px; /* cursieve regel onder de oefeningnaam */
+  --text-list: 15px;
+  --text-body: 14px;
+  --text-label: 13px; /* rijlabel, secundaire knop */
+  --text-meta: 12px;
+  --text-caps: 10px;
+  --text-caps-lg: 11px;
+
+  --tracking-caps: 0.16em;
+  --tracking-caps-wide: 0.18em;
+  --tracking-caps-tight: 0.12em;
+  --tracking-caps-day: 0.14em;
+  --tracking-display: -0.02em;
+
+  --leading-quote: 1.45;
+  --leading-exercise: 1.05;
+  --leading-secondary: 1.25; /* de tweeregelige secundaire knop */
+  --leading-meta: 1.4;
+
+  /* --- spacing en maten --- */
+  --gutter: 24px; /* schermgutter links/rechts, overal gelijk */
+  --content-max: 430px; /* niet uitrekken naar tablet */
+
+  --rule-width: 1px;
+  --bar-height: 2px; /* plafondbalk en aftellijn */
+  --progress-height: 3px; /* de segmenten bovenaan Sessie */
+  --accent-inset: 2px; /* okerlijn boven de actieve nav-tab */
+
+  --stepper-height: 64px; /* harde minimummaat: zweethanden */
+  --stepper-button: 64px;
+  --stepper-gap: 8px;
+  --primary-pad-y: 19px; /* geeft een knop van ongeveer 60px */
+  --secondary-width: 74px;
+  --arrow-width: 64px; /* de weekpijlen */
+  --checkbox-size: 22px;
+  --day-column: 42px;
+  --set-label: 52px;
+  --pace-column: 52px;
+  --checkin-label: 56px;
+  --tap-min: 44px;
+
+  --gap-block: 14px; /* verticaal ritme tussen blokken */
+  --gap-in-block: 8px; /* binnen een blok */
+  --row-pad-y: 12px; /* lijstrij */
+  --today-row-pad-y: 14px;
+  --today-row-bleed: 8px; /* de wash loopt tot in de gutter */
+
+  --nav-pad-top: 11px;
+  --nav-pad-bottom: 22px; /* home indicator */
+
+  --duration-color: 120ms; /* kleurovergangen */
+  --duration-check: 180ms; /* het invullen van een vinkje */
+}
+
+/* Volg systeem: alleen als er geen handmatige keuze op de root staat. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
+    --bg: #f3eee4;
+    --ink: #1c1913;
+    --ink-status: #221e18;
+    --ink-quote: #332e25;
+    --muted: #6a6355;
+    --dim: #7a7266;
+    --faint: #948c7e;
+    --accent: #a8702a;
+    --accent-wash: rgba(168, 112, 42, 0.1);
+    --rule: rgba(34, 30, 24, 0.16);
+    --rule-faint: rgba(34, 30, 24, 0.14);
+    --rule-strong: rgba(34, 30, 24, 0.25);
+    --field-border: rgba(34, 30, 24, 0.16);
+    --field-bg: rgba(34, 30, 24, 0.05);
+    --chip-border: rgba(34, 30, 24, 0.18);
+    --checkbox-border: rgba(34, 30, 24, 0.35);
+    --checkbox-border-idle: rgba(34, 30, 24, 0.2);
+
+    --on-accent: #f7f3ea;
+    --primary-bg: #1c1913;
+    --primary-ink: #f6f1e6;
+  }
+}
+
+/* Handmatig licht — wint van het systeem. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f3eee4;
+  --ink: #1c1913;
+  --ink-status: #221e18;
+  --ink-quote: #332e25;
+  --muted: #6a6355;
+  --dim: #7a7266;
+  --faint: #948c7e;
+  --accent: #a8702a;
+  --accent-wash: rgba(168, 112, 42, 0.1);
+  --rule: rgba(34, 30, 24, 0.16);
+  --rule-faint: rgba(34, 30, 24, 0.14);
+  --rule-strong: rgba(34, 30, 24, 0.25);
+  --field-border: rgba(34, 30, 24, 0.16);
+  --field-bg: rgba(34, 30, 24, 0.05);
+  --chip-border: rgba(34, 30, 24, 0.18);
+  --checkbox-border: rgba(34, 30, 24, 0.35);
+  --checkbox-border-idle: rgba(34, 30, 24, 0.2);
+
+  --on-accent: #f7f3ea;
+  --primary-bg: #1c1913;
+  --primary-ink: #f6f1e6;
+}
+
+/*
+ * Kleiner scherm (iPhone SE, 375pt): de gutter krimpt en het grote cijfer wordt
+ * kleiner. De steppers blijven 64px — die maat is de reden dat de app in de
+ * sportschool werkt.
+ */
+@media (max-width: 380px) {
+  :root {
+    --gutter: 20px;
+    --text-display: 56px;
+  }
+}
+
+/*
+ * De fonts staan in src/fonts en worden door Vite gebundeld, zodat ze ook onder
+ * een subpad (GitHub Pages) blijven kloppen; de service worker neemt ze mee:
+ * de app moet het doen in een kelder zonder bereik. Beide zijn variabel, dus één
+ * bestand per stijl dekt alle gewichten die het ontwerp gebruikt.
+ */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./fonts/archivo-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('./fonts/newsreader-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('./fonts/newsreader-italic-latin.woff2') format('woff2');
+}

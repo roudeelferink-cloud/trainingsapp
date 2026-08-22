@@ -1,20 +1,20 @@
+@import './theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    color-scheme: dark;
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-ink-900 text-slate-100 antialiased;
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    @apply bg-bg text-ink font-sans antialiased;
     overscroll-behavior-y: none;
   }
   /* zichtbare focus voor toetsenbord en schakelbediening; tikken toont hem niet */
   :focus-visible {
-    outline: 2px solid theme('colors.accent.DEFAULT');
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
   input[type='number']::-webkit-outer-spin-button,
@@ -27,53 +27,80 @@
   }
 }
 
+/*
+ * De gedeelde vormen van het ontwerp. Geen border-radius en geen shadow: scherpe
+ * hoeken en haarlijnen zijn de richting, niet een detail dat per scherm mag
+ * afwijken.
+ */
 @layer components {
   .card {
-    @apply rounded-2xl bg-ink-800 border border-ink-600/60 p-4;
+    @apply border-rule border-rule bg-transparent p-4;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 min-h-[52px] text-tap font-semibold
-           active:scale-[0.98] transition select-none;
+    @apply inline-flex select-none items-center justify-center gap-2 px-4 text-button
+           min-h-tap transition-colors duration-color;
   }
   .btn-primary {
-    @apply btn bg-accent text-ink-900;
+    @apply btn bg-primary-bg text-primary-ink font-bold;
+    padding-top: var(--primary-pad-y);
+    padding-bottom: var(--primary-pad-y);
   }
   .btn-ghost {
-    @apply btn bg-ink-700 text-slate-100 border border-ink-600;
+    @apply btn border-rule border-rule-strong text-muted text-label;
   }
   .btn-quiet {
-    @apply btn bg-transparent text-slate-300 border border-ink-600;
+    @apply btn border-rule border-rule-strong bg-transparent text-muted text-label;
   }
   .btn-sm {
-    @apply min-h-[44px] px-3 text-sm rounded-lg;
+    @apply min-h-tap px-3 text-label;
   }
   .field {
-    @apply w-full rounded-xl bg-ink-900 border border-ink-600 px-3 py-3 text-lg text-slate-100
-           focus:outline-none focus:border-accent;
+    @apply w-full border-rule border-field-border bg-field-bg px-3 py-3 text-list text-ink
+           focus:border-accent focus:outline-none;
   }
   .chip {
-    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex items-center px-2.5 py-1 text-meta;
   }
   .label {
-    @apply text-xs uppercase tracking-wide text-slate-400 font-semibold;
+    @apply text-caps uppercase tracking-caps-wide text-dim;
+  }
+
+  /* Haarlijn — de belangrijkste scheiding in het hele ontwerp. */
+  .hairline-top {
+    @apply border-t-rule border-t-rule;
+  }
+  .hairline-bottom {
+    @apply border-b-rule border-b-rule;
+  }
+  /* Kapitaal-label, de enige plek waar de sans in hoofdletters staat. */
+  .caps {
+    @apply text-caps uppercase tracking-caps-wide text-dim;
+  }
+  .caps-lg {
+    @apply text-caps-lg uppercase tracking-caps text-dim;
+  }
+  /* Serif voor koppen en alles wat een meetwaarde is. */
+  .serif {
+    @apply font-serif;
+  }
+  .quote {
+    @apply font-serif italic text-quote leading-quote text-ink-quote;
   }
 }
 
 @keyframes pop-check {
   0% {
-    transform: scale(0.3);
     opacity: 0;
-  }
-  60% {
-    transform: scale(1.15);
-    opacity: 1;
+    transform: scale(0.6);
   }
   100% {
+    opacity: 1;
     transform: scale(1);
   }
 }
+/* 180ms voor het invullen van een vinkje — beweging is functioneel, verder niets. */
 .pop-check {
-  animation: pop-check 0.45s ease-out;
+  animation: pop-check var(--duration-check) ease-out;
 }
 
 .safe-bottom {
@@ -81,4 +108,13 @@
 }
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop-check {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
