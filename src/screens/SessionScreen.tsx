@@ -25,7 +25,17 @@ import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
 import { FEELS } from '../logic/feel'
 import { CALIBRATION_TEXT, fmt, targetFor, type Target } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
-import { checkSet, seedSets, uncheckSet } from '../logic/sessionFlow'
+import {
+  checkSet,
+  editIndex,
+  isLastSlot,
+  seedSets,
+  sessionSteps,
+  stepAfter,
+  stepBefore,
+  stepMark,
+  uncheckSet,
+} from '../logic/sessionFlow'
 import { programFor } from '../data/programs'
 import { ADVICE_HINT, startWeightAdvice } from '../logic/startWeight'
 import * as A from '../store/actions'
@@ -78,6 +88,12 @@ export function SessionScreen({
   const [completed, setCompleted] = useState<string[]>(() => strength?.log?.completedSlots ?? [])
   const [rest, setRest] = useState<{ endsAt: number; total: number; label: string } | null>(null)
   const [justChecked, setJustChecked] = useState<number | null>(null)
+  /*
+    De set die je zelf hebt aangetikt om bij te stellen. Blijft alleen staan zolang je op
+    dezelfde oefening bent: bij het wisselen van oefening is er weer geen keuze gemaakt en
+    pakt de invoer vanzelf de set waar je aan toe bent.
+  */
+  const [gekozenSet, setGekozenSet] = useState<{ key: string; index: number } | null>(null)
 
   const signature = `${date}|${kind}|${slots.map((s) => `${s.slot.key}:${s.exercise.id}:${s.sets}`).join(',')}`
 
@@ -109,6 +125,13 @@ export function SessionScreen({
     }
     setSeenSignature(signature)
     setEntries(fresh)
+  }
+
+  /** Naar een andere stap. De setkeuze hoort bij de oefening die je verlaat. */
+  function gaNaar(key: string) {
+    setGekozenSet(null)
+    setRest(null)
+    setStep(key)
   }
 
   // is de open oefening weggevallen (gewisseld, korte versie), pak dan de eerste
@@ -198,12 +221,15 @@ export function SessionScreen({
     return next
   }
 
-  /** Naar de eerstvolgende oefening die nog niet afgerond is, of naar het afrondblad. */
-  function volgende(vanaf: number, af: string[]) {
-    const rest = slots.slice(vanaf + 1).find((r) => !af.includes(r.slot.key))
-    const eerder = slots.find((r) => !af.includes(r.slot.key))
-    const doel = rest ?? eerder
-    if (doel) setStep(doel.slot.key)
+  /**
+   * Naar de volgende oefening in de sessie, of — op de laatste — naar het afrondblad.
+   *
+   * Bewust de volgende in de lijst en niet de volgende openstaande: na een terugsprong
+   * naar oefening 1 wil je bij 2 uitkomen, niet bij het einde van de sessie.
+   */
+  function volgende(vanaf: number) {
+    const doel = slots[vanaf + 1]
+    if (doel) gaNaar(doel.slot.key)
     else setDoneOpen(true)
   }
 
@@ -213,10 +239,17 @@ export function SessionScreen({
   const totalSets = slots.reduce((n, x) => n + (entries[x.slot.key]?.length ?? x.sets), 0)
   const doneSets = slots.reduce((n, x) => n + (entries[x.slot.key] ?? []).filter((s) => s.done).length, 0)
 
-  /** De voortgangssegmenten: de warming-up telt als eerste stap. */
+  /**
+   * De voortgangssegmenten: de warming-up telt als eerste stap. Elk segment is een knop —
+   * vanaf de balk spring je direct naar een oefening, ook naar eentje die je al gedaan hebt.
+   */
+  const afgerondeStappen = [
+    ...(strength.warmup.done ? [WARMUP_STEP] : []),
+    ...slots.filter((r) => completed.includes(r.slot.key)).map((r) => r.slot.key),
+  ]
   const stappen = [
-    { key: WARMUP_STEP, klaar: strength.warmup.done },
-    ...slots.map((r) => ({ key: r.slot.key, klaar: completed.includes(r.slot.key) })),
+    { key: WARMUP_STEP, naam: 'Warming-up' },
+    ...slots.map((r, i) => ({ key: r.slot.key, naam: `Oefening ${i + 1}: ${r.exercise.naam}` })),
   ]
 
   const kop = (
@@ -233,15 +266,22 @@ export function SessionScreen({
           </button>
         }
       />
-      <div className="mt-in-block flex gap-progress" aria-hidden>
-        {stappen.map((s) => (
-          <div
-            key={s.key}
-            className={`h-progress flex-1 transition-colors duration-color ${
-              s.klaar ? 'bg-accent' : s.key === step ? 'bg-muted' : 'bg-chip-border'
-            }`}
-          />
-        ))}
+      <div className="mt-in-block flex gap-progress">
+        {stappen.map((s) => {
+          const mark = stepMark(s.key, step, afgerondeStappen)
+          return (
+            <button
+              key={s.key}
+              type="button"
+              aria-label={`Naar ${s.naam}`}
+              aria-current={mark === 'current' ? 'step' : undefined}
+              onClick={() => gaNaar(s.key)}
+              className={`h-progress flex-1 transition-colors duration-color ${
+                mark === 'current' ? 'bg-ink' : mark === 'done' ? 'bg-accent' : 'bg-chip-border'
+              }`}
+            />
+          )
+        })}
       </div>
     </>
   )
@@ -257,7 +297,7 @@ export function SessionScreen({
           kop={kop}
           orderHelp={orderHelp}
           onOrderHelp={() => setOrderHelp((x) => !x)}
-          onDone={() => setStep(eersteKey)}
+          onDone={() => gaNaar(eersteKey)}
         />
         <SessieBladen
           date={date}
@@ -274,7 +314,7 @@ export function SessionScreen({
           setDoneOpen={setDoneOpen}
           messages={messages}
           setMessages={setMessages}
-          onPick={setStep}
+          onPick={gaNaar}
           effectiveEntries={effectiveEntries}
           onClose={onClose}
           helpFor={helpFor}
@@ -300,18 +340,26 @@ export function SessionScreen({
   const rustSeconden = resolved.slot.role === 'core' ? REST_CORE : REST_ACCESSORY
   const huidige = actieveSet === -1 ? null : sets[actieveSet]
   /*
-    Welke set de steppers bewerken. Zijn alle sets af, dan is dat de laatste — die heb
-    je net gedaan, dus daar wil je nog aan kunnen bijstellen. Anders zou de invoer
-    stilletjes terugspringen naar set 1.
+    Welke set de steppers bewerken: de set die je zelf aantikte, anders de eerste die nog
+    open staat, anders de laatste. Zie `editIndex` — daar staat waarom die volgorde.
   */
-  const bewerkIndex = actieveSet === -1 ? Math.max(sets.length - 1, 0) : actieveSet
-  const laatsteOefening = slots.slice(index + 1).every((r) => completed.includes(r.slot.key))
+  const bewerkIndex = editIndex(
+    sets,
+    resolved && gekozenSet?.key === resolved.slot.key ? gekozenSet.index : null,
+  )
+  const laatsteOefening = isLastSlot(
+    slots.map((r) => r.slot.key),
+    resolved.slot.key,
+  )
+  const stapKeys = sessionSteps(WARMUP_STEP, slots.map((r) => r.slot.key))
+  const vorigeStap = stepBefore(stapKeys, step)
+  const volgendeStap = stepAfter(stapKeys, step)
 
   const primair = () => {
     if (actieveSet === -1) {
-      const af = markeerAf(resolved.slot.key, true)
+      markeerAf(resolved.slot.key, true)
       setRest(null)
-      return volgende(index, af)
+      return volgende(index)
     }
     setSetDone(resolved.slot.key, actieveSet, true)
     setJustChecked(actieveSet)
@@ -347,8 +395,8 @@ export function SessionScreen({
                     // overgeslagen sets blijven niet-afgevinkt en tellen dus niet mee
                     const rest = sets.findIndex((s, i) => i > actieveSet && !s.done)
                     if (rest === -1) {
-                      const af = markeerAf(resolved.slot.key, true)
-                      volgende(index, af)
+                      markeerAf(resolved.slot.key, true)
+                      volgende(index)
                     } else {
                       updateSet(resolved.slot.key, actieveSet, { reps: 0 })
                       setSetDone(resolved.slot.key, actieveSet, true)
@@ -388,6 +436,19 @@ export function SessionScreen({
           kalibratie={plan.cycle.calibration}
         />
 
+        {/*
+          Vooruit en achteruit binnen de sessie. Terugbladeren zet niets terug: een
+          afgeronde oefening blijft afgerond, je kunt er alleen weer bij.
+        */}
+        <div className="mt-in-block flex items-baseline justify-between gap-column">
+          <Link onClick={() => vorigeStap && gaNaar(vorigeStap)} disabled={!vorigeStap}>
+            ← Vorige
+          </Link>
+          <Link onClick={() => volgendeStap && gaNaar(volgendeStap)} disabled={!volgendeStap}>
+            Volgende →
+          </Link>
+        </div>
+
         <div className="mt-in-block flex gap-meta">
           <Link onClick={() => setHelpFor(resolved.exercise)}>Uitleg</Link>
           <Link onClick={() => setOptionsFor(resolved)}>Aanpassen</Link>
@@ -401,10 +462,12 @@ export function SessionScreen({
               nummer={i + 1}
               set={s}
               actief={i === actieveSet}
+              bewerkt={i === bewerkIndex}
               net={justChecked === i}
               laatste={i === sets.length - 1}
               waarde={setWaarde(resolved, s, !s.done && i !== actieveSet)}
               onToggle={() => setSetDone(resolved.slot.key, i, !s.done)}
+              onKies={() => setGekozenSet({ key: resolved.slot.key, index: i })}
             />
           ))}
         </div>
@@ -504,7 +567,7 @@ export function SessionScreen({
         setDoneOpen={setDoneOpen}
         messages={messages}
         setMessages={setMessages}
-        onPick={setStep}
+        onPick={gaNaar}
         effectiveEntries={effectiveEntries}
         onClose={onClose}
         helpFor={helpFor}
@@ -652,19 +715,25 @@ function SetRij({
   nummer,
   set,
   actief,
+  bewerkt,
   net,
   laatste,
   waarde,
   onToggle,
+  onKies,
 }: {
   nummer: number
   set: LoggedSet
   actief: boolean
+  /** de invoer onderin hoort bij deze set */
+  bewerkt: boolean
   /** net afgevinkt: het vinkje loopt één keer vol */
   net: boolean
   laatste: boolean
   waarde: string
   onToggle: () => void
+  /** deze set bijstellen; laat het afvinken met rust */
+  onKies: () => void
 }) {
   const label = set.done ? 'text-dim' : actief ? 'font-semibold text-ink' : 'text-faint'
   const value = set.done ? 'text-muted' : actief ? 'text-ink' : 'text-faint'
@@ -690,9 +759,26 @@ function SetRij({
       >
         ✓
       </button>
-      <div className={`w-set-label flex-none text-label ${label}`}>Set {nummer}</div>
-      <div className={`flex-1 font-serif text-set-value ${value}`}>{waarde}</div>
-      {set.done ? (
+      {/*
+        De rij zelf is een knop: aantikken zet de invoer onderin op déze set. Zo corrigeer
+        je een set van een al afgeronde oefening zonder de oefening terug te zetten — het
+        vinkje links blijft daarvoor apart.
+      */}
+      <button
+        type="button"
+        aria-label={`Set ${nummer} bijstellen`}
+        aria-pressed={bewerkt}
+        onClick={onKies}
+        className="flex min-w-0 flex-1 items-center gap-column text-left"
+      >
+        <div className={`w-set-label flex-none text-label ${label}`}>Set {nummer}</div>
+        <div className={`flex-1 font-serif text-set-value ${value}`}>{waarde}</div>
+      </button>
+      {bewerkt && !actief ? (
+        <Caps tone="accent" size="lg" className="shrink-0">
+          Bijstellen
+        </Caps>
+      ) : set.done ? (
         <div className="shrink-0 text-meta text-faint">RIR {set.rir}</div>
       ) : actief ? (
         <Caps tone="accent" size="lg" className="shrink-0">
