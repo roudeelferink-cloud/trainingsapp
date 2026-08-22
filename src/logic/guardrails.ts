@@ -4,7 +4,7 @@ import type { UserState } from '../types'
 import { addDays, daysBetween, formatShort, mondayOf, weekday } from './dates'
 import { deloadFor } from './deload'
 import { LEG_LOAD_HIGH, legLoadOn, mainCulprits, type LegLoad } from './legLoad'
-import { weekLoad } from './runningLoad'
+import { fmt as fmtKm, weekLoad, weekProjection } from './runningLoad'
 import { scheduledRun } from './schedule'
 
 /**
@@ -280,9 +280,24 @@ export function dayGuardrails(state: UserState, iso: string): Guardrail[] {
   const load = weekLoad(state, iso)
   for (const [i, text] of load.reasons.entries()) {
     if (text.startsWith('Deloadweek')) continue // staat al bij de deload zelf
-    out.push({ id: `loopvolume-${i}`, text, tone: 'info' })
+    // Bewust zonder `dismissKey`: de weekstap en de rem op doorstijgen zijn geen
+    // structurele meldingen die na drie keer lezen wel bekend zijn, maar de reden
+    // waarom er vandaag staat wat er staat. Die hoort niet weg te klikken te zijn.
+    out.push({ id: `loopvolume-${i}`, text, tone: load.growth.blocking ? 'warn' : 'info' })
   }
   if (load.overCapReason) out.push({ id: 'loopvolume-over', text: load.overCapReason, tone: 'warn' })
+
+  // wat er nog op de rol staat kan de week boven de richtlijn tillen — bijvoorbeeld
+  // doordat de duurloop zijn eigen lijn volgt of er een loop bij is gekomen. De app
+  // blokkeert dat niet, ze zegt het.
+  const vooruit = weekProjection(state, iso)
+  if (vooruit.over && !load.overCap) {
+    out.push({
+      id: 'loopvolume-vooruit',
+      text: `Wat er deze week staat komt samen op ${fmtKm(vooruit.planned)} km, boven de richtlijn van ${fmtKm(vooruit.cap)} km.`,
+      tone: 'info',
+    })
+  }
 
   const legs = legRunConflict(state, iso)
   if (legs && (iso === legs.legsDate || iso === legs.runDate)) {

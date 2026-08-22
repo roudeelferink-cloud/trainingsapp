@@ -400,3 +400,98 @@ describe('v11 -> v12: meldingen wegklikken', () => {
     expect(root.users[ROB].dismissedWarnings).toEqual({})
   })
 })
+
+describe('v13 -> v14: de werkelijk gelopen afstand is de maat', () => {
+  const v13 = {
+    schemaVersion: 13,
+    currentUser: 'rob',
+    pin: '1234',
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        settings: { bodyweightKg: 84, barWeights: { smith: 7 } },
+        checkins: { [MON]: 4 },
+        runs: {
+          // netjes gelogd: blijft precies zoals het was
+          '2026-08-04': {
+            date: '2026-08-04', kind: 'short', plannedKm: 6, km: 7.5,
+            minutes: 45, bike: false, completedAt: '2026-08-04T18:00:00.000Z',
+          },
+          // afgerond, maar zonder afstand: valt terug op wat er gepland stond
+          '2026-08-06': {
+            date: '2026-08-06', kind: 'short', plannedKm: 6,
+            minutes: 36, bike: false, completedAt: '2026-08-06T18:00:00.000Z',
+          },
+          // niet afgerond: geen kilometers, dus 0 en geen verzonnen getal
+          '2026-08-09': {
+            date: '2026-08-09', kind: 'long', plannedKm: 10,
+            minutes: null, bike: false, completedAt: null,
+          },
+          // gefietst: telt niet als gelopen kilometers
+          '2026-08-11': {
+            date: '2026-08-11', kind: 'short', plannedKm: 6, bike: true,
+            minutes: 30, completedAt: '2026-08-11T18:00:00.000Z',
+          },
+          // onbruikbaar getal uit een oude of half opgeslagen log
+          '2026-08-13': {
+            date: '2026-08-13', kind: 'short', plannedKm: null, km: 'veel',
+            minutes: null, bike: false, completedAt: '2026-08-13T18:00:00.000Z',
+          },
+        },
+        sessions: {},
+        activities: [],
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen' },
+    },
+  }
+
+  it('geeft elke looplog een expliciete afstand', () => {
+    const out = runMigrations(structuredClone(v13), 13, 14) as Record<string, any>
+    const runs = out.users.rob.runs
+
+    expect(out.schemaVersion).toBe(14)
+    expect(runs['2026-08-04'].km).toBe(7.5) // ongemoeid
+    expect(runs['2026-08-06'].km).toBe(6) // afgerond zonder afstand: het plan
+    expect(runs['2026-08-09'].km).toBe(0) // niet gelopen
+    expect(runs['2026-08-11'].km).toBe(0) // gefietst
+    expect(runs['2026-08-13'].km).toBe(0) // onleesbaar
+    for (const log of Object.values(runs) as Record<string, unknown>[]) {
+      expect(typeof log.km, String(log.date)).toBe('number')
+      expect(typeof log.plannedKm, String(log.date)).toBe('number')
+    }
+  })
+
+  it('laat gepland en werkelijk uit elkaar staan', () => {
+    const out = runMigrations(structuredClone(v13), 13, 14) as Record<string, any>
+    const log = out.users.rob.runs['2026-08-04']
+    expect(log.plannedKm).toBe(6)
+    expect(log.km).toBe(7.5)
+  })
+
+  it('raakt de rest van de gebruiker niet aan', () => {
+    const out = runMigrations(structuredClone(v13), 13, 14) as Record<string, any>
+    expect(out.users.rob.checkins).toEqual({ [MON]: 4 })
+    expect(out.users.rob.settings.bodyweightKg).toBe(84)
+    expect(out.users.anouc).toEqual(v13.users.anouc)
+    expect(out.pin).toBe('1234')
+  })
+
+  it('komt via de volledige migratie op de huidige versie uit', () => {
+    const root = migrate(structuredClone(v13))
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(SCHEMA_VERSION).toBe(14)
+    expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
+    expect(root.users[ROB].runs['2026-08-06'].km).toBe(6)
+  })
+
+  it('tilt ook data van vóór de gebruikers in één keer door naar 14', () => {
+    const root = migrate(structuredClone(v5))
+    expect(root.schemaVersion).toBe(14)
+    // de looplog uit v5 had al een afstand; die blijft staan
+    expect(root.users[ROB].runs[MON].km).toBe(6.5)
+    expect(root.users[ROB].runs[MON].plannedKm).toBe(6)
+  })
+})

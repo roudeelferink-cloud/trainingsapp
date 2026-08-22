@@ -7,7 +7,7 @@ import { deloadFor, type DeloadPlan } from './deload'
 import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
 import { dayGuardrails, legStackAround, rawLegRunConflict, type Guardrail } from './guardrails'
 import { scaledRunKm } from './running'
-import { plannedRunKm, weekProjection } from './runningLoad'
+import { plannedRunKm, runContext, weekProjection } from './runningLoad'
 import { scheduledRun, scheduledStrength } from './schedule'
 import { type ResolvedSlot } from './select'
 import { resolveSession } from './sessionSlots'
@@ -33,6 +33,12 @@ export interface RunBlock {
   movedFrom: string | null
   /** per bijsturing één regel waarom de afstand is wat hij is */
   why: string[]
+  /**
+   * Eén feitelijke regel bij de afstand van vandaag: hoe hij zich verhoudt tot je
+   * gemiddelde loop van deze soort en tot je langste loop. Leeg bij fietsen en bij een
+   * programma dat geen afstand voorschrijft.
+   */
+  context: string
 }
 
 export interface StrengthBlock {
@@ -123,17 +129,22 @@ export function buildDay(state: UserState, iso: string): DayPlan {
     // een vrij programma schrijft niets voor, tenzij je zelf een afstand zet
     const free = program.runMode === 'free' && !(typeof manual === 'number' && manual > 0)
     const planned = free
-      ? { km: 0, capped: false, manual: false, reasons: [] as string[] }
+      ? { km: 0, capped: false, manual: false, reasons: [] as string[], context: '' }
       : plannedRunKm(state, iso, runKind)
     const scaled = free ? 0 : scaledRunKm(planned.km, checkin)
     const why = planned.reasons.filter((r) => !guardrails.some((g) => g.text === r))
     if (scaled < planned.km) {
       why.push(`Check-in ${checkin}: 30% korter, ${planned.km} km wordt ${scaled} km.`)
     }
+    // de afstand die er vandaag echt staat: het voorstel, na de check-in en na een
+    // handmatige schaling van deze dag
+    const vandaag = override?.runScale
+      ? Math.round(planned.km * override.runScale * 2) / 2
+      : scaled
     run = {
       kind: runKind,
       plannedKm: planned.km,
-      km: override?.runScale ? Math.round(planned.km * override.runScale * 2) / 2 : scaled,
+      km: vandaag,
       manualPlan: planned.manual,
       bike,
       free,
@@ -144,6 +155,8 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       skipped: skip?.what === 'run' ? skip.reason : null,
       movedFrom: runSlot.movedFrom,
       why,
+      // de context hoort bij de afstand die er vandaag echt staat, dus na de check-in
+      context: free || bike ? '' : runContext(state, iso, runKind, vandaag),
     }
     if (run.scaledDown) notes.push('Check-in laag: loop 30% korter, of vervang door 30 min fietsen.')
   }

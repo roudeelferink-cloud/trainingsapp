@@ -393,6 +393,61 @@ function v11_to_v12(state: RawState): RawState {
   return { ...state, users: next }
 }
 
+/**
+ * v13 -> v14: de werkelijk gelopen afstand is de maat geworden.
+ *
+ * Het weekvolume, het rollend gemiddelde van vier weken en de opbouwlijn van de duurloop
+ * rekenen allemaal op `km` — wat er écht gelopen is — en niet meer op `plannedKm`. Oude
+ * looplogs uit de tijd dat die twee door elkaar liepen kunnen een ontbrekend of onbruikbaar
+ * getal hebben; die krijgen hier een expliciete waarde.
+ *
+ * De aanvulling is bewust conservatief: een afgeronde loop zonder afstand valt terug op
+ * wat er voor die dag gepland stond, want dat is het beste wat we van die dag weten. Een
+ * niet-afgeronde loop en een fietssessie komen op 0 — daar zijn geen kilometers gelopen,
+ * en een verzonnen getal zou het gemiddelde de komende vier weken vervuilen.
+ */
+function v13_to_v14(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!isRecord(raw)) {
+      next[id] = raw
+      continue
+    }
+    if (!isRecord(raw.runs)) {
+      next[id] = raw
+      continue
+    }
+
+    const runs: Record<string, unknown> = {}
+    for (const [datum, log] of Object.entries(raw.runs)) {
+      if (!isRecord(log)) {
+        runs[datum] = log
+        continue
+      }
+      const gepland = getal(log.plannedKm)
+      const gelopen = getal(log.km)
+      const gedaan = typeof log.completedAt === 'string' && log.completedAt !== ''
+      const fiets = log.bike === true
+
+      runs[datum] = {
+        ...log,
+        plannedKm: gepland ?? gelopen ?? 0,
+        km: gelopen ?? (gedaan && !fiets ? (gepland ?? 0) : 0),
+      }
+    }
+    next[id] = { ...raw, runs }
+  }
+
+  return { ...state, users: next }
+}
+
+/** Een bruikbaar aantal kilometers, of null als er niets te lezen valt. */
+function getal(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null
+}
+
 export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   1: v1_to_v2,
   2: v2_to_v3,
@@ -406,6 +461,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   10: v10_to_v11,
   11: v11_to_v12,
   12: v12_to_v13,
+  13: v13_to_v14,
 }
 
 /**

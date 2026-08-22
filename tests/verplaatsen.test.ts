@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { addDays, mondayOf, weekday } from '../src/logic/dates'
 import { REST_DAY_REASON, applyMove, buildDay, moveTargets, moveWarnings } from '../src/logic/day'
-import { plannedRunKm, remainingRuns, weekLoad } from '../src/logic/runningLoad'
+import { plannedRunKm, remainingRuns, weekLoad, weekProjection } from '../src/logic/runningLoad'
 import * as A from '../src/store/actions'
 import { ANOUC, ROB, getState, resetState, setCurrentUser, setState } from '../src/store/store'
 import { DI, DO, MON, VR, WO, ZA, ZO, baseState } from './helpers'
@@ -186,12 +186,15 @@ describe('guardrails gelden op de nieuwe datum', () => {
     const lopen = remainingRuns(getState(), volgendeWeek)
     expect(lopen).toHaveLength(4)
 
-    // samen blijven ze binnen het plafond: de app schaalt terug in plaats van op te tellen
+    // de week komt daarmee boven de richtlijn uit; de app zegt dat vooraf in plaats van
+    // stilletjes elke loop in te korten — de duurloop heeft sinds de eigen opbouwlijn
+    // niets meer met het weekplafond te maken
     const samen = lopen.reduce(
       (sum, r) => sum + plannedRunKm(getState(), r.date, r.kind).km,
       0,
     )
-    expect(samen).toBeLessThanOrEqual(load.km + 0.01)
+    expect(samen).toBeGreaterThan(load.km)
+    expect(weekProjection(getState(), volgendeWeek).over).toBe(true)
   })
 })
 

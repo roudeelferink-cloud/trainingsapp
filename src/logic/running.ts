@@ -16,6 +16,19 @@ export const BASE_WEEK_KM = 22
 export const BASE_SHORT_KM = 6
 export const BASE_LONG_KM = 10
 
+/**
+ * De duurloop heeft een eigen opbouwlijn, los van het weekplafond.
+ *
+ * Waarom apart: de duurloop is het werk waar de opbouw om draait, en hij hoort niet mee
+ * te krimpen omdat er een korte loop uitviel. Hij begint op 10 km, groeit met een halve
+ * kilometer per opbouwweek, en houdt op bij 15 km. Boven de 15 km is er geen opbouw
+ * meer — dan is het onderhoud, en dat is een bewuste grens: verder bouwen op deze
+ * frequentie is meer blessure dan winst.
+ */
+export const LONG_BASE_KM = 10
+export const LONG_MAX_KM = 15
+export const LONG_STEP_KM = 0.5
+
 /** De duurloop houdt zijn aandeel in de week; de rest gaat naar de twee korte lopen. */
 export const LONG_SHARE = BASE_LONG_KM / BASE_WEEK_KM
 
@@ -49,6 +62,22 @@ export function rawWeekKm(week: number): number {
   const w = Math.max(1, Math.floor(week))
   const builds = w - 1 - Math.floor((w - 1) / DELOAD_EVERY_WEEKS)
   return BASE_WEEK_KM * Math.pow(WEEKLY_GROWTH, builds)
+}
+
+/**
+ * De opbouwlijn van de duurloop: 10 km in week 1, een halve kilometer per opbouwweek
+ * erbij, met een hard maximum van 15 km. Deloadweken tellen niet mee in de opbouw,
+ * net als bij het weekvolume.
+ */
+export function longRunLineKm(week: number): number {
+  const w = Math.max(1, Math.floor(week))
+  const builds = w - 1 - Math.floor((w - 1) / DELOAD_EVERY_WEEKS)
+  return Math.min(LONG_MAX_KM, round05(LONG_BASE_KM + builds * LONG_STEP_KM))
+}
+
+/** Zit deze afstand op of boven het maximum, zodat er alleen onderhoud overblijft? */
+export function atLongCeiling(km: number): boolean {
+  return km >= LONG_MAX_KM - 1e-9
 }
 
 export interface WeekSplit {
@@ -85,6 +114,23 @@ export function splitWeek(weekKm: number): WeekSplit {
 export function runKmFor(weekKm: number, kind: RunKind): number {
   const split = splitWeek(weekKm)
   return kind === 'long' ? split.long : split.short
+}
+
+/**
+ * De week met een vaste duurloop: die komt uit zijn eigen lijn, de korte lopen krijgen
+ * wat er van de week overblijft.
+ *
+ * De korte lopen blijven tussen hun ondergrens en 8 km. Past dat samen niet meer binnen
+ * het weekplafond, dan wint de loop van het plafond: het plafond is een richtlijn met een
+ * uitlegregel eronder, geen blokkade. `minShort` schaalt mee met een deloadweek, want daar
+ * hoort de week wél echt lager uit te komen.
+ */
+export function splitWeekAround(weekKm: number, longKm: number, minShort = SHORT_MIN_KM): WeekSplit {
+  const long = Math.max(0, round05(longKm))
+  const over = Math.max(0, weekKm - long)
+  const ruimte = floor05(over / 2)
+  const short = Math.min(SHORT_MAX_KM, Math.max(round05(minShort), ruimte))
+  return { short, long }
 }
 
 /** Check-in 1-2: 30% korter, of fietsen. */

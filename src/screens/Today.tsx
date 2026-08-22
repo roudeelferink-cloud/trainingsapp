@@ -21,7 +21,7 @@ import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../
 import { formatLong, formatShort, addDays, today } from '../logic/dates'
 import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
-import { fmt, weekLoad } from '../logic/runningLoad'
+import { fmt, runContext, weekLoad } from '../logic/runningLoad'
 import { DAY_SCORES, FEELS, feelLabel } from '../logic/feel'
 import { DELOAD_RISK } from '../logic/deload'
 import * as A from '../store/actions'
@@ -65,6 +65,7 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
         <Stats items={stats} />
       </div>
 
+      <Loopafstand iso={iso} plan={plan} />
       <Bijsturing plan={plan} />
       <DeloadBlok iso={iso} plan={plan} />
       <Dagcheck iso={iso} checkin={plan.checkin} />
@@ -209,6 +210,89 @@ function useStats(plan: DayPlan): Stat[] {
     suffix: streak === 1 ? ' dag' : ' dagen',
   })
   return items
+}
+
+/* -------------------------------------------------------------------------
+ * De loopafstand
+ * ---------------------------------------------------------------------- */
+
+/**
+ * De afstand van vandaag: één feitelijke regel eronder en een knop om hem zelf te zetten.
+ *
+ * De app kapte de afstand af op wat het gemiddelde toestond. Dat werkte averechts —
+ * minder lopen verlaagde het gemiddelde, en daarmee het plafond, en daarmee de volgende
+ * afstand. Nu vul je hem zelf in en zegt de app alleen wat ze ziet: hoe deze afstand zich
+ * verhoudt tot je gemiddelde loop van deze soort en tot je langste loop.
+ */
+function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
+  const state = useStore()
+  const run = plan.run
+  const [open, setOpen] = useState(false)
+  const [km, setKm] = useState(0)
+
+  if (!run || run.skipped || run.bike || run.free) return null
+
+  return (
+    <div className="mt-block flex flex-col gap-in-block">
+      <div className="flex items-baseline justify-between gap-column">
+        <Caps>Geplande afstand</Caps>
+        <Link
+          onClick={() => {
+            setKm(run.plannedKm || run.km || 5)
+            setOpen(true)
+          }}
+        >
+          Zelf invullen
+        </Link>
+      </div>
+      {run.context && <p className="quote">{run.context}</p>}
+
+      <Sheet open={open} onClose={() => setOpen(false)} title="Geplande afstand">
+        <div className="flex flex-col gap-block">
+          <p className="text-body text-muted">
+            {run.manualPlan
+              ? 'Deze afstand heb je zelf gezet.'
+              : `Voorstel van de app: ${fmt(run.plannedKm)} km.`}{' '}
+            Je mag hier zetten wat je wilt — de app rekent mee en houdt je niet tegen.
+          </p>
+          <div className="flex flex-col gap-in-block">
+            <Caps>Gepland</Caps>
+            <Stepper
+              value={km}
+              onChange={setKm}
+              step={0.5}
+              decimals={1}
+              suffix="km"
+              max={60}
+              ariaLabel="Geplande afstand"
+            />
+            {/* de context rekent live mee met wat er in de stepper staat */}
+            <p className="text-meta text-dim">{runContext(state, iso, run.kind, km)}</p>
+          </div>
+          <button
+            className="btn-primary w-full"
+            onClick={() => {
+              A.setPlannedRunKm(iso, run.kind, km)
+              setOpen(false)
+            }}
+          >
+            Opslaan
+          </button>
+          {run.manualPlan && (
+            <button
+              className="btn-quiet w-full"
+              onClick={() => {
+                A.clearPlannedRunKm(iso)
+                setOpen(false)
+              }}
+            >
+              Terug naar het voorstel van de app
+            </button>
+          )}
+        </div>
+      </Sheet>
+    </div>
+  )
 }
 
 /* -------------------------------------------------------------------------
@@ -509,8 +593,6 @@ function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
   const [logOpen, setLogOpen] = useState(false)
   const [skipOpen, setSkipOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
-  const [planOpen, setPlanOpen] = useState(false)
-  const [planKm, setPlanKm] = useState(run.plannedKm)
   const [km, setKm] = useState(run.km)
   const [min, setMin] = useState(Math.round(run.km * 6))
   // de doellijst rekent per dag door wat een verplaatsing zou betekenen; dat gebeurt pas
@@ -538,18 +620,6 @@ function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
           <button className="btn-ghost w-full" onClick={() => A.setBike(iso, !run.bike)}>
             {run.bike ? 'Toch lopen' : 'Fiets in plaats van lopen'}
           </button>
-          {!run.bike && (
-            <button
-              className="btn-ghost w-full"
-              onClick={() => {
-                setPlanKm(run.plannedKm || 5)
-                setMeer(false)
-                setPlanOpen(true)
-              }}
-            >
-              Geplande afstand aanpassen
-            </button>
-          )}
           <button
             className="btn-ghost w-full disabled:opacity-40"
             disabled={!kanVerplaatsen}
@@ -572,52 +642,6 @@ function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
         </div>
       </Sheet>
 
-      {/*
-        De geplande afstand is een voorstel, geen voorschrift. Zelf zetten kan altijd;
-        de afwijking wordt vastgelegd zodat er later een patroon uit te lezen valt.
-      */}
-      <Sheet open={planOpen} onClose={() => setPlanOpen(false)} title="Geplande afstand">
-        <div className="flex flex-col gap-block">
-          <p className="text-body text-muted">
-            {run.manualPlan
-              ? 'Deze afstand heb je zelf gezet.'
-              : `Voorstel van de app: ${fmt(run.plannedKm)} km.`}
-          </p>
-          <div className="flex flex-col gap-in-block">
-            <Caps>Gepland</Caps>
-            <Stepper
-              value={planKm}
-              onChange={setPlanKm}
-              step={0.5}
-              decimals={1}
-              suffix="km"
-              max={60}
-              ariaLabel="Geplande afstand"
-            />
-          </div>
-          <button
-            className="btn-primary w-full"
-            onClick={() => {
-              A.setPlannedRunKm(iso, run.kind, planKm)
-              setPlanOpen(false)
-            }}
-          >
-            Opslaan
-          </button>
-          {run.manualPlan && (
-            <button
-              className="btn-quiet w-full"
-              onClick={() => {
-                A.clearPlannedRunKm(iso)
-                setPlanOpen(false)
-              }}
-            >
-              Terug naar het voorstel van de app
-            </button>
-          )}
-        </div>
-      </Sheet>
-
       <Sheet
         open={logOpen}
         onClose={() => setLogOpen(false)}
@@ -637,7 +661,8 @@ function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
                 ariaLabel="Gelopen kilometers"
               />
               <p className="text-meta text-dim">
-                Gepland was {fmt(run.km)} km. Verder lopen mag; het telt mee in het weekvolume.
+                Gepland was {fmt(run.km)} km. Dit getal — wat je écht gelopen hebt — is
+                waar de opbouw van de komende weken op rekent.
               </p>
             </div>
           )}

@@ -8,6 +8,7 @@ import {
   plannedRunKm,
   remainingRuns,
   weekLoad,
+  weekProjection,
   weekReference,
 } from '../src/logic/runningLoad'
 import type { Activity, Feel, RunKind, UserState } from '../src/types'
@@ -144,7 +145,8 @@ describe('verder gelopen dan gepland', () => {
     // 12 + 12 km is meer dan de 22 km die deze week het plafond is
     const overschreden = weekLoad(baseState({ runs: { ...run(DI, 12), ...run(DO, 12) } }), DO)
     expect(overschreden.overCap).toBe(true)
-    expect(overschreden.overCapReason).toContain('plafond')
+    // "richtlijn", niet "plafond": de app remt af, ze houdt niemand meer tegen
+    expect(overschreden.overCapReason).toContain('richtlijn')
   })
 
   it('telt alleen lopen mee die nog komen', () => {
@@ -162,8 +164,8 @@ describe('verder gelopen dan gepland', () => {
   })
 })
 
-describe('alle lopen samen binnen het plafond', () => {
-  it('houdt de som van de weeklopen onder het plafond, ook met een loop erbij', () => {
+describe('alle lopen samen tegen de richtlijn', () => {
+  it('meldt dat een vierde loop de week boven de richtlijn tilt in plaats van alles in te korten', () => {
     // een vierde loop in de week, bijvoorbeeld doordat er eentje naar deze week verhuisde
     const state = baseState({ runMoves: { [addDays(ZO, -7)]: MON } })
     const load = weekLoad(state, MON)
@@ -171,7 +173,10 @@ describe('alle lopen samen binnen het plafond', () => {
     expect(lopen.length).toBe(4)
 
     const samen = lopen.reduce((sum, r) => sum + plannedRunKm(state, r.date, r.kind).km, 0)
-    expect(samen).toBeLessThanOrEqual(load.km + 0.01)
+    // de korte lopen zakken niet meer door hun ondergrens om het plafond te halen;
+    // de week komt er dan boven uit en de projectie zegt dat ook
+    expect(samen).toBeGreaterThan(load.km)
+    expect(weekProjection(state, MON).over).toBe(true)
   })
 
   it('schaalt elke loop van de week met dezelfde factor', () => {
