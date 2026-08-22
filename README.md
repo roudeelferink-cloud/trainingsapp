@@ -42,7 +42,7 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `cycle.test.ts` | weeknummer, cyclusweek, kalibratie, rotatie na 3 cycli |
 | `day.test.ts` | weekstructuur, woensdag altijd leeg, deload, check-in-afschaling, korte versie, gevoelige gebieden, reismodus, verplaatsen/ruilen, de geplande loopafstand per dag en de geschatte duur |
 | `running.test.ts` | de kale rekenkunde van het loopschema: opbouw per week, de verdeling kort/kort/lang en het afronden |
-| `runningLoad.test.ts` | het weekplafond van +10% op het gemiddelde van twee weken, werkelijk gelopen kilometers inclusief losse rondjes, terugschalen na een te lange loop, de rem na een zware loop, handmatige afstanden en de deloadkorting |
+| `runningLoad.test.ts` | het weekplafond op het rollend gemiddelde, werkelijk gelopen kilometers inclusief losse rondjes, terugschalen na een te lange loop, de rem na een zware loop, handmatige afstanden en de deloadkorting |
 | `progression.test.ts` | streefwaarden, progressie op gewicht en op reps, double progression op gevoel, de maximale sprong per week, het uitsmeren van een te grote stap en de −10%-regel |
 | `plates.test.ts` | afronden op wat te laden is: schijven per paar, stanggewicht, het dumbbellrek en bandwerk zonder kilo's |
 | `deload.test.ts` | de drie aanleidingen (drie zware sessies, twee slechte weken, elke achtste week), het overslaan met bevestiging en de kortingen |
@@ -66,11 +66,15 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `activities.test.tsx` | losse activiteiten: toevoegen (ook op een rustdag en een eerdere datum), bewerken, verwijderen, afstand en gemiddeld tempo, migratie v4 → v5, de bevestiging dat ze de krachtprogressie en 1RM-grafiek niet raken, en dat een los rondje hardlopen mét afstand wél in de weekkilometers telt |
 | `setRow.test.tsx` | de invoervelden in een setrij: minimumbreedte, 16px tekst, vaste knopbreedte en wrappen in plaats van samenknijpen — voor elke setrij van elke sessie |
 | `barWeight.test.ts` | welke oefening een stang gebruikt, het instelbare stanggewicht, schijven ↔ totaal en de migratie naar v7 |
-| `dumbbell.test.ts` | de dumbbell-conventie: gewicht per dumbbell, reps per zijde, de interne ×2 in volume en advies, de labels in de UI, en het rek (5 / 12,5 / 15 / 17,5 / 20 kg) waar het advies naartoe afrondt |
+| `dumbbell.test.ts` | de dumbbell-conventie: gewicht per dumbbell, reps per zijde bij eenarmig werk, de interne ×2 in volume en advies, de labels in de UI, en het rek (5 / 12,5 / 15 / 17,5 / 20 kg) waar het advies naartoe afrondt |
 | `band.test.ts` | het nieuwe materiaal: mini-band en enkelmanchet als equipment, de heupabductie-oefeningen met hun tags en uitleg, loggen op bandniveau zonder kilo's (geen tilvolume, geen 1RM), de progressie over de niveaus, en het doorgroeien naar de kabelvariant |
 | `moveRun.test.tsx` | loopsessies verplaatsen: ruilen, ongedaan maken, geen ketens, los van de krachtsessie, de knop per loopregel op de weekpagina, en de scheiding per gebruiker over een herlaadbeurt heen |
 | `order.test.ts` | de vaste volgorde: `orderCategory` op elke oefening, sorteren en de sjabloonvolgorde binnen een groep, geen enkele sessie die van licht naar zwaar loopt, zelf herordenen en terugzetten |
 | `warmup.test.ts` | het warming-upblok: standaardwaarde, type en duur instellen, afvinken, meeschrijven met concept en afgeronde sessie, per gebruiker, en oude logs zonder blok |
+| `unilateraal.test.ts` | de vlag `unilateral` op elke oefening: expliciet en compleet, "reps per zijde" alleen bij eenarmig of eenbenig werk, de uitlegregel erbij, en de ×2 in volume en duurschatting |
+| `sessieNavigatie.test.ts` | navigeren binnen een sessie: vooruit en achteruit zonder rondlopen, springen vanaf de voortgangsbalk, een set van een afgeronde oefening bijstellen, en de afrondknop die alleen op de laatste oefening "Sessie afronden" zegt |
+| `extraOefening.test.ts` | de extra oefening na een te makkelijke sessie: de gemeten sessieduur, elke voorwaarde die het aanbod tegenhoudt, twee makkelijke sessies op rij die het streefgewicht verhogen, en het opnieuw afronden zonder dubbele progressie |
+| `hardloopopbouw.test.ts` | het rollend gemiddelde over vier weken werkelijk gelopen km, de eigen opbouwlijn van de duurloop (10 → 15 km, daarboven onderhoud), de contextregel onder de afstand, het meebewegende weekplafond (+0% tot +15%) en de blokkerende rem op drie stijgingen op rij |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
 laden van de module.
