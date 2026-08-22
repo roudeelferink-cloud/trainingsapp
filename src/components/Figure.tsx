@@ -137,15 +137,29 @@ const mid = (a: Pt, b: Pt): Pt => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
 
 /* ---------------- tekenen ---------------- */
 
-const NEAR = '#38bdf8' // accent: dichtstbijzijnde ledemaat
-const FAR = '#334156' // ink-500: verste ledemaat
-const BODY = '#cbd5e1'
-const GEAR = '#f59e0b' // run/oranje voor materiaal
-const FLOOR = '#222d3d'
+/*
+ * De kleuren komen uit theme.css, zodat het poppetje meekleurt met het thema. Ze
+ * worden als CSS-eigenschap gezet en niet als SVG-attribuut: een attribuut leest
+ * geen var().
+ */
+const NEAR = 'var(--ink)' // de dichtstbijzijnde ledemaat, het duidelijkst
+const FAR = 'var(--faint)' // de verste ledemaat, een toon weg
+const BODY = 'var(--muted)'
+const GEAR = 'var(--accent)' // materiaal: stang, schijf, band
+const FLOOR = 'var(--rule-strong)'
 
 function Limb({ pts, color, width = 3.2 }: { pts: Pt[]; color: string; width?: number }) {
   const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-  return <path d={d} stroke={color} strokeWidth={width} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  return (
+    <path
+      d={d}
+      style={{ stroke: color }}
+      strokeWidth={width}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  )
 }
 
 function Gear({ prop, skel }: { prop: Prop; skel: Skeleton }) {
@@ -155,15 +169,15 @@ function Gear({ prop, skel }: { prop: Prop; skel: Skeleton }) {
       const y = y0 + (prop.dy ?? 0)
       return (
         <g>
-          <circle cx={x} cy={y} r={7} fill="none" stroke={GEAR} strokeWidth={2.4} />
-          <circle cx={x} cy={y} r={1.8} fill={GEAR} />
+          <circle cx={x} cy={y} r={7} fill="none" style={{ stroke: GEAR }} strokeWidth={2.4} />
+          <circle cx={x} cy={y} r={1.8} style={{ fill: GEAR }} />
         </g>
       )
     }
     case 'dumbbells': {
       const [x, y] = anchorPoint(skel, prop.anchor)
       return (
-        <g fill={GEAR}>
+        <g style={{ fill: GEAR }}>
           <rect x={x - 6} y={y - 1.4} width={12} height={2.8} rx={1.2} />
           <rect x={x - 8} y={y - 4.5} width={3.5} height={9} rx={1.4} />
           <rect x={x + 4.5} y={y - 4.5} width={3.5} height={9} rx={1.4} />
@@ -173,7 +187,7 @@ function Gear({ prop, skel }: { prop: Prop; skel: Skeleton }) {
     case 'bench': {
       const tilt = prop.tilt ?? 0
       return (
-        <g stroke={FLOOR} fill="none" strokeWidth={2.6} strokeLinecap="round">
+        <g style={{ stroke: FLOOR }} fill="none" strokeWidth={2.6} strokeLinecap="round">
           <g transform={`rotate(${-tilt} ${prop.x} ${prop.y})`}>
             <line x1={prop.x} y1={prop.y} x2={prop.x + prop.w} y2={prop.y} />
           </g>
@@ -189,7 +203,7 @@ function Gear({ prop, skel }: { prop: Prop; skel: Skeleton }) {
             prop.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ') +
             (prop.closed ? ' Z' : '')
           }
-          stroke={FLOOR}
+          style={{ stroke: FLOOR }}
           strokeWidth={2.6}
           fill="none"
           strokeLinejoin="round"
@@ -203,7 +217,7 @@ function Gear({ prop, skel }: { prop: Prop; skel: Skeleton }) {
           y1={y}
           x2={prop.to[0]}
           y2={prop.to[1]}
-          stroke={GEAR}
+          style={{ stroke: GEAR }}
           strokeWidth={1.6}
           strokeDasharray="3 2"
         />
@@ -216,7 +230,7 @@ function Gear({ prop, skel }: { prop: Prop; skel: Skeleton }) {
           y1={prop.y1}
           x2={prop.x}
           y2={prop.y2}
-          stroke={FLOOR}
+          style={{ stroke: FLOOR }}
           strokeWidth={2.2}
           strokeDasharray="5 3"
         />
@@ -245,7 +259,7 @@ export function Figure({
         role="img"
         aria-label={label ? `Poppetje: ${label}` : 'Poppetje'}
       >
-        <line x1={4} y1={VIEW.floor} x2={VIEW.w - 4} y2={VIEW.floor} stroke={FLOOR} strokeWidth={2} />
+        <line x1={4} y1={VIEW.floor} x2={VIEW.w - 4} y2={VIEW.floor} style={{ stroke: FLOOR }} strokeWidth={2} />
 
         {gear
           .filter((p) => p.kind === 'bench' || p.kind === 'outline' || p.kind === 'rail')
@@ -259,7 +273,7 @@ export function Figure({
 
         <Limb pts={[s.hip, s.shoulder]} color={BODY} width={4.2} />
         <Limb pts={[s.shoulder, s.head]} color={BODY} width={3} />
-        <circle cx={s.head[0]} cy={s.head[1]} r={6} fill={BODY} />
+        <circle cx={s.head[0]} cy={s.head[1]} r={6} style={{ fill: BODY }} />
 
         <Limb pts={[s.hip, s.knee[1], s.ankle[1], s.toe[1]]} color={NEAR} />
         <Limb pts={[s.shoulder, s.elbow[1], s.hand[1]]} color={NEAR} />
@@ -271,7 +285,7 @@ export function Figure({
           ))}
       </svg>
       {label && (
-        <figcaption className="text-center text-xs font-semibold text-slate-400 mt-0.5">{label}</figcaption>
+        <figcaption className="mt-tight text-center text-meta text-dim">{label}</figcaption>
       )}
     </figure>
   )
@@ -288,7 +302,7 @@ export function FigurePair({
   props?: { start: Prop[]; end: Prop[] }
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-xl bg-ink-900/60 border border-ink-600 p-2">
+    <div className="grid grid-cols-2 gap-2 border-hair border-rule bg-field-bg p-2">
       <Figure pose={start} props={gear?.start} label="start" />
       <Figure pose={end} props={gear?.end} label="eind" />
     </div>

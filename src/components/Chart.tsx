@@ -22,40 +22,46 @@ export function LineChart({ points, unit = 'kg' }: { points: Point[]; unit?: str
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto" role="img" aria-label="Verloop">
-      <line x1={pad.l} y1={h - pad.b} x2={w - pad.r} y2={h - pad.b} stroke="#334156" strokeWidth="1" />
-      <text x="2" y={y(max) + 4} fill="#94a3b8" fontSize="9">
+      <line x1={pad.l} y1={h - pad.b} x2={w - pad.r} y2={h - pad.b} className="stroke-rule" strokeWidth="1" />
+      <text x="2" y={y(max) + 4} className="fill-dim" fontSize="9">
         {Math.round(max)}
       </text>
-      <text x="2" y={y(min) + 4} fill="#94a3b8" fontSize="9">
+      <text x="2" y={y(min) + 4} className="fill-dim" fontSize="9">
         {Math.round(min)}
       </text>
-      <path d={area} fill="#38bdf8" opacity="0.12" />
-      <path d={d} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={area} className="fill-accent" opacity="0.12" />
+      <path d={d} fill="none" className="stroke-accent" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       {points.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p.value)} r="3" fill="#38bdf8" />
+        <circle key={i} cx={x(i)} cy={y(p.value)} r="3" className="fill-accent" />
       ))}
-      <text x={pad.l} y={h - 4} fill="#64748b" fontSize="9">
+      <text x={pad.l} y={h - 4} className="fill-faint" fontSize="9">
         {formatShort(points[0].date)}
       </text>
-      <text x={w - pad.r} y={h - 4} fill="#64748b" fontSize="9" textAnchor="end">
+      <text x={w - pad.r} y={h - 4} className="fill-faint" fontSize="9" textAnchor="end">
         {formatShort(points[points.length - 1].date)} · {unit}
       </text>
     </svg>
   )
 }
 
+/**
+ * Staafdiagram zonder externe libraries. Er is één accentkleur, dus die gaat naar
+ * wat eruit hoort te springen: de deloadweken. De gewone weken zijn een haarlijngrijs.
+ */
 export function BarChart({ bars }: { bars: { label: string; value: number; highlight?: boolean }[] }) {
   const max = Math.max(1, ...bars.map((b) => b.value))
   return (
-    <div className="flex items-end gap-1 h-28">
+    <div className="flex h-chart gap-1">
       {bars.map((b, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-          <div
-            className={`w-full rounded-t ${b.highlight ? 'bg-amber-400/70' : 'bg-accent/70'}`}
-            style={{ height: `${(b.value / max) * 88}px` }}
-            title={`${b.value} km`}
-          />
-          <span className="text-[9px] text-slate-500 truncate w-full text-center">{b.label}</span>
+        <div key={i} className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-1 items-end">
+            <div
+              className={`w-full ${b.highlight ? 'bg-accent' : 'bg-rule-strong'}`}
+              style={{ height: `${(b.value / max) * 100}%` }}
+              title={`${b.value} km`}
+            />
+          </div>
+          <span className="w-full truncate text-center text-caps text-faint">{b.label}</span>
         </div>
       ))}
     </div>

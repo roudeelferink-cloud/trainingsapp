@@ -112,13 +112,13 @@ describe('de onderbalk is van één gebruiker', () => {
     setUserName(ANOUC, 'Anouc')
     const html = render(createElement(App))
 
-    // vier tabbladen, en de naam van de ander staat er niet meer tussen
+    // drie bestemmingen, en de naam van de ander staat er niet tussen
     expect(html).toContain('Vandaag')
     expect(html).toContain('Week')
-    expect(html).toContain('Voortgang')
-    expect(html).toContain('Instellingen')
-    expect(html).toContain('grid-cols-4')
+    expect(html).toContain('Historie')
     expect(html).not.toContain('Anouc')
+    // instellingen hangt aan Historie en hoort niet in de balk
+    expect(html).not.toContain('aria-current="page">Instellingen')
   })
 
   it('houdt het wisselen in de instellingen, onderaan', () => {

@@ -112,6 +112,7 @@ export default {
         checkbox: 'var(--checkbox-size)',
         bar: 'var(--bar-height)',
         progress: 'var(--progress-height)',
+        chart: 'var(--chart-height)',
       },
       minHeight: {
         tap: 'var(--tap-min)',
@@ -126,7 +127,8 @@ export default {
       borderWidth: {
         // 'hair' en niet 'rule': anders botst de breedte border-rule met de kleur border-rule
         hair: 'var(--rule-width)',
-        accent: 'var(--accent-inset)',
+        // 'mark' en niet 'accent': anders botst de breedte met de kleur border-accent
+        mark: 'var(--accent-inset)',
       },
       transitionDuration: {
         color: 'var(--duration-color)',

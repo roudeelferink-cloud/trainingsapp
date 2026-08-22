@@ -158,7 +158,7 @@ function ActivityForm({
         (confirmDelete ? (
           <div className="space-y-2">
             <button
-              className="btn w-full bg-rose-500 text-ink-900"
+              className="btn-primary w-full"
               onClick={() => {
                 A.removeActivity(activity.id)
                 onDone()

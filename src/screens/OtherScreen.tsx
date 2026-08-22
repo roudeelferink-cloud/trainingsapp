@@ -1,3 +1,4 @@
+import { Stats } from '../components/logboek'
 import { Card, Chip, Empty, SectionTitle } from '../components/ui'
 import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
@@ -42,29 +43,23 @@ function OtherUser({ user }: { user: UserState }) {
   const extras = recentActivities(user, 5)
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-block">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold leading-tight">{user.naam}</h1>
-          <p className="text-sm text-slate-400">{program.naam}</p>
+          <h1 className="font-serif text-screen-title text-ink">{user.naam}</h1>
+          <p className="text-body text-muted">{program.naam}</p>
         </div>
         <Chip tone="off">meekijken</Chip>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{trainingStreak(user)}</p>
-          <p className="text-xs text-slate-400">dagen streak</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{completedSessions(user)}</p>
-          <p className="text-xs text-slate-400">krachtsessies</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-3xl font-bold tabular-nums">{completedRuns(user)}</p>
-          <p className="text-xs text-slate-400">looptrainingen</p>
-        </Card>
-      </div>
+      <Stats
+        variant="week"
+        items={[
+          { label: 'Streak', value: String(trainingStreak(user)) },
+          { label: 'Sessies', value: String(completedSessions(user)) },
+          { label: 'Loops', value: String(completedRuns(user)) },
+        ]}
+      />
 
       <Card>
         <SectionTitle>Kilometers per week</SectionTitle>
@@ -74,7 +69,7 @@ function OtherUser({ user }: { user: UserState }) {
           <ul className="space-y-1">
             {[...weeks].reverse().map((w) => (
               <li key={w.weekStart} className="flex justify-between text-sm">
-                <span className="text-slate-400">week {w.week}</span>
+                <span className="text-dim">week {w.week}</span>
                 <span className="tabular-nums font-semibold">{w.km} km</span>
               </li>
             ))}
@@ -91,7 +86,7 @@ function OtherUser({ user }: { user: UserState }) {
             {sessions.map((s) => (
               <li key={`${s.date}:${s.kind}`} className="flex justify-between gap-2 text-sm">
                 <span className="truncate">{DAY_LABEL[s.kind] ?? s.kind}</span>
-                <span className="text-slate-400 shrink-0">{formatShort(s.date)}</span>
+                <span className="shrink-0 text-dim">{formatShort(s.date)}</span>
               </li>
             ))}
           </ul>
@@ -107,14 +102,14 @@ function OtherUser({ user }: { user: UserState }) {
                 <span className="truncate">
                   {a.type} {a.minutes} min
                 </span>
-                <span className="text-slate-400 shrink-0">{formatShort(a.date)}</span>
+                <span className="shrink-0 text-dim">{formatShort(a.date)}</span>
               </li>
             ))}
           </ul>
         </Card>
       )}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-meta leading-meta text-faint">
         Alleen om te kijken. Wat {user.naam} logt telt niet mee in jouw progressie of
         gewichtsadvies, en andersom net zo min.
       </p>

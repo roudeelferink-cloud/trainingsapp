@@ -129,10 +129,12 @@ describe('Figure rendert', () => {
     expect(html).toContain('<circle') // hoofd en de schijf van de stang
   })
 
-  it('gebruikt de themakleuren', () => {
+  it('tekent met de themakleuren en niet met eigen hexwaarden', () => {
     const spec = getFigure('smith_squat')!
     const html = renderToString(createElement(Figure, { pose: spec.start, props: spec.props?.start }))
-    expect(html).toContain('#38bdf8') // accent
-    expect(html).toContain('#f59e0b') // materiaal
+    // de kleuren komen uit theme.css, zodat het poppetje meekleurt met licht en donker
+    expect(html).toContain('var(--ink)') // dichtstbijzijnde ledemaat
+    expect(html).toContain('var(--accent)') // materiaal
+    expect(html).not.toMatch(/#[0-9a-f]{6}/i)
   })
 })

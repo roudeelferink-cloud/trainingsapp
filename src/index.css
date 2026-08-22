@@ -33,8 +33,12 @@
  * afwijken.
  */
 @layer components {
+  /*
+   * Een sectie op de pagina, geen doos eromheen: één haarlijn erboven en lucht
+   * eronder. Zo leest een scherm vol instellingen als één vel papier.
+   */
   .card {
-    @apply border-hair border-rule bg-transparent p-4;
+    @apply border-t-hair border-rule bg-transparent py-block;
   }
   .btn {
     @apply inline-flex select-none items-center justify-center gap-2 px-4 text-button

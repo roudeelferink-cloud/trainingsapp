@@ -5,7 +5,7 @@ import { buildDay } from '../src/logic/day'
 import { addDays, fromISO, mondayOf, today } from '../src/logic/dates'
 import { Onboarding } from '../src/screens/Onboarding'
 import { OtherScreen } from '../src/screens/OtherScreen'
-import { ProgressScreen } from '../src/screens/ProgressScreen'
+import { HistoryScreen } from '../src/screens/HistoryScreen'
 import { SessionScreen } from '../src/screens/SessionScreen'
 import { SettingsScreen } from '../src/screens/SettingsScreen'
 import { Today } from '../src/screens/Today'
@@ -60,7 +60,7 @@ describe('schermen renderen', () => {
   })
 
   it('rendert Voortgang', () => {
-    expect(render(createElement(ProgressScreen)).length).toBeGreaterThan(200)
+    expect(render(createElement(HistoryScreen, { onOpenSettings: () => {} })).length).toBeGreaterThan(200)
   })
 
   it('rendert Instellingen met de back-upknoppen en de uitleg dat data lokaal is', () => {

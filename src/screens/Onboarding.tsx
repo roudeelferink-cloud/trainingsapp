@@ -22,20 +22,20 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-block">
       <div>
-        <h1 className="text-2xl font-bold">Welkom</h1>
-        <p className="text-slate-400 mt-1">
+        <h1 className="font-serif text-exercise leading-exercise text-ink">Welkom</h1>
+        <p className="quote mt-in-block">
           Eén ding instellen, daarna kun je loggen. Later te wijzigen bij Instellingen.
         </p>
       </div>
 
       <Card>
-        <h2 className="font-bold mb-1">Wie ben je?</h2>
-        <p className="text-sm text-slate-400 mb-3">
+        <h2 className="mb-tight text-list text-ink">Wie ben je?</h2>
+        <p className="mb-block text-body text-muted">
           Je logt alleen voor jezelf. De voortgang van de ander kun je wel bekijken.
         </p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-in-block">
           {USER_SEEDS.map((u) => {
             const program = programById(u.programId)
             const on = user === u.id
@@ -46,12 +46,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                   setUser(u.id)
                   setError(null)
                 }}
-                className={`w-full text-left rounded-xl border px-4 py-3 ${
-                  on ? 'bg-accent/15 border-accent' : 'bg-ink-700 border-ink-600'
+                aria-pressed={on}
+                className={`w-full border-hair px-4 py-3 text-left transition-colors duration-color ${
+                  on ? 'border-accent bg-accent text-on-accent' : 'border-chip-border text-muted'
                 }`}
               >
-                <span className="block font-semibold">{root.users[u.id]?.naam ?? u.naam}</span>
-                <span className="block text-sm text-slate-400">{program.naam}</span>
+                <span className="block text-list">{root.users[u.id]?.naam ?? u.naam}</span>
+                <span className="block text-meta opacity-80">{program.naam}</span>
               </button>
             )
           })}
@@ -59,7 +60,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       </Card>
 
       {error && (
-        <p className="text-sm text-rose-300" role="alert">
+        <p className="text-body text-accent" role="alert">
           {error}
         </p>
       )}
@@ -68,7 +69,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         Beginnen
       </button>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-meta leading-meta text-faint">
         Alles blijft op dit toestel staan: er gaat niets naar internet en er is geen account
         nodig. Naar een ander toestel verhuizen gaat via Exporteer alles bij Instellingen, en daar
         het bestand importeren.

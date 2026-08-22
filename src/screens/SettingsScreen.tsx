@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Card, Chip, ConfirmCheck, DecimalField, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
+import { Caps, Screen, TopLine } from '../components/logboek'
+import { Card, ChoiceGrid, Chip, ConfirmCheck, DecimalField, SectionTitle, Sheet, Stepper, Toggle } from '../components/ui'
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { PLATE_OPTIONS, smallestPlate } from '../logic/plates'
@@ -34,6 +35,7 @@ import {
   wipeUsers,
 } from '../store/store'
 import { normalizeSettings } from '../store/settings'
+import { THEME_OPTIONS, readTheme, setTheme, type ThemeChoice } from '../theme'
 import type { LoadArea, Sensitivity, UserState } from '../types'
 
 const AREAS: LoadArea[] = [
@@ -78,7 +80,7 @@ function downloadExport(): void {
   URL.revokeObjectURL(url)
 }
 
-export function SettingsScreen() {
+export function SettingsScreen({ onClose }: { onClose?: () => void }) {
   const state = safeUser(useStore())
   const settings = state.settings
   const [message, setMessage] = useState<string | null>(null)
@@ -99,10 +101,22 @@ export function SettingsScreen() {
   const permanents = Object.entries(state.permanentReplacements)
 
   return (
-    <div className="space-y-4">
-      {message && (
-        <div className="rounded-xl bg-ink-700 border border-ink-600 p-3 text-sm">{message}</div>
-      )}
+    <Screen>
+      <TopLine
+        left={
+          onClose ? (
+            <button type="button" onClick={onClose} className="text-muted">
+              ← Historie
+            </button>
+          ) : (
+            'Instellingen'
+          )
+        }
+        right={onClose ? 'Instellingen' : undefined}
+      />
+      {message && <p className="quote mt-block">{message}</p>}
+
+      <ThemaCard />
 
       <Card>
         <SectionTitle>Lichaamsgewicht</SectionTitle>
@@ -113,37 +127,34 @@ export function SettingsScreen() {
             value={settings.bodyweightKg}
             onChange={A.setBodyweight}
           />
-          <span className="text-slate-400">kg</span>
+          <span className="text-body text-dim">kg</span>
         </div>
-        <p className="text-sm text-slate-400 mt-2">
+        <p className="mt-in-block text-body text-muted">
           Basis voor het startgewichtadvies bij nieuwe oefeningen.
         </p>
       </Card>
 
       <Card>
         <SectionTitle>Gevoelige gebieden</SectionTitle>
-        <p className="text-sm text-slate-400 mb-3">
+        <p className="mb-block text-body text-muted">
           Op <b>gevoelig</b> filtert de app alle oefeningen met dat label eruit en kiest automatisch een
           alternatief uit hetzelfde patroon. <b>Let op</b> laat het werk staan, maar bouwt op vanaf de
           laagste weerstand.
         </p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-in-block">
           {AREAS.map((a) => (
             <div key={a} className="flex items-center justify-between gap-2">
-              <span className="text-sm">{LOAD_LABEL[a]}</span>
+              <span className="text-body text-ink">{LOAD_LABEL[a]}</span>
               <div className="flex gap-1 shrink-0">
                 {(['ok', 'careful', 'off'] as Sensitivity[]).map((v) => (
                   <button
                     key={v}
                     onClick={() => A.setSensitivity(a, v)}
-                    className={`min-h-[44px] px-3 rounded-lg text-xs font-semibold ${
+                    aria-pressed={settings.sensitive?.[a] === v}
+                    className={`min-h-tap border-hair px-3 text-meta transition-colors duration-color ${
                       settings.sensitive?.[a] === v
-                        ? v === 'off'
-                          ? 'bg-rose-500 text-ink-900'
-                          : v === 'careful'
-                            ? 'bg-amber-400 text-ink-900'
-                            : 'bg-emerald-400 text-ink-900'
-                        : 'bg-ink-700 border border-ink-600 text-slate-300'
+                        ? 'border-accent bg-accent font-semibold text-on-accent'
+                        : 'border-chip-border text-dim'
                     }`}
                   >
                     {SENS_LABEL[v]}
@@ -157,14 +168,14 @@ export function SettingsScreen() {
 
       <Card>
         <SectionTitle>Stanggewicht</SectionTitle>
-        <p className="text-sm text-slate-400 mb-3">
+        <p className="mb-block text-body text-muted">
           Bij een oefening met een stang vul je alleen de schijven in. De app telt het gewicht van de
           stang erbij en toont het totaal.
         </p>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-block">
           {BAR_IDS.map((bar) => (
             <div key={bar}>
-              <p className="label mb-1">{BAR_LABEL[bar]}</p>
+              <Caps className="mb-in-block">{BAR_LABEL[bar]}</Caps>
               <Stepper
                 ariaLabel={`Gewicht ${BAR_LABEL[bar]}`}
                 value={settings.barWeights?.[bar] ?? DEFAULT_BAR_WEIGHTS[bar]}
@@ -182,7 +193,7 @@ export function SettingsScreen() {
 
       <Card>
         <SectionTitle>Schijven</SectionTitle>
-        <p className="text-sm text-slate-400 mb-3">
+        <p className="mb-block text-body text-muted">
           Welke schijven er liggen. Ze gaan per paar op de stang, dus de kleinste echte stap is
           twee keer de lichtste schijf: nu <b>{smallestPlate(settings) * 2} kg</b>. Een voorstel dat
           niet te laden is, doet de app niet.
@@ -195,8 +206,8 @@ export function SettingsScreen() {
                 key={kg}
                 aria-pressed={aan}
                 onClick={() => A.togglePlate(kg)}
-                className={`btn btn-sm min-h-[44px] px-3 tabular-nums ${
-                  aan ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600 text-slate-300'
+                className={`min-h-tap border-hair px-3 text-body transition-colors duration-color ${
+                  aan ? 'border-accent bg-accent font-semibold text-on-accent' : 'border-chip-border text-dim'
                 }`}
               >
                 {String(kg).replace('.', ',')} kg
@@ -219,13 +230,13 @@ export function SettingsScreen() {
       <Card>
         <SectionTitle>Permanent vervangen oefeningen</SectionTitle>
         {permanents.length === 0 ? (
-          <p className="text-sm text-slate-400">Geen. Deze rouleren niet mee met de 12-weekse wissel.</p>
+          <p className="text-body text-muted">Geen. Deze rouleren niet mee met de 12-weekse wissel.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-in-block">
             {permanents.map(([slotKey, exId]) => (
               <div key={slotKey} className="flex items-center gap-2">
-                <span className="flex-1 text-sm">
-                  <span className="text-slate-400">{slotLabel(slotKey)} → </span>
+                <span className="flex-1 text-body">
+                  <span className="text-dim">{slotLabel(slotKey)} → </span>
                   {BY_ID[exId]?.naam ?? exId}
                 </span>
                 <button className="btn-quiet btn-sm shrink-0" onClick={() => A.undoPermanent(slotKey)}>
@@ -240,20 +251,20 @@ export function SettingsScreen() {
       <Card>
         <SectionTitle right={<Chip tone="off">schema v{SCHEMA_VERSION}</Chip>}>Back-up</SectionTitle>
         {reminder && (
-          <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
-            <p className="text-sm font-semibold text-amber-200">{reminder.text}</p>
-            <p className="text-xs text-amber-200/70 mt-1">
+          <div className="mb-block flex flex-col gap-tight">
+            <Caps tone="accent">{reminder.text}</Caps>
+            <p className="text-meta leading-meta text-dim">
               Alles staat alleen op dit toestel. Zonder export ben je bij het wissen van je
               browserdata alles kwijt.
             </p>
           </div>
         )}
-        <p className="text-sm text-slate-400 mb-3">
+        <p className="mb-block text-body text-muted">
           Alles staat op dit toestel; er gaat niets naar internet. Een export is daarmee ook de
           enige manier om je gegevens naar een ander toestel te verplaatsen: exporteer hier, en
           importeer het bestand daar. Een import vervangt alles wat er op dat toestel staat.
         </p>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-in-block">
           <button className="btn-ghost w-full" onClick={doExport}>
             Exporteer alles
           </button>
@@ -274,14 +285,41 @@ export function SettingsScreen() {
         </div>
       </Card>
 
-      <p className="text-xs text-slate-500 px-1">
+      <p className="mt-block text-meta text-faint">
         Startdatum programma: {state.startDate}. Alles blijft lokaal op dit toestel.
       </p>
 
       <ProfielCard />
 
       <GegevensbeheerCard />
-    </div>
+    </Screen>
+  )
+}
+
+/**
+ * Licht of donker. Standaard volgt de app het toestel; dat is wat een telefoon 's
+ * avonds vanzelf goed zet. De keuze hoort bij dit toestel en niet bij je
+ * trainingsgeschiedenis, dus hij gaat niet mee in de export.
+ */
+function ThemaCard() {
+  const [keuze, setKeuze] = useState<ThemeChoice>(() => readTheme())
+
+  return (
+    <Card>
+      <SectionTitle>Weergave</SectionTitle>
+      <ChoiceGrid
+        options={THEME_OPTIONS}
+        value={keuze}
+        onChange={(id) => {
+          setKeuze(id)
+          setTheme(id)
+        }}
+      />
+      <p className="mt-in-block text-meta leading-meta text-dim">
+        Systeem volgt de instelling van je telefoon. De keuze geldt alleen op dit toestel en
+        staat niet in de back-up.
+      </p>
+    </Card>
   )
 }
 
@@ -307,15 +345,15 @@ function ProfielCard() {
     <Card>
       <SectionTitle right={<Chip tone="off">dit toestel</Chip>}>Profiel</SectionTitle>
 
-      <p className="text-sm text-slate-300">
+      <p className="text-body text-muted">
         <b>{huidige?.naam ?? 'Niemand'}</b>
         {huidige && ` — ${programById(huidige.programId).naam}`}
       </p>
-      <p className="text-xs text-slate-400 mt-1 mb-3">
+      <p className="mb-block mt-tight text-meta text-dim">
         {huidige ? programById(huidige.programId).omschrijving : 'Kies wie dit toestel gebruikt.'}
       </p>
 
-      <p className="label mb-1">Jouw naam</p>
+      <Caps className="mb-in-block">Jouw naam</Caps>
       <div className="flex gap-2">
         <input
           className="field"
@@ -336,12 +374,12 @@ function ProfielCard() {
           Opslaan
         </button>
       </div>
-      {msg && <p className="text-sm text-slate-300 mt-2">{msg}</p>}
+      {msg && <p className="mt-in-block text-body text-muted">{msg}</p>}
 
-      <div className="mt-4 pt-3 border-t border-ink-700 space-y-2">
+      <div className="mt-block flex flex-col gap-in-block border-t-hair border-rule pt-block">
         {wisselen ? (
           <>
-            <p className="text-sm text-slate-400">
+            <p className="text-body text-muted">
               Wie gebruikt dit toestel vanaf nu? Er wordt niets gewist: de gegevens van allebei
               blijven staan en je kunt altijd terugwisselen.
             </p>
@@ -355,10 +393,10 @@ function ProfielCard() {
                     setMeekijken(false)
                     setMsg(`Dit toestel staat nu op ${u.naam}.`)
                   }}
-                  className={`btn btn-sm ${
+                  className={`min-h-tap border-hair px-3 text-body transition-colors duration-color ${
                     u.id === root.currentUser
-                      ? 'bg-accent text-ink-900'
-                      : 'bg-ink-700 border border-ink-600'
+                      ? 'border-accent bg-accent font-semibold text-on-accent'
+                      : 'border-chip-border text-dim'
                   }`}
                 >
                   {u.naam}
@@ -383,7 +421,7 @@ function ProfielCard() {
       </div>
 
       {meekijken && (
-        <div className="mt-4 pt-4 border-t border-ink-700">
+        <div className="mt-block border-t-hair border-rule pt-block">
           <OtherScreen />
         </div>
       )}
@@ -429,19 +467,19 @@ function GegevensbeheerCard() {
   }
 
   return (
-    <div className="mt-8 pt-5 border-t-2 border-ink-700">
+    <div className="mt-block border-t-hair border-rule pt-block">
       <button
         className="w-full flex items-center justify-between gap-2 py-2 px-1 text-left"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         <span>
-          <span className="block font-bold text-slate-300">Gegevensbeheer</span>
-          <span className="block text-xs text-slate-500">
+          <span className="block text-list text-ink">Gegevensbeheer</span>
+          <span className="block text-meta text-faint">
             Pincode en het wissen van gegevens. Dichtgeklapt, want hier gaat het mis.
           </span>
         </span>
-        <span className="text-slate-500 text-lg shrink-0" aria-hidden>
+        <span className="shrink-0 text-label text-dim" aria-hidden>
           {open ? '▴' : '▾'}
         </span>
       </button>
@@ -458,24 +496,24 @@ function GegevensbeheerCard() {
             }}
           />
 
-          <div className="mt-4 pt-4 border-t border-ink-700">
-            <p className="text-sm text-slate-400 mb-2">
+          <div className="mt-block border-t-hair border-rule pt-block">
+            <p className="mb-in-block text-body text-muted">
               Wissen kan niet ongedaan gemaakt worden en geldt voor {state.naam}, tenzij je in de
               dialoog aangeeft dat het andere profiel ook mee moet.
             </p>
             <button
-              className="btn w-full bg-rose-500/90 text-ink-900 disabled:opacity-40"
+              className="btn-primary w-full disabled:opacity-40"
               disabled={geblokkeerd}
               onClick={probeerWissen}
             >
               Gegevens wissen
             </button>
             {geblokkeerd && (
-              <p className="text-sm text-rose-300 mt-2" role="alert">
+              <p className="mt-in-block text-body text-accent" role="alert">
                 Te vaak een verkeerde pincode. Nog {seconden} seconden geblokkeerd.
               </p>
             )}
-            {msg && <p className="text-sm text-slate-300 mt-2">{msg}</p>}
+            {msg && <p className="mt-in-block text-body text-muted">{msg}</p>}
           </div>
         </Card>
       )}
@@ -532,7 +570,7 @@ function PincodeVorm({
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm">
           Pincode
-          <span className="block text-xs text-slate-500">
+          <span className="block text-meta text-faint">
             {gezet ? 'Ingesteld' : 'Nog niet ingesteld — wissen is nu niet mogelijk'}
           </span>
         </span>
@@ -544,19 +582,19 @@ function PincodeVorm({
   }
 
   return (
-    <div className="space-y-2">
-      <p className="label">{gezet ? 'Pincode wijzigen' : 'Pincode instellen'}</p>
+    <div className="flex flex-col gap-in-block">
+      <Caps>{gezet ? 'Pincode wijzigen' : 'Pincode instellen'}</Caps>
       {gezet && (
         <PinInput label="Oude pincode" value={oud} onChange={setOud} />
       )}
       <PinInput label="Nieuwe pincode" value={nieuw} onChange={setNieuw} />
       <PinInput label="Nieuwe pincode herhalen" value={herhaal} onChange={setHerhaal} />
       {fout && (
-        <p className="text-sm text-rose-300" role="alert">
+        <p className="text-body text-accent" role="alert">
           {fout}
         </p>
       )}
-      <p className="text-xs text-slate-500">
+      <p className="text-meta leading-meta text-faint">
         De code staat gewoon op dit toestel opgeslagen. Hij is er tegen een misklik, niet
         tegen iemand die je telefoon in handen heeft.
       </p>
@@ -583,9 +621,9 @@ function PinInput({
 }) {
   return (
     <div>
-      <p className="label mb-0.5">{label}</p>
+      <Caps className="mb-tight">{label}</Caps>
       <input
-        className="field font-mono tracking-[0.4em] text-center"
+        className="field text-center font-mono tracking-caps-wide"
         type="password"
         inputMode="numeric"
         autoComplete="off"
@@ -659,21 +697,19 @@ export function WisDialoog({
 
   return (
     <Sheet open onClose={onClose} title="Gegevens wissen">
-      <div className="space-y-3">
+      <div className="flex flex-col gap-block">
         {waarschuwing && (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
-            <p className="text-sm font-semibold text-amber-200">
-              {waarschuwing} Hierna is deze historie weg.
-            </p>
-            <button className="btn-ghost btn-sm w-full mt-2" onClick={downloadExport}>
+          <div className="flex flex-col gap-in-block">
+            <Caps tone="accent">{waarschuwing} Hierna is deze historie weg.</Caps>
+            <button className="btn-ghost w-full" onClick={downloadExport}>
               Eerst exporteren
             </button>
           </div>
         )}
 
-        <div className="rounded-xl bg-ink-900 border border-ink-600 p-3">
-          <p className="text-sm font-semibold mb-1">Dit verdwijnt van {state.naam}:</p>
-          <ul className="text-sm text-slate-300 space-y-0.5 tabular-nums">
+        <div className="border-hair border-rule p-3">
+          <p className="mb-tight text-body text-ink">Dit verdwijnt van {state.naam}:</p>
+          <ul className="flex flex-col gap-tight text-body text-muted">
             <li>{samenvatting.sessions} gelogde krachtsessies</li>
             <li>{samenvatting.runs} hardloopsessies</li>
             <li>{samenvatting.activities} losse activiteiten</li>
@@ -683,7 +719,7 @@ export function WisDialoog({
                 : 'nog geen logs'}
             </li>
           </ul>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="mt-in-block text-meta text-faint">
             Ook de instellingen en streefgewichten van dit profiel gaan mee.
           </p>
         </div>
@@ -691,7 +727,7 @@ export function WisDialoog({
         {ander && (
           <ConfirmCheck checked={ookAnder} onToggle={() => setOokAnder((v) => !v)}>
             Ook het profiel van {ander.naam} wissen
-            <span className="block text-xs text-slate-500">
+            <span className="block text-meta text-faint">
               Standaard blijft dat staan; alleen {state.naam} wordt gewist.
             </span>
           </ConfirmCheck>
@@ -700,18 +736,18 @@ export function WisDialoog({
         <div>
           <PinInput label="Pincode" value={code} onChange={controleer} />
           {fout && (
-            <p className="text-sm text-rose-300 mt-1" role="alert">
+            <p className="mt-tight text-body text-accent" role="alert">
               {fout}
             </p>
           )}
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="mt-tight text-meta text-faint">
             De knop hieronder gaat pas aan bij de juiste code. Na {MAX_ATTEMPTS} fouten sluit dit
             venster en is wissen een minuut geblokkeerd.
           </p>
         </div>
 
         <button
-          className="btn w-full bg-rose-500 text-ink-900 disabled:opacity-40"
+          className="btn-primary w-full disabled:opacity-40"
           disabled={!codeOk}
           onClick={wis}
         >

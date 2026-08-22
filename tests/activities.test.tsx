@@ -13,7 +13,7 @@ import {
 import { buildDay } from '../src/logic/day'
 import { today } from '../src/logic/dates'
 import { oneRmSeries, weeklyRunVolume } from '../src/logic/stats'
-import { ProgressScreen } from '../src/screens/ProgressScreen'
+import { HistoryScreen } from '../src/screens/HistoryScreen'
 import { Today } from '../src/screens/Today'
 import * as A from '../src/store/actions'
 import {
@@ -470,9 +470,10 @@ describe('schermen tonen losse activiteiten apart', () => {
 
   it('toont ze in de historie met datum', () => {
     A.addActivity(MON, { type: 'zwemmen', minutes: 30, intensity: 'intensief' })
-    const html = render(createElement(ProgressScreen))
+    const html = render(createElement(HistoryScreen, { onOpenSettings: () => {} }))
     expect(html).toContain('Losse activiteiten')
     expect(html).toContain('Zwemmen 30 min')
-    expect(html).toContain('extra activiteiten')
+    // het aantal staat als kerncijfer bovenaan, onder het label Extra
+    expect(html).toContain('Extra')
   })
 })

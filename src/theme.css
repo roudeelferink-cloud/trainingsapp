@@ -128,6 +128,9 @@
   --gap-timer: 7px;
   --gap-progress: 4px; /* tussen de voortgangssegmenten */
 
+  /* de grafieken op Historie; het ontwerp zegt er niets over, dus staan ze hier */
+  --chart-height: 112px;
+
   --nav-pad-top: 11px;
   --nav-pad-bottom: 22px; /* home indicator */
 
