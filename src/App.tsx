@@ -16,6 +16,12 @@ import type { DayKind } from './types'
  */
 type Tab = 'vandaag' | 'week' | 'voortgang' | 'instellingen'
 
+/**
+ * De romp van de app: een kolom van schermhoogte met de navigatiebalk onderaan.
+ *
+ * Het scherm ertussen scrollt zelf. Dat is wat de actiezone mogelijk maakt: de knop
+ * waar je tussen sets op drukt staat vast onderin, ook als de lijst erboven lang is.
+ */
 export default function App() {
   const root = useRoot()
   const [tab, setTab] = useState<Tab>('vandaag')
@@ -26,12 +32,14 @@ export default function App() {
 
   if (!klaar) {
     return (
-      <div className="min-h-dvh bg-ink-900">
-        <main className="max-w-md mx-auto px-4 pt-6 pb-10 safe-top">
+      <div className="flex h-dvh flex-col bg-bg">
+        <div className="safe-top min-h-0 flex-1">
           <ErrorBoundary scherm="Start">
-            <Onboarding onDone={() => setTab('vandaag')} />
+            <Scroll>
+              <Onboarding onDone={() => setTab('vandaag')} />
+            </Scroll>
           </ErrorBoundary>
-        </main>
+        </div>
       </div>
     )
   }
@@ -43,15 +51,9 @@ export default function App() {
     { id: 'instellingen', label: 'Instellingen', icon: <IconSettings /> },
   ]
 
-  const kiesTab = (t: Tab) => {
-    setTab(t)
-    // elk scherm begint bovenaan; anders land je midden in het vorige scrollpunt
-    window.scrollTo(0, 0)
-  }
-
   return (
-    <div className="min-h-dvh bg-ink-900">
-      <main className="max-w-md mx-auto px-4 pt-5 pb-28 safe-top">
+    <div className="flex h-dvh flex-col bg-bg">
+      <div className="safe-top min-h-0 flex-1">
         {/* key op de tab: bij het wisselen van scherm begint het vangnet weer schoon */}
         <ErrorBoundary
           key={tab}
@@ -59,25 +61,38 @@ export default function App() {
           onReset={() => setTab('vandaag')}
         >
           {tab === 'vandaag' && <Today onOpenSession={open} />}
-          {tab === 'week' && <WeekScreen onOpenSession={open} />}
-          {tab === 'voortgang' && <ProgressScreen />}
-          {tab === 'instellingen' && <SettingsScreen />}
+          {/* de schermen hieronder zijn nog niet herbouwd en scrollen als één blok */}
+          {tab === 'week' && (
+            <Scroll>
+              <WeekScreen onOpenSession={open} />
+            </Scroll>
+          )}
+          {tab === 'voortgang' && (
+            <Scroll>
+              <ProgressScreen />
+            </Scroll>
+          )}
+          {tab === 'instellingen' && (
+            <Scroll>
+              <SettingsScreen />
+            </Scroll>
+          )}
         </ErrorBoundary>
-      </main>
+      </div>
 
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-ink-800/95 backdrop-blur border-t border-ink-600 safe-bottom">
-        <div className="max-w-md mx-auto grid grid-cols-4">
+      <nav className="safe-bottom flex-none border-t-hair border-rule">
+        <div className="mx-auto grid max-w-content grid-cols-4">
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => kiesTab(t.id)}
+              onClick={() => setTab(t.id)}
               aria-current={tab === t.id ? 'page' : undefined}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[60px] text-[11px] font-semibold ${
-                tab === t.id ? 'text-accent' : 'text-slate-400'
+              className={`flex min-h-tap flex-col items-center justify-center gap-tight pt-nav-top text-caps-lg ${
+                tab === t.id ? 'text-accent' : 'text-dim'
               }`}
             >
               <span aria-hidden>{t.icon}</span>
-              <span className="truncate max-w-full px-1">{t.label}</span>
+              <span className="max-w-full truncate px-1">{t.label}</span>
             </button>
           ))}
         </div>
@@ -95,6 +110,15 @@ export default function App() {
           <SessionScreen date={session.date} kind={session.kind} onClose={() => setSession(null)} />
         </ErrorBoundary>
       )}
+    </div>
+  )
+}
+
+/** Scrollende omhulling voor een scherm dat zijn eigen actiezone nog niet meebrengt. */
+function Scroll({ children }: { children: ReactNode }) {
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto w-full max-w-content px-gutter py-block">{children}</div>
     </div>
   )
 }
@@ -155,4 +179,3 @@ function IconSettings() {
     </TabIcon>
   )
 }
-

@@ -56,8 +56,9 @@ describe('de keuzelijst bij verplaatsen', () => {
       createElement(MoveSheet, { open: true, onClose: noop, targets, hint: 'test', onPick: noop }),
     )
     expect(html).toContain('duurloop')
-    // de dag is nog steeds een knop, geen uitgeschakelde regel
-    expect(html).toContain(`<button class="btn-ghost w-full flex-col !items-start py-2 border-amber-500/40"`)
+    // de dag is nog steeds een knop, geen uitgeschakelde regel; de waarschuwing
+    // markeert hem met de accentrand in plaats van hem weg te zetten
+    expect(html).toContain('<button class="btn-ghost w-full flex-col !items-start py-2 text-list border-accent"')
   })
 
   it('noemt de ruil als er al iets staat', () => {

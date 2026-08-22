@@ -73,6 +73,7 @@ export default {
         gutter: 'var(--gutter)',
         block: 'var(--gap-block)',
         'in-block': 'var(--gap-in-block)',
+        tight: 'var(--gap-tight)',
         row: 'var(--row-pad-y)',
         'today-row': 'var(--today-row-pad-y)',
         bleed: 'var(--today-row-bleed)',
@@ -80,6 +81,21 @@ export default {
         'nav-top': 'var(--nav-pad-top)',
         'nav-bottom': 'var(--nav-pad-bottom)',
         stepper: 'var(--stepper-gap)',
+        'stat-y': 'var(--pad-stat-y)',
+        stat: 'var(--gap-stat)',
+        'stat-x': 'var(--pad-stat-x)',
+        'week-stat-x': 'var(--pad-week-stat-x)',
+        segment: 'var(--gap-segment)',
+        'segment-y': 'var(--pad-segment-y)',
+        'checkin-row': 'var(--gap-checkin-row)',
+        'checkin-label': 'var(--gap-checkin-label)',
+        column: 'var(--gap-column)',
+        meta: 'var(--gap-meta)',
+        action: 'var(--gap-action)',
+        'action-y': 'var(--pad-action-y)',
+        'session-bottom': 'var(--pad-session-bottom)',
+        timer: 'var(--gap-timer)',
+        progress: 'var(--gap-progress)',
       },
       width: {
         secondary: 'var(--secondary-width)',
@@ -99,12 +115,18 @@ export default {
       },
       minHeight: {
         tap: 'var(--tap-min)',
+        stepper: 'var(--stepper-height)',
+      },
+      minWidth: {
+        'number-field': 'var(--input-min-width)',
       },
       maxWidth: {
         content: 'var(--content-max)',
       },
       borderWidth: {
-        rule: 'var(--rule-width)',
+        // 'hair' en niet 'rule': anders botst de breedte border-rule met de kleur border-rule
+        hair: 'var(--rule-width)',
+        accent: 'var(--accent-inset)',
       },
       transitionDuration: {
         color: 'var(--duration-color)',

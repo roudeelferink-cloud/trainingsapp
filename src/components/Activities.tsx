@@ -73,19 +73,19 @@ function ActivityForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-block">
       <div>
-        <p className="label mb-1">Wat</p>
+        <p className="caps mb-in-block">Wat</p>
         <ChoiceGrid
           options={ACTIVITY_TYPES}
           value={type}
           onChange={setType}
-          buttonClass="min-h-[44px] px-3 text-sm rounded-lg"
+          buttonClass="min-h-tap px-3 text-body"
         />
       </div>
 
       <div>
-        <p className="label mb-1">Duur (min)</p>
+        <p className="caps mb-in-block">Duur (min)</p>
         <Stepper
           ariaLabel="Duur in minuten"
           value={minutes}
@@ -99,7 +99,7 @@ function ActivityForm({
 
       {metAfstand && (
         <div>
-          <p className="label mb-1">Afstand (km)</p>
+          <p className="caps mb-in-block">Afstand (km)</p>
           <Stepper
             ariaLabel="Afstand in kilometer"
             value={km}
@@ -110,24 +110,24 @@ function ActivityForm({
             decimals={1}
             suffix="km"
           />
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="mt-tight text-meta text-dim">
             {tempoHint(type, minutes, km) ?? 'Laat op 0 staan als je de afstand niet weet.'}
           </p>
         </div>
       )}
 
       <div>
-        <p className="label mb-1">Intensiteit</p>
+        <p className="caps mb-in-block">Intensiteit</p>
         <ChoiceGrid
           options={ACTIVITY_INTENSITIES}
           value={intensity}
           onChange={setIntensity}
-          buttonClass="min-h-[44px] px-3 text-sm rounded-lg"
+          buttonClass="min-h-tap px-3 text-body"
         />
       </div>
 
       <div>
-        <p className="label mb-1">Datum</p>
+        <p className="caps mb-in-block">Datum</p>
         <input
           className="field"
           type="date"
@@ -135,13 +135,13 @@ function ActivityForm({
           value={day}
           onChange={(e) => e.target.value && setDay(e.target.value)}
         />
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="mt-tight text-meta text-dim">
           Staat op {formatShort(day)}. Achteraf invullen mag.
         </p>
       </div>
 
       <div>
-        <p className="label mb-1">Notitie (optioneel)</p>
+        <p className="caps mb-in-block">Notitie (optioneel)</p>
         <input
           className="field"
           placeholder="Bijvoorbeeld: rondje met de kinderen"
@@ -202,26 +202,22 @@ export function ActivityList({
   showDate?: boolean
 }) {
   return (
-    <ul className="space-y-2">
+    <ul className="flex flex-col">
       {items.map((a) => (
         <li
           key={a.id}
-          className="flex items-start justify-between gap-2 rounded-xl border border-ink-600 bg-ink-700/40 p-3"
+          className="flex items-start justify-between gap-column border-t-hair border-rule py-row last:border-b-hair"
         >
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               <Chip tone="neutral">Extra</Chip>
-              {showDate && <span className="text-xs text-slate-400">{formatShort(a.date)}</span>}
+              {showDate && <span className="text-meta text-dim">{formatShort(a.date)}</span>}
             </div>
-            <p className="font-semibold mt-1">{activitySummary(a)}</p>
-            {activityPace(a) && (
-              <p className="text-sm text-slate-400 tabular-nums">
-                gemiddeld {activityPace(a)}
-              </p>
-            )}
-            {a.note && <p className="text-sm text-slate-400 break-words">{a.note}</p>}
+            <p className="mt-tight text-list text-ink">{activitySummary(a)}</p>
+            {activityPace(a) && <p className="text-meta text-dim">gemiddeld {activityPace(a)}</p>}
+            {a.note && <p className="break-words text-meta text-dim">{a.note}</p>}
           </div>
-          <button className="btn-ghost btn-sm shrink-0" onClick={() => onEdit(a)}>
+          <button className="shrink-0 text-label text-accent" onClick={() => onEdit(a)}>
             Bewerk
           </button>
         </li>

@@ -34,7 +34,7 @@ describe('schermen renderen', () => {
   it('rendert Vandaag', () => {
     const html = render(createElement(Today, { onOpenSession: noop }))
     expect(html.length).toBeGreaterThan(500)
-    expect(html).toContain('Hoe voelen benen en pezen?')
+    expect(html).toContain('Hoe ligt de dag?')
   })
 
   it('zet de loop vóór de krachttraining met een pauze ertussen', () => {
@@ -73,12 +73,17 @@ describe('schermen renderen', () => {
     }
   })
 
-  it('toont de dagcheck op Vandaag, met slaap en energie op een schaal van 3', () => {
+  it('zet slaap, energie en benen in één check-inblok op Vandaag', () => {
     const html = render(createElement(Today, { onOpenSession: noop }))
-    expect(html).toContain('Dagcheck')
+    expect(html).toContain('Hoe ligt de dag?')
+    // slaap en energie op een schaal van 3, met de labels uit DAY_SCORES
     expect(html).toContain('Slaap')
     expect(html).toContain('Energie')
-    expect(html).toContain('Overslaan mag')
+    expect(html).toContain('Slecht')
+    expect(html).toContain('Goed')
+    // benen en pezen houden hun eigen schaal van 5, met de uitleg erbij
+    expect(html).toContain('Benen')
+    expect(html).toContain('1 = brak · 5 = fris')
   })
 
   it('toont de deloadweek met de mogelijkheid om hem over te slaan', () => {
@@ -109,8 +114,13 @@ describe('schermen renderen', () => {
     vi.setSystemTime(fromISO(zondag))
     try {
       const html = render(createElement(Today, { onOpenSession: noop }))
-      expect(html).toContain('Duurloop 10 km')
-      expect(html).toContain('Geplande afstand aanpassen')
+      // de kop is het grote cijfer met zijn eenheid, niet één samengestelde regel
+      expect(html).toContain('Duurloop')
+      expect(html).toContain('>10<')
+      expect(html).toContain('km')
+      // afvinken is de primaire actie; de rest zit achter de knop ernaast
+      expect(html).toContain('Loop afvinken')
+      expect(html).toContain('Meer')
     } finally {
       vi.useRealTimers()
     }
@@ -181,7 +191,9 @@ describe('schermen renderen', () => {
       },
     }))
     const html = render(createElement(Today, { onOpenSession: noop }))
-    expect(html).toContain('Reismodus')
+    // de markeringen rechtsboven staan in kleine letters in de DOM; het kapitaal komt uit de CSS
+    expect(html).toContain('reismodus')
+    expect(html).toContain('deloadweek')
     expect(render(createElement(WeekScreen, { onOpenSession: noop }))).toContain('Deload')
   })
 
@@ -296,14 +308,20 @@ describe('schermen renderen', () => {
     expect(html).not.toContain('Standaardvolgorde')
   })
 
-  it('zet de warming-up ook bovenaan het sessieoverzicht van Vandaag', () => {
+  it('noemt de krachtsessie op Vandaag maar laat de oefeningen aan het sessiescherm', () => {
     const monday = mondayOf(today())
     setState((s) => ({ ...s, startDate: monday }))
+    const plan = buildDay(getState(), today())
+    if (!plan.strength) return
+
     const html = render(createElement(Today, { onOpenSession: noop }))
 
-    if (!buildDay(getState(), today()).strength) return
-    expect(html).toContain('Warming-up')
-    expect(html).toContain('Loopband 5 min')
+    // de sessie staat er met naam en de weg erheen
+    expect(html).toContain(plan.strength.naam)
+    expect(html).toMatch(/Start sessie|Bekijk/)
+    // maar de inhoud van de sessie hoort in de sessie, niet op het dagoverzicht
+    expect(html).not.toContain('Loopband 5 min')
+    expect(html).not.toContain('Uitleg volgorde')
   })
 
   it('rendert het startscherm met alleen de gebruikerskeuze', () => {

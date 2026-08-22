@@ -34,7 +34,7 @@
  */
 @layer components {
   .card {
-    @apply border-rule border-rule bg-transparent p-4;
+    @apply border-hair border-rule bg-transparent p-4;
   }
   .btn {
     @apply inline-flex select-none items-center justify-center gap-2 px-4 text-button
@@ -46,16 +46,16 @@
     padding-bottom: var(--primary-pad-y);
   }
   .btn-ghost {
-    @apply btn border-rule border-rule-strong text-muted text-label;
+    @apply btn border-hair border-rule-strong text-muted text-label;
   }
   .btn-quiet {
-    @apply btn border-rule border-rule-strong bg-transparent text-muted text-label;
+    @apply btn border-hair border-rule-strong bg-transparent text-muted text-label;
   }
   .btn-sm {
     @apply min-h-tap px-3 text-label;
   }
   .field {
-    @apply w-full border-rule border-field-border bg-field-bg px-3 py-3 text-list text-ink
+    @apply w-full border-hair border-field-border bg-field-bg px-3 py-3 text-list text-ink
            focus:border-accent focus:outline-none;
   }
   .chip {
@@ -67,10 +67,10 @@
 
   /* Haarlijn — de belangrijkste scheiding in het hele ontwerp. */
   .hairline-top {
-    @apply border-t-rule border-t-rule;
+    @apply border-t-hair border-t-rule;
   }
   .hairline-bottom {
-    @apply border-b-rule border-b-rule;
+    @apply border-b-hair border-b-rule;
   }
   /* Kapitaal-label, de enige plek waar de sans in hoofdletters staat. */
   .caps {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -10,7 +11,18 @@ import { getState, resetState, setState } from '../src/store/store'
 const render = (el: Parameters<typeof renderToString>[0]) =>
   renderToString(el).replace(/<!-- -->/g, '')
 
-const MIN_WIDTH_CLASS = `min-w-[${NUMBER_INPUT_MIN_PX}px]`
+/**
+ * De maten staan in tokens en niet meer als px in de componenten, dus lezen we ze
+ * hier uit theme.css. Zo blijft de eis ("een getal moet leesbaar en aanraakbaar
+ * blijven") bewaakt, ook al staat het getal nu ergens anders.
+ */
+const THEME = readFileSync(new URL('../src/theme.css', import.meta.url), 'utf8')
+
+function token(naam: string): number {
+  const m = THEME.match(new RegExp(`\\n\\s*--${naam}:\\s*(\\d+)px`))
+  if (!m) throw new Error(`token --${naam} niet gevonden in theme.css`)
+  return Number(m[1])
+}
 
 beforeEach(() => {
   resetState()
@@ -26,14 +38,29 @@ function inputs(html: string): string[] {
   return html.match(/<input[^>]*>/g) ?? []
 }
 
+describe('de maten van de invoer staan in tokens', () => {
+  it('houdt het getalveld breed genoeg om te lezen en te bewerken', () => {
+    expect(token('input-min-width')).toBeGreaterThanOrEqual(NUMBER_INPUT_MIN_PX)
+  })
+
+  it('houdt de waarde ruim boven 16px, anders zoomt iOS bij focus in op het veld', () => {
+    expect(token('text-input')).toBeGreaterThanOrEqual(16)
+  })
+
+  it('houdt de − en + knoppen op de maat die met zweethanden nog te raken is', () => {
+    // het ontwerp schrijft 64px voor en noemt dat een minimum, niet een voorkeur
+    expect(token('stepper-button')).toBeGreaterThanOrEqual(token('tap-min'))
+    expect(token('stepper-height')).toBeGreaterThanOrEqual(token('tap-min'))
+  })
+})
+
 describe('invoervelden in een setrij', () => {
   it('geeft het getalveld een expliciete minimumbreedte', () => {
     const html = render(createElement(Stepper, { value: 40, onChange: () => {}, ariaLabel: 'Gewicht' }))
     const [field] = inputs(html)
 
-    expect(field).toContain(MIN_WIDTH_CLASS)
-    // 16px of groter, anders zoomt iOS bij focus in op het veld
-    expect(field).toContain('text-base')
+    expect(field).toContain('min-w-number-field')
+    expect(field).toContain('text-input')
     expect(field).toContain('inputMode="decimal"')
     expect(field).toContain('text-center')
   })
@@ -43,21 +70,17 @@ describe('invoervelden in een setrij', () => {
     const knoppen = html.match(/<button[^>]*>/g) ?? []
 
     expect(knoppen).toHaveLength(2)
-    // flex-none = flex: 0 0 auto, met een vaste breedte van 44px (w-11)
     for (const knop of knoppen) {
       expect(knop).toContain('flex-none')
-      expect(knop).toContain('w-11')
+      expect(knop).toContain('w-stepper-btn')
+      expect(knop).toContain('h-stepper')
     }
-    // de rij mag wrappen in plaats van de velden samen te knijpen
-    expect(html).toContain('flex-wrap')
   })
 
   it('houdt het veld zelf breed genoeg binnen zijn omhulsel', () => {
     const html = render(createElement(Stepper, { value: 40, onChange: () => {} }))
-    // het omhulsel is minstens zo breed als het veld plus zijn padding
-    const wrapper = html.match(/min-w-\[(\d+)px\][^>]*flex items-center rounded-lg/)
-    expect(wrapper).not.toBeNull()
-    expect(Number(wrapper![1])).toBeGreaterThanOrEqual(NUMBER_INPUT_MIN_PX)
+    // het omhulsel draagt dezelfde minimumbreedte als het veld erin
+    expect(html).toMatch(/min-w-number-field flex-1[^>]*border-field-border/)
   })
 })
 
@@ -82,9 +105,8 @@ describe('elke setrij, niet alleen de eerste', () => {
 
     const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
     for (const veld of velden) {
-      expect(veld).toContain(MIN_WIDTH_CLASS)
-      expect(veld).toContain('text-base')
-      expect(veld).toContain('inputMode="decimal"')
+      expect(veld).toContain('min-w-number-field')
+      expect(veld).toContain('text-input')
     }
   })
 
@@ -100,7 +122,9 @@ describe('elke setrij, niet alleen de eerste', () => {
       )
       const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
       expect(velden.length, plan.strength.naam).toBeGreaterThan(0)
-      for (const veld of velden) expect(veld, plan.strength.naam).toContain(MIN_WIDTH_CLASS)
+      for (const veld of velden) {
+        expect(veld, plan.strength.naam).toContain('min-w-number-field')
+      }
       gecontroleerd++
     }
     expect(gecontroleerd).toBeGreaterThanOrEqual(4)

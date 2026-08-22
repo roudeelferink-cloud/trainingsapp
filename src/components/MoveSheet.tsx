@@ -29,8 +29,8 @@ export function MoveSheet({
 
   return (
     <Sheet open={open} onClose={onClose} title="Verplaats naar">
-      <p className="text-sm text-slate-400 mb-3">{hint}</p>
-      <div className="space-y-2">
+      <p className="mb-block text-body text-muted">{hint}</p>
+      <div className="flex flex-col gap-in-block">
         {eerder.length > 0 && <Kop>Naar voren halen</Kop>}
         {eerder.map((t) => (
           <Rij key={t.date} target={t} onPick={onPick} />
@@ -45,32 +45,32 @@ export function MoveSheet({
 }
 
 function Kop({ children }: { children: string }) {
-  return <p className="label pt-1">{children}</p>
+  return <p className="caps pt-tight">{children}</p>
 }
 
 function Rij({ target, onPick }: { target: MoveTarget; onPick: (date: string) => void }) {
   if (target.blocked) {
     return (
-      <div className="w-full rounded-xl border border-ink-600 bg-ink-900/40 px-4 py-3 opacity-60">
-        <p className="font-semibold text-slate-400">{formatShort(target.date)}</p>
-        <p className="text-xs text-slate-400">{target.blocked}</p>
+      <div className="w-full border-hair border-rule px-4 py-3 opacity-60">
+        <p className="text-list text-muted">{formatShort(target.date)}</p>
+        <p className="text-meta text-dim">{target.blocked}</p>
       </div>
     )
   }
 
   return (
     <button
-      className={`btn-ghost w-full flex-col !items-start py-2 ${
-        target.warnings.length > 0 ? 'border-amber-500/40' : ''
+      className={`btn-ghost w-full flex-col !items-start py-2 text-list ${
+        target.warnings.length > 0 ? 'border-accent' : ''
       }`}
       onClick={() => onPick(target.date)}
     >
       <span>{formatShort(target.date)}</span>
       {target.swapWith && (
-        <span className="text-xs font-normal text-slate-400">ruilt met {target.swapWith}</span>
+        <span className="text-meta text-dim">ruilt met {target.swapWith}</span>
       )}
       {target.warnings.map((w, i) => (
-        <span key={i} className="text-xs font-normal text-amber-300 text-left whitespace-normal">
+        <span key={i} className="whitespace-normal text-left text-meta text-accent">
           {w}
         </span>
       ))}

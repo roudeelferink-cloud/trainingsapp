@@ -6,25 +6,36 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between mb-2">
-      <h2 className="text-lg font-bold text-slate-100">{children}</h2>
+    <div className="mb-in-block flex items-baseline justify-between gap-column">
+      <h2 className="text-caps uppercase tracking-caps-wide text-dim">{children}</h2>
       {right}
     </div>
   )
 }
 
-export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'run' | 'lift' | 'warn' | 'ok' | 'off' | 'deload' }) {
-  const tones: Record<string, string> = {
-    neutral: 'bg-ink-600 text-slate-200',
-    run: 'bg-amber-500/20 text-amber-300',
-    lift: 'bg-sky-500/20 text-sky-300',
-    warn: 'bg-rose-500/20 text-rose-300',
-    ok: 'bg-emerald-500/20 text-emerald-300',
-    off: 'bg-ink-700 text-slate-400',
-    // amber, net als de deloadbalken in de grafieken ("Oranje = deloadweek")
-    deload: 'bg-amber-500/20 text-amber-300',
-  }
-  return <span className={`chip ${tones[tone]}`}>{children}</span>
+/**
+ * Een label naast iets anders. In het Logboek-ontwerp is een chip geen gekleurd
+ * bolletje meer maar een kapitaal-label: `accent` voor "hier ben je", `dim` voor
+ * de rest. Er is maar één accentkleur, dus onderscheid maken met kleur kan niet —
+ * en hoeft ook niet, want de tekst zegt het zelf al.
+ */
+export function Chip({
+  children,
+  tone = 'neutral',
+}: {
+  children: ReactNode
+  tone?: 'neutral' | 'run' | 'lift' | 'warn' | 'ok' | 'off' | 'deload'
+}) {
+  const accent = tone === 'run' || tone === 'deload' || tone === 'ok' || tone === 'warn'
+  return (
+    <span
+      className={`chip uppercase tracking-caps-tight text-caps-lg ${
+        accent ? 'text-accent' : tone === 'off' ? 'text-faint' : 'text-dim'
+      }`}
+    >
+      {children}
+    </span>
+  )
 }
 
 export function Sheet({
@@ -62,9 +73,9 @@ export function Sheet({
       aria-labelledby={titleId}
     >
       <button aria-label="Sluiten" className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-ink-800 border-t border-ink-600 rounded-t-3xl p-4 pb-6 max-h-[85vh] overflow-y-auto safe-bottom">
-        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-ink-500" />
-        <h3 id={titleId} className="text-lg font-bold mb-3">
+      {/* geen ronde hoeken en geen schaduw: het blad is een vel papier met een lijn erboven */}
+      <div className="safe-bottom relative max-h-[85vh] w-full max-w-content overflow-y-auto border-t-hair border-rule bg-bg px-gutter pb-block pt-block">
+        <h3 id={titleId} className="mb-block font-serif text-lead text-ink">
           {title}
         </h3>
         {children}
@@ -74,7 +85,7 @@ export function Sheet({
 }
 
 /**
- * Rooster met keuzeknoppen: de gekozen knop kleurt accent, de rest blijft donker.
+ * Rooster met keuzeknoppen: de gekozen knop kleurt oker, de rest is een haarlijnrand.
  * Hetzelfde blok stond op zeven plekken met de hand nagebouwd (check-in, dagcheck,
  * beoordeling, warming-uptype, activiteit); dit is die ene plek. Werkt ook zonder
  * gekozen waarde — dan zijn het actieknoppen in dezelfde stijl, zoals bij de
@@ -85,7 +96,7 @@ export function ChoiceGrid<T extends string | number>({
   value,
   onChange,
   columns = 3,
-  buttonClass = 'min-h-[52px] text-sm',
+  buttonClass = 'min-h-tap py-segment-y text-body',
 }: {
   options: readonly { id: T; label: ReactNode }[]
   value?: T
@@ -96,14 +107,16 @@ export function ChoiceGrid<T extends string | number>({
 }) {
   const cols = { 2: 'grid-cols-2', 3: 'grid-cols-3', 5: 'grid-cols-5' }[columns]
   return (
-    <div className={`grid ${cols} gap-2`}>
+    <div className={`grid ${cols} gap-segment`}>
       {options.map((o) => (
         <button
           key={o.id}
           aria-pressed={value !== undefined ? value === o.id : undefined}
           onClick={() => onChange(o.id)}
-          className={`btn ${buttonClass} ${
-            value === o.id ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
+          className={`flex items-center justify-center border-hair text-center transition-colors duration-color ${buttonClass} ${
+            value === o.id
+              ? 'border-accent bg-accent font-semibold text-on-accent'
+              : 'border-chip-border text-dim'
           }`}
         >
           {o.label}
@@ -115,7 +128,7 @@ export function ChoiceGrid<T extends string | number>({
 
 /**
  * Bevestigingsvinkje voor een ingreep met gevolgen (deload overslaan, gegevens
- * wissen): één rij die je aan- en uitzet, met het rode vinkje als het aanstaat.
+ * wissen): één rij die je aan- en uitzet, met het vinkje als het aanstaat.
  */
 export function ConfirmCheck({
   checked,
@@ -128,20 +141,20 @@ export function ConfirmCheck({
 }) {
   return (
     <button
-      className="w-full flex items-center gap-3 rounded-xl border border-ink-600 bg-ink-900 p-3 text-left"
+      className="flex w-full items-center gap-column border-hair border-rule p-3 text-left"
       role="checkbox"
       aria-checked={checked}
       onClick={onToggle}
     >
       <span
-        className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center text-sm font-bold ${
-          checked ? 'bg-rose-500 border-rose-500 text-ink-900' : 'border-ink-500 text-transparent'
+        className={`flex h-checkbox w-checkbox shrink-0 items-center justify-center border-hair text-meta transition-colors duration-color ${
+          checked ? 'border-accent bg-accent text-on-accent' : 'border-checkbox-border text-transparent'
         }`}
         aria-hidden
       >
         ✓
       </span>
-      <span className="text-sm">{children}</span>
+      <span className="text-body text-ink">{children}</span>
     </button>
   )
 }
@@ -160,18 +173,22 @@ export function Toggle({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 py-3 text-left"
+      className="flex w-full items-center justify-between gap-column py-3 text-left"
+      role="switch"
+      aria-checked={checked}
     >
       <span>
-        <span className="block font-semibold">{label}</span>
-        {hint && <span className="block text-sm text-slate-400">{hint}</span>}
+        <span className="block text-list text-ink">{label}</span>
+        {hint && <span className="block text-meta leading-meta text-dim">{hint}</span>}
       </span>
+      {/* geen ronde schakelaar: een vierkant vakje dat vol loopt, net als het set-vinkje */}
       <span
-        className={`shrink-0 w-14 h-8 rounded-full p-1 transition ${checked ? 'bg-accent' : 'bg-ink-600'}`}
+        className={`flex h-checkbox w-checkbox shrink-0 items-center justify-center border-hair text-meta transition-colors duration-color ${
+          checked ? 'border-accent bg-accent text-on-accent' : 'border-checkbox-border text-transparent'
+        }`}
+        aria-hidden
       >
-        <span
-          className={`block w-6 h-6 rounded-full bg-white transition ${checked ? 'translate-x-6' : ''}`}
-        />
+        ✓
       </span>
     </button>
   )
@@ -203,6 +220,13 @@ export function formatDecimal(value: number, decimals = 0): string {
   return text.replace('.', ',')
 }
 
+/**
+ * De stepper uit het ontwerp: 64px hoog, − en + van 64px breed, het veld ertussen.
+ *
+ * Die maat is geen smaak maar de reden dat het ding in een sportschool werkt — met
+ * zweethanden mis je een knop van 44px. Tikken op het veld zelf opent het numerieke
+ * toetsenbord; de knoppen zijn de gewone route.
+ */
 export function Stepper({
   value,
   onChange,
@@ -239,25 +263,22 @@ export function Stepper({
     onChange(clamp(basis + richting * step))
   }
 
+  const knop =
+    'flex h-stepper w-stepper-btn flex-none items-center justify-center border-hair ' +
+    'border-rule-strong text-stepper text-ink-status transition-colors duration-color'
+
   return (
-    // flex-wrap: op een heel smal scherm (320px) wipt het veld naar een eigen regel
-    // in plaats van dat het tussen de knoppen wordt platgedrukt.
-    <div className="flex flex-wrap items-stretch gap-1">
-      <button
-        className="btn-ghost btn-sm w-11 flex-none text-xl"
-        onClick={() => stap(-1)}
-        aria-label="Minder"
-      >
+    <div className="flex items-stretch gap-stepper">
+      {/* − is U+2212, geen koppelteken: een hyphen staat te hoog en te kort */}
+      <button className={knop} onClick={() => stap(-1)} aria-label="Minder">
         −
       </button>
-      {/* min-w houdt het veld leesbaar; de knoppen ernaast mogen het nooit wegdrukken */}
-      <div className="flex-1 min-w-[64px] flex items-center rounded-lg bg-ink-900 border border-ink-600 px-1 focus-within:border-accent">
+      <div className="flex h-stepper min-w-number-field flex-1 items-center justify-center gap-2 border-hair border-field-border bg-field-bg px-1 focus-within:border-accent">
         <input
           type="text"
           inputMode="decimal"
           aria-label={ariaLabel}
-          // text-base = 16px: kleiner laat iOS bij focus inzoomen op het veld
-          className="w-full min-w-[56px] bg-transparent text-center text-base tabular-nums font-bold focus:outline-none placeholder:text-slate-500 placeholder:font-normal"
+          className="w-full min-w-number-field bg-transparent text-center font-serif text-input text-ink focus:outline-none placeholder:text-faint"
           value={draft ?? (empty ? '' : formatDecimal(value, decimals))}
           placeholder={placeholder === undefined ? undefined : formatDecimal(placeholder, decimals)}
           onChange={(e) => {
@@ -269,13 +290,9 @@ export function Stepper({
           }}
           onBlur={() => setDraft(null)}
         />
-        {suffix && <span className="text-xs text-slate-400 pr-1">{suffix}</span>}
+        {suffix && <span className="shrink-0 pr-1 text-body text-dim">{suffix}</span>}
       </div>
-      <button
-        className="btn-ghost btn-sm w-11 flex-none text-xl"
-        onClick={() => stap(1)}
-        aria-label="Meer"
-      >
+      <button className={knop} onClick={() => stap(1)} aria-label="Meer">
         +
       </button>
     </div>
@@ -318,15 +335,15 @@ export function DecimalField({
   )
 }
 
-export function Bar({ value, max, tone = 'bg-accent' }: { value: number; max: number; tone?: string }) {
+export function Bar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
   return (
-    <div className="h-3 rounded-full bg-ink-600 overflow-hidden">
-      <div className={`h-full ${tone} transition-all`} style={{ width: `${pct}%` }} />
+    <div className="h-bar bg-rule-faint">
+      <div className="h-bar bg-accent" style={{ width: `${pct}%` }} />
     </div>
   )
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-slate-400 text-sm py-6 text-center">{children}</p>
+  return <p className="py-block text-center text-body text-dim">{children}</p>
 }

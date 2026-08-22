@@ -98,12 +98,35 @@
   --pace-column: 52px;
   --checkin-label: 56px;
   --tap-min: 44px;
+  --input-min-width: 56px; /* smaller en een getal is niet meer te lezen of te bewerken */
 
   --gap-block: 14px; /* verticaal ritme tussen blokken */
   --gap-in-block: 8px; /* binnen een blok */
+  --gap-tight: 2px; /* tussen twee regels die één ding zijn */
   --row-pad-y: 12px; /* lijstrij */
   --today-row-pad-y: 14px;
   --today-row-bleed: 8px; /* de wash loopt tot in de gutter */
+
+  /* kerncijferkolommen */
+  --pad-stat-y: 11px;
+  --gap-stat: 3px;
+  --pad-stat-x: 16px; /* inspringing van de tweede en derde kolom op Vandaag */
+  --pad-week-stat-x: 14px; /* idem op Week, waar de kolommen smaller zijn */
+
+  /* segmentrijen (de check-in) */
+  --gap-segment: 8px;
+  --pad-segment-y: 11px;
+  --gap-checkin-row: 9px;
+  --gap-checkin-label: 10px;
+
+  /* lijst- en setrijen */
+  --gap-column: 14px; /* tussen dag-, tekst- en statuskolom */
+  --gap-meta: 16px; /* tussen de metagegevens onder een oefeningnaam */
+  --gap-action: 10px; /* tussen primaire en secundaire knop */
+  --pad-action-y: 12px; /* de actiezone zelf */
+  --pad-session-bottom: 30px; /* Sessie heeft geen navigatiebalk onder de actiezone */
+  --gap-timer: 7px;
+  --gap-progress: 4px; /* tussen de voortgangssegmenten */
 
   --nav-pad-top: 11px;
   --nav-pad-bottom: 22px; /* home indicator */

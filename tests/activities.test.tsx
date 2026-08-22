@@ -452,8 +452,9 @@ describe('schermen tonen losse activiteiten apart', () => {
 
   it('toont de knop op het dagoverzicht, ook zonder gelogde activiteit', () => {
     const html = render(createElement(Today, { onOpenSession: () => {} }))
-    expect(html).toContain('Activiteit toevoegen')
     expect(html).toContain('Extra activiteiten')
+    expect(html).toContain('Toevoegen')
+    expect(html).toContain('Nog niets extra gelogd vandaag.')
   })
 
   it('zet een gelogde activiteit met eigen label naast het schema', () => {
@@ -464,7 +465,7 @@ describe('schermen tonen losse activiteiten apart', () => {
     expect(html).toContain('Fietsen 40 min')
     expect(html).toContain('avondrondje')
     // de knop blijft staan: meerdere per dag mogen
-    expect(html).toContain('Activiteit toevoegen')
+    expect(html).toContain('Toevoegen')
   })
 
   it('toont ze in de historie met datum', () => {
