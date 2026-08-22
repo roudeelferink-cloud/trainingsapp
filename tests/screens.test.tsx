@@ -194,7 +194,7 @@ describe('schermen renderen', () => {
     // de markeringen rechtsboven staan in kleine letters in de DOM; het kapitaal komt uit de CSS
     expect(html).toContain('reismodus')
     expect(html).toContain('deloadweek')
-    expect(render(createElement(WeekScreen, { onOpenSession: noop }))).toContain('Deload')
+    expect(render(createElement(WeekScreen, { onOpenSession: noop }))).toContain('deloadweek')
   })
 
   it('houdt de uitleg standaard dicht, ook bij een oefening zonder eerdere logs', () => {

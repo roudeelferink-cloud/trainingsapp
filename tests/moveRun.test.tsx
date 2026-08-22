@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { buildDay, moveTargets } from '../src/logic/day'
 import { addDays, mondayOf, today, weekday } from '../src/logic/dates'
 import { Today } from '../src/screens/Today'
-import { WeekScreen } from '../src/screens/WeekScreen'
+import { WeekScreen, dayActions } from '../src/screens/WeekScreen'
 import * as A from '../src/store/actions'
 import {
   ANOUC,
@@ -196,18 +196,24 @@ describe('in de schermen', () => {
     expect(buildDay(getState(), di).strength?.kind).toBe('push')
   })
 
-  it('geeft elke loop op de weekpagina een eigen verplaatsknop', () => {
+  it('laat elke loop van de week vanaf de weekpagina verplaatsen', () => {
     setState((s) => ({ ...s, startDate: mondayOf(today()) }))
-    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
-
-    // dinsdag heeft loop én kracht: de knop van de loop staat naast de loopregel,
-    // die van de sessie naast de sessieregel
-    expect(html).toContain('Verplaatsen')
-    expect(html).toContain('Open')
     const loopdagen = [1, 3, 6].map((d) => dezeWeek(d))
-    for (const iso of loopdagen) expect(buildDay(getState(), iso).run).not.toBeNull()
-    // drie loopdagen, dus drie verplaatsknoppen
-    expect(html.split('Verplaatsen').length - 1).toBe(3)
+
+    // de dagregel ís de knop; wat je ermee kunt staat in dayActions
+    for (const iso of loopdagen) {
+      const plan = buildDay(getState(), iso)
+      expect(plan.run, iso).not.toBeNull()
+      expect(dayActions(plan).map((a) => a.id), iso).toContain('move')
+    }
+    // en op een dag met loop én kracht kun je allebei bereiken
+    const dinsdag = buildDay(getState(), dezeWeek(1))
+    expect(dinsdag.strength).not.toBeNull()
+    expect(dayActions(dinsdag).map((a) => a.id)).toEqual(['move', 'open'])
+
+    // de regels staan ook echt als knop op het scherm
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+    expect(html).toContain('kies wat je doet')
   })
 
   it('laat een verplaatste loop op de weekpagina op de nieuwe dag zien', () => {
@@ -232,9 +238,14 @@ describe('in de schermen', () => {
     A.completeRun(dinsdag, run.kind, { plannedKm: run.km, km: run.km, minutes: 30, bike: false })
     A.skipSession(dezeWeek(3), 'run', 'druk')
 
-    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
     // alleen de zondagloop is nog te verplaatsen
-    expect(html.split('Verplaatsen').length - 1).toBe(1)
+    const teVerplaatsen = [0, 1, 2, 3, 4, 5, 6]
+      .map((d) => dezeWeek(d))
+      .filter((iso) => dayActions(buildDay(getState(), iso)).some((a) => a.id === 'move'))
+    expect(teVerplaatsen).toEqual([dezeWeek(6)])
+
+    // het scherm rendert die stand zonder te struikelen
+    expect(render(createElement(WeekScreen, { onOpenSession: () => {} })).length).toBeGreaterThan(500)
   })
 
   it('geeft de loop van vandaag een verplaatsknop en een terugknop', () => {

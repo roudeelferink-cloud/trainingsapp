@@ -221,6 +221,14 @@ export function formatDecimal(value: number, decimals = 0): string {
 }
 
 /**
+ * Grote getallen met een spatie als duizendtalscheiding: 8 240 kg. Een smalle
+ * spatie, zodat het getal één woord blijft en niet over twee regels breekt.
+ */
+export function formatThousands(value: number): string {
+  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f')
+}
+
+/**
  * De stepper uit het ontwerp: 64px hoog, − en + van 64px breed, het veld ertussen.
  *
  * Die maat is geen smaak maar de reden dat het ding in een sportschool werkt — met

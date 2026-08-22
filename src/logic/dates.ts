@@ -50,3 +50,26 @@ export function formatLong(iso: string): string {
   const d = fromISO(iso)
   return `${namen[d.getDay()]} ${d.getDate()} ${MAAND[d.getMonth()]}`
 }
+
+/** Afkorting van de weekdag: 'ma', 'di'. Voor de dagkolom op het weekscherm. */
+export function weekdayShort(iso: string): string {
+  return DAG[fromISO(iso).getDay()]
+}
+
+/** Alleen het dagnummer, zonder maand: '17'. */
+export function dayNumber(iso: string): string {
+  return String(fromISO(iso).getDate())
+}
+
+/**
+ * Een week als één regel: '17 – 23 aug', of '29 sep – 5 okt' als hij over de
+ * maandgrens loopt. Het streepje is een en-dash, geen koppelteken.
+ */
+export function formatRange(from: string, to: string): string {
+  const a = fromISO(from)
+  const b = fromISO(to)
+  const eind = `${b.getDate()} ${MAAND[b.getMonth()]}`
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()} – ${eind}`
+    : `${a.getDate()} ${MAAND[a.getMonth()]} – ${eind}`
+}

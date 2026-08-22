@@ -61,12 +61,8 @@ export default function App() {
           onReset={() => setTab('vandaag')}
         >
           {tab === 'vandaag' && <Today onOpenSession={open} />}
+          {tab === 'week' && <WeekScreen onOpenSession={open} />}
           {/* de schermen hieronder zijn nog niet herbouwd en scrollen als één blok */}
-          {tab === 'week' && (
-            <Scroll>
-              <WeekScreen onOpenSession={open} />
-            </Scroll>
-          )}
           {tab === 'voortgang' && (
             <Scroll>
               <ProgressScreen />
