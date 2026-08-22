@@ -1,58 +1,67 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Caps, Meter } from './logboek'
 
-/** Simpele rusttimer per oefening. Telt af, trilt kort als hij op nul staat. */
-export function RestTimer({ seconds = 120 }: { seconds?: number }) {
-  const [left, setLeft] = useState<number | null>(null)
-  const ref = useRef<number | null>(null)
+/**
+ * De rusttimer: een regel met de resterende tijd en een lijn die leegloopt.
+ *
+ * Er wordt een eindtijd bewaard, geen aftellend getal. Zo klopt de tijd ook nog als
+ * het scherm even uit is geweest of de telefoon de timer heeft laten slapen — de
+ * klok van het toestel is de waarheid, niet een teller die doorliep of niet.
+ *
+ * Nooit een modal en nooit iets dat de knop blokkeert: rusten is een suggestie, geen
+ * poortje. Bij nul een korte tik, en de regel zegt dat de rust voorbij is.
+ */
+export function RestTimer({
+  endsAt,
+  totalSeconds,
+  label,
+}: {
+  /** tijdstip waarop de rust afloopt, in ms sinds epoch */
+  endsAt: number
+  totalSeconds: number
+  /** waar de rust bij hoort: 'Rust na set 1' */
+  label: string
+}) {
+  const [now, setNow] = useState(() => Date.now())
+  const over = Math.max(0, endsAt - now)
+  const voorbij = over === 0
 
   useEffect(() => {
-    return () => {
-      if (ref.current) window.clearInterval(ref.current)
-    }
-  }, [])
+    if (endsAt <= Date.now()) return
+    const id = window.setInterval(() => setNow(Date.now()), 250)
+    return () => window.clearInterval(id)
+  }, [endsAt])
 
-  function start(s: number) {
-    if (ref.current) window.clearInterval(ref.current)
-    setLeft(s)
-    ref.current = window.setInterval(() => {
-      setLeft((cur) => {
-        if (cur === null) return null
-        if (cur <= 1) {
-          if (ref.current) window.clearInterval(ref.current)
-          if ('vibrate' in navigator) navigator.vibrate?.([200, 80, 200])
-          return 0
-        }
-        return cur - 1
-      })
-    }, 1000)
-  }
+  // één trilling op het moment dat de rust afloopt, niet bij elke render daarna
+  const [getikt, setGetikt] = useState(false)
+  useEffect(() => {
+    if (!voorbij || getikt) return
+    setGetikt(true)
+    navigator.vibrate?.(60)
+  }, [voorbij, getikt])
+  useEffect(() => setGetikt(false), [endsAt])
 
-  function stop() {
-    if (ref.current) window.clearInterval(ref.current)
-    setLeft(null)
-  }
-
-  if (left === null) {
-    return (
-      <div className="flex gap-2">
-        <button className="btn-ghost btn-sm flex-1" onClick={() => start(90)}>
-          Rust 1:30
-        </button>
-        <button className="btn-ghost btn-sm flex-1" onClick={() => start(seconds)}>
-          Rust {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
-        </button>
-      </div>
-    )
-  }
-
-  const mm = Math.floor(left / 60)
-  const ss = String(left % 60).padStart(2, '0')
   return (
-    <button
-      onClick={stop}
-      className={`btn w-full ${left === 0 ? 'bg-emerald-500 text-ink-900' : 'bg-ink-700 border border-ink-600'}`}
-    >
-      {left === 0 ? 'Rust voorbij — tik om te sluiten' : `Rust ${mm}:${ss} — tik om te stoppen`}
-    </button>
+    <div className="flex flex-col gap-timer">
+      <div className="flex items-baseline justify-between gap-column">
+        <Caps size="lg">{voorbij ? 'Rust voorbij' : label}</Caps>
+        {!voorbij && (
+          <div className="flex items-baseline gap-timer">
+            <div className="font-serif text-timer leading-none text-accent">{klok(over)}</div>
+            <div className="text-meta text-faint">van {klok(totalSeconds * 1000)}</div>
+          </div>
+        )}
+      </div>
+      {/* de lijn loopt leeg: wat er nog staat, is wat er nog rest */}
+      <Meter ratio={totalSeconds > 0 ? over / (totalSeconds * 1000) : 0} />
+    </div>
   )
+}
+
+/** Milliseconden als m:ss, naar boven afgerond zodat '0:00' pas op nul staat. */
+function klok(ms: number): string {
+  const totaal = Math.ceil(ms / 1000)
+  const m = Math.floor(totaal / 60)
+  const s = totaal % 60
+  return `${m}:${String(s).padStart(2, '0')}`
 }

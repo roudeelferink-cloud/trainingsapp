@@ -17,6 +17,14 @@ import { ANOUC, ROB, getState, resetState, setCurrentUser, setState } from '../s
 
 const noop = () => {}
 
+/**
+ * De sessie opent op de warming-up. Wie de oefeningen wil zien, heeft die eerst
+ * afgevinkt — precies zoals in de sportschool. Deze helper doet dat.
+ */
+function naDeWarmingUp(date: string, kind: Parameters<typeof A.setWarmupDone>[1]) {
+  A.setWarmupDone(date, kind, true)
+}
+
 /** React zet <!-- --> tussen losse tekstknopen; die halen we weg om op tekst te kunnen matchen. */
 const render = (el: Parameters<typeof renderToString>[0]) => renderToString(el).replace(/<!-- -->/g, '')
 
@@ -95,14 +103,16 @@ describe('schermen renderen', () => {
     expect(html).toContain('40%')
   })
 
-  it('toont de geschatte duur van de sessie', () => {
+  it('opent op de warming-up met de omvang van de sessie erbij', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
     const html = render(
       createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
     )
-    expect(html).toContain('Geschatte duur')
-    expect(html).toContain('Sessie afronden')
+    expect(html).toContain('Warming-up')
+    expect(html).toContain(`${plan.strength!.slots.length} oefeningen`)
+    expect(html).toContain(`~${plan.strength!.estimatedMin} min`)
+    expect(html).toContain('Warming-up klaar')
   })
 
   it('laat de geplande loopafstand zien en aanpassen', () => {
@@ -170,6 +180,7 @@ describe('schermen renderen', () => {
       const iso = addDays(monday, d)
       const plan = buildDay(getState(), iso)
       if (!plan.strength) continue
+      naDeWarmingUp(iso, plan.strength.kind)
       const html = render(
         createElement(SessionScreen, { date: iso, kind: plan.strength.kind, onClose: noop }),
       )
@@ -201,13 +212,15 @@ describe('schermen renderen', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
     const kind = plan.strength!.kind
+    naDeWarmingUp(monday, kind)
     const html = render(createElement(SessionScreen, { date: monday, kind, onClose: noop }))
 
     // niets gelogd, dus zeker geen eerdere historie voor deze oefeningen
     expect(getState().exerciseState).toEqual({})
 
     // de knop is er wel, de inhoud niet
-    expect(html).toContain('Uitleg Leg press')
+    expect(html).toContain('Leg press')
+    expect(html).toContain('Uitleg')
     expect(html).not.toContain('Uitvoering')
     expect(html).not.toContain('Voeten middenhoog')
     expect(html).not.toContain('Poppetje')
@@ -228,6 +241,7 @@ describe('schermen renderen', () => {
     setState((s) => ({ ...s, startDate: addDays(mondayOf(today()), -21) })) // voorbij de kalibratieweken
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
+    naDeWarmingUp(monday, plan.strength!.kind)
     const html = render(
       createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
     )
@@ -246,6 +260,7 @@ describe('schermen renderen', () => {
     const plan = buildDay(getState(), monday)
     expect(plan.strength!.slots[0].exercise.id).toBe('smith_squat')
 
+    naDeWarmingUp(monday, plan.strength!.kind)
     const html = render(
       createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
     )
@@ -257,26 +272,31 @@ describe('schermen renderen', () => {
   it('zet het glute medius-werk met de mini-band in de beensessie', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
+    naDeWarmingUp(monday, plan.strength!.kind)
     const html = render(
       createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
     )
 
-    // beide staan er, allebei op de mini-band: opbouwen vanaf de laagste weerstand
-    expect(html).toContain('Laterale bandwalk (mini-band)')
-    expect(html).toContain('Clamshell (mini-band)')
+    // beide staan in de sessie; het scherm doet er één tegelijk, dus de lijst met
+    // oefeningen is waar ze allebei te zien zijn
+    const namen = plan.strength!.slots.map((r) => r.exercise.naam)
+    expect(namen).toContain('Laterale bandwalk (mini-band)')
+    expect(namen).toContain('Clamshell (mini-band)')
+    expect(html).toContain(plan.strength!.slots[0].exercise.naam)
   })
 
-  it('toont per oefening een klaar-knop en de afrondvoortgang', () => {
+  it('zegt bij welke set en welke oefening je bent', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
+    naDeWarmingUp(monday, plan.strength!.kind)
     const html = render(
       createElement(SessionScreen, { date: monday, kind: plan.strength!.kind, onClose: noop }),
     )
-    expect(html).toContain('Oefening klaar')
-    expect(html).toContain(`0 van ${plan.strength!.slots.length} afgerond`)
+    expect(html).toContain('Set 1 klaar')
+    expect(html).toContain(`Oefening 1 / ${plan.strength!.slots.length}`)
   })
 
-  it('opent de sessie met het warming-upblok, boven de eerste oefening', () => {
+  it('begint de sessie bij de warming-up, met type en duur', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
     const html = render(
@@ -288,12 +308,12 @@ describe('schermen renderen', () => {
     expect(html).toContain('Losfietsen')
     expect(html).toContain('Loopband 5 min')
     expect(html).toContain('Duur warming-up')
-    expect(html).toContain('Warming-up afvinken')
-    // het blok staat vóór de eerste oefening
-    expect(html.indexOf('Warming-up')).toBeLessThan(html.indexOf('Leg press'))
+    expect(html).toContain('Warming-up klaar')
+    // de eerste oefening komt pas na deze stap
+    expect(html).not.toContain('Set 1 klaar')
   })
 
-  it('houdt de uitleg bij de volgorde achter het vraagteken', () => {
+  it('houdt de uitleg bij de volgorde achter een eigen knop', () => {
     const monday = mondayOf(today())
     const plan = buildDay(getState(), monday)
     const html = render(
@@ -322,6 +342,68 @@ describe('schermen renderen', () => {
     // maar de inhoud van de sessie hoort in de sessie, niet op het dagoverzicht
     expect(html).not.toContain('Loopband 5 min')
     expect(html).not.toContain('Uitleg volgorde')
+  })
+
+  it('laat de knop meelopen met waar je in de oefening bent', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const kind = plan.strength!.kind
+    const slot = plan.strength!.slots[0]
+    naDeWarmingUp(monday, kind)
+
+    // alle sets van de eerste oefening afgevinkt, maar de oefening nog niet afgerond
+    A.saveSessionDraft(
+      monday,
+      kind,
+      {
+        [slot.slot.key]: Array.from({ length: slot.sets }, () => ({
+          weight: 40,
+          reps: 10,
+          rir: 2,
+          done: true,
+        })),
+      },
+      { [slot.slot.key]: slot.exercise.id },
+      plan.strength!.short,
+      [],
+    )
+
+    const html = render(createElement(SessionScreen, { date: monday, kind, onClose: noop }))
+    expect(html).toContain('Volgende oefening')
+    expect(html).not.toContain('Set 1 klaar')
+    // er valt niets meer over te slaan, dus die knop hoort weg te zijn
+    expect(html).not.toContain('Sla')
+  })
+
+  it('biedt op de laatste openstaande oefening het afronden aan', () => {
+    const monday = mondayOf(today())
+    const plan = buildDay(getState(), monday)
+    const kind = plan.strength!.kind
+    const slots = plan.strength!.slots
+    const laatste = slots[slots.length - 1]
+    naDeWarmingUp(monday, kind)
+
+    // alles behalve de laatste oefening is afgerond, en die laatste is volgevinkt
+    A.saveSessionDraft(
+      monday,
+      kind,
+      {
+        [laatste.slot.key]: Array.from({ length: laatste.sets }, () => ({
+          weight: 20,
+          reps: 10,
+          rir: 2,
+          done: true,
+        })),
+      },
+      Object.fromEntries(slots.map((r) => [r.slot.key, r.exercise.id])),
+      plan.strength!.short,
+      slots.slice(0, -1).map((r) => r.slot.key),
+    )
+
+    const html = render(createElement(SessionScreen, { date: monday, kind, onClose: noop }))
+    expect(html).toContain(laatste.exercise.naam)
+    expect(html).toContain('Sessie afronden')
+    expect(html).not.toContain('Volgende oefening')
   })
 
   it('rendert het startscherm met alleen de gebruikerskeuze', () => {

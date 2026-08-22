@@ -6,6 +6,7 @@ import { NUMBER_INPUT_MIN_PX, Stepper } from '../src/components/ui'
 import { buildDay } from '../src/logic/day'
 import { addDays, mondayOf, today } from '../src/logic/dates'
 import { SessionScreen } from '../src/screens/SessionScreen'
+import * as A from '../src/store/actions'
 import { getState, resetState, setState } from '../src/store/store'
 
 const render = (el: Parameters<typeof renderToString>[0]) =>
@@ -87,24 +88,47 @@ describe('invoervelden in een setrij', () => {
 describe('elke setrij, niet alleen de eerste', () => {
   const monday = () => mondayOf(today())
 
-  it('geeft alle kg- en repsvelden dezelfde minimumbreedte', () => {
+  it('schuift de invoer op naar de set die aan de beurt is', () => {
     const iso = monday()
     const plan = buildDay(getState(), iso)
+    const slot = plan.strength!.slots[0]
     const kind = plan.strength!.kind
-    const sets = plan.strength!.slots[0].sets
+    const sets = slot.sets
     expect(sets).toBeGreaterThanOrEqual(3)
 
-    const html = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
+    // de sessie opent op de warming-up; de setvelden staan bij de oefening erna
+    A.setWarmupDone(iso, kind, true)
+    const eerst = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
 
-    // de laatste setrij staat er ook echt
-    expect(html).toContain(`Set ${sets}`)
+    // elke set heeft een eigen rij, ook de laatste
+    for (let n = 1; n <= sets; n++) expect(eerst, `set ${n}`).toContain(`Set ${n}`)
 
-    // alleen de setvelden; de warming-up heeft ook een getalveld, maar geen setrij
-    const setVelden = inputs(html).filter((i) => /aria-label="(Gewicht|Reps) set/.test(i))
-    expect(setVelden).toHaveLength(sets * 2) // kg + reps per set
+    // er is één paar velden: dat van de set die nu aan de beurt is
+    const velden = inputs(eerst).filter((i) => /aria-label="(Gewicht|Reps) set/.test(i))
+    expect(velden).toHaveLength(2)
+    expect(eerst).toContain('aria-label="Gewicht set 1"')
+    expect(eerst).toContain('aria-label="Reps set 1"')
 
-    const velden = inputs(html).filter((i) => i.includes('inputMode="decimal"'))
-    for (const veld of velden) {
+    // set 1 afgevinkt: dan bewerkt de invoer set 2, zonder dat er een veld bij komt
+    A.saveSessionDraft(
+      iso,
+      kind,
+      {
+        [slot.slot.key]: Array.from({ length: sets }, (_, i) => ({
+          weight: 40,
+          reps: 10,
+          rir: 2,
+          done: i === 0,
+        })),
+      },
+      { [slot.slot.key]: slot.exercise.id },
+      plan.strength!.short,
+      [],
+    )
+    const daarna = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
+    expect(daarna).toContain('aria-label="Gewicht set 2"')
+
+    for (const veld of inputs(daarna).filter((i) => i.includes('inputMode="decimal"'))) {
       expect(veld).toContain('min-w-number-field')
       expect(veld).toContain('text-input')
     }
@@ -117,6 +141,7 @@ describe('elke setrij, niet alleen de eerste', () => {
       const iso = addDays(start, d)
       const plan = buildDay(getState(), iso)
       if (!plan.strength) continue
+      A.setWarmupDone(iso, plan.strength.kind, true)
       const html = render(
         createElement(SessionScreen, { date: iso, kind: plan.strength.kind, onClose: () => {} }),
       )
@@ -133,6 +158,7 @@ describe('elke setrij, niet alleen de eerste', () => {
   it('zet kg en reps onder elkaar, zodat een smal scherm ze niet samenknijpt', () => {
     const iso = monday()
     const kind = buildDay(getState(), iso).strength!.kind
+    A.setWarmupDone(iso, kind, true)
     const html = render(createElement(SessionScreen, { date: iso, kind, onClose: () => {} }))
 
     // vanaf de eerste setrij: alles daarboven (warming-up, volgorde) is geen setrij

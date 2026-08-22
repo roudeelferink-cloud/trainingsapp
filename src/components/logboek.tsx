@@ -16,17 +16,30 @@ export function Screen({
   children,
   action,
   bottom = 'nav',
+  fill = false,
 }: {
   children: ReactNode
   /** de knoppenrij onderaan; laat weg als er echt niets te doen is */
   action?: ReactNode
   /** 'nav' als er een navigatiebalk onder komt, 'free' als het scherm zelf afsluit */
   bottom?: 'nav' | 'free'
+  /**
+   * De inhoud vult de hoogte, zodat een blok met `mt-auto` naar onderen zakt in
+   * plaats van tegen de vorige regel aan te blijven plakken. Zo staat de invoer op
+   * het sessiescherm onderin, ook als de lijst erboven kort is.
+   */
+  fill?: boolean
 }) {
   return (
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-content px-gutter pb-block">{children}</div>
+        <div
+          className={`mx-auto w-full max-w-content px-gutter pb-block ${
+            fill ? 'flex min-h-full flex-col' : ''
+          }`}
+        >
+          {children}
+        </div>
       </div>
       {action ? (
         <div className={`flex-none ${bottom === 'free' ? 'pb-session-bottom' : ''}`}>

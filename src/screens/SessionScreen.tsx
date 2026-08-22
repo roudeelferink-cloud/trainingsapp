@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { FigurePair } from '../components/Figure'
+import {
+  Actions,
+  Caps,
+  Link,
+  Primary,
+  Screen,
+  Secondary,
+  Segments,
+  TopLine,
+} from '../components/logboek'
 import { RestTimer } from '../components/RestTimer'
-import { Card, ChoiceGrid, Chip, Sheet, Stepper } from '../components/ui'
+import { ChoiceGrid, Chip, Sheet, Stepper, formatDecimal } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
 import { MAX_BAND_LEVEL, MIN_BAND_LEVEL, bandLabel, isBandExercise, levelOf } from '../logic/band'
@@ -13,21 +23,32 @@ import { loadHint, repsInputLabel, weightInputLabel } from '../logic/load'
 import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
 import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
 import { FEELS } from '../logic/feel'
-import { CALIBRATION_TEXT, fmt, targetFor } from '../logic/progression'
+import { CALIBRATION_TEXT, fmt, targetFor, type Target } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
-import {
-  allSetsDone,
-  checkSet,
-  nextUncompleted,
-  seedSets,
-  uncheckSet,
-} from '../logic/sessionFlow'
+import { checkSet, seedSets, uncheckSet } from '../logic/sessionFlow'
 import { programFor } from '../data/programs'
 import { ADVICE_HINT, startWeightAdvice } from '../logic/startWeight'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
-import type { UserState, DayKind, Exercise, LoggedSet, Warmup } from '../types'
+import type { UserState, DayKind, Exercise, LoggedSet, Settings, Warmup } from '../types'
 
+/**
+ * Rustduur per soort oefening, in seconden. Een kernoefening vraagt meer hersteltijd
+ * dan een aanvullende; dit zijn de waarden waar de timer op start.
+ */
+const REST_CORE = 150
+const REST_ACCESSORY = 90
+
+/** De warming-up is de eerste stap van de sessie, niet een zevende oefening. */
+const WARMUP_STEP = 'warmup'
+
+/**
+ * Sessie: één ding tegelijk.
+ *
+ * Eerst de warming-up, dan oefening voor oefening. Er is geen navigatiebalk — tijdens
+ * een sessie telt maar één ding, en die balk zou je er per ongeluk uit tikken. Wat je
+ * tussen sets aanraakt (de steppers, de knop) staat onderin binnen duimbereik.
+ */
 export function SessionScreen({
   date,
   kind,
@@ -42,16 +63,21 @@ export function SessionScreen({
   const strength = plan.strength && plan.strength.kind === kind ? plan.strength : null
   const slots = strength?.slots ?? []
 
-  // meteen bij de eerste render open, zodat je zonder extra tik kunt loggen
-  const firstKey = slots[0]?.slot.key ?? null
-  const [active, setActive] = useState<string | null>(() => slots[0]?.slot.key ?? null)
-  const [helpOpen, setHelpOpen] = useState<string[]>([]) // uitleg staat standaard dicht
+  // een sessie begint bij de warming-up; kom je terug, dan bij waar je gebleven was
+  const [step, setStep] = useState<string>(() => {
+    if (!strength?.warmup.done) return WARMUP_STEP
+    const af = strength.log?.completedSlots ?? []
+    return (slots.find((r) => !af.includes(r.slot.key)) ?? slots[0])?.slot.key ?? WARMUP_STEP
+  })
+  const [helpFor, setHelpFor] = useState<Exercise | null>(null)
   const [optionsFor, setOptionsFor] = useState<ResolvedSlot | null>(null)
+  const [lijstOpen, setLijstOpen] = useState(false)
   const [doneOpen, setDoneOpen] = useState(false)
-  const [orderHelp, setOrderHelp] = useState(false) // uitleg bij de volgorde, standaard dicht
+  const [orderHelp, setOrderHelp] = useState(false)
   const [messages, setMessages] = useState<string[] | null>(null)
   const [completed, setCompleted] = useState<string[]>(() => strength?.log?.completedSlots ?? [])
-  const [justDone, setJustDone] = useState<string | null>(null)
+  const [rest, setRest] = useState<{ endsAt: number; total: number; label: string } | null>(null)
+  const [justChecked, setJustChecked] = useState<number | null>(null)
 
   const signature = `${date}|${kind}|${slots.map((s) => `${s.slot.key}:${s.exercise.id}:${s.sets}`).join(',')}`
 
@@ -85,21 +111,41 @@ export function SessionScreen({
     setEntries(fresh)
   }
 
-  // is de actieve oefening weggevallen (gewisseld, korte versie), pak dan de eerste
+  // is de open oefening weggevallen (gewisseld, korte versie), pak dan de eerste
+  const eersteKey = slots[0]?.slot.key ?? WARMUP_STEP
   useEffect(() => {
-    if (active && !slots.some((r) => r.slot.key === active)) setActive(firstKey)
-  }, [firstKey, slots, active])
+    if (step !== WARMUP_STEP && !slots.some((r) => r.slot.key === step)) setStep(eersteKey)
+  }, [eersteKey, slots, step])
 
   if (!strength || slots.length === 0) {
     return (
-      <Full onClose={onClose} title="Sessie">
-        <Card>
-          <p className="text-slate-300">Er staat geen sessie meer open op {formatShort(date)}.</p>
-          <button className="btn-primary w-full mt-4" onClick={onClose}>
-            Terug
-          </button>
-        </Card>
+      <Full>
+        <Screen
+          bottom="free"
+          action={
+            <Actions>
+              <Primary onClick={onClose}>Terug</Primary>
+            </Actions>
+          }
+        >
+          <TopLine left="Sessie" />
+          <p className="quote mt-block">Er staat geen sessie meer open op {formatShort(date)}.</p>
+        </Screen>
       </Full>
+    )
+  }
+
+  const index = slots.findIndex((r) => r.slot.key === step)
+  const resolved = index === -1 ? null : slots[index]
+
+  function persistDraft(nextEntries: Record<string, LoggedSet[]>, nextCompleted: string[]) {
+    A.saveSessionDraft(
+      date,
+      kind,
+      nextEntries,
+      Object.fromEntries(slots.map((x) => [x.slot.key, x.exercise.id])),
+      strength!.short,
+      nextCompleted,
     )
   }
 
@@ -113,17 +159,6 @@ export function SessionScreen({
       )
     }
     return out
-  }
-
-  function persistDraft(nextEntries: Record<string, LoggedSet[]>, nextCompleted: string[]) {
-    A.saveSessionDraft(
-      date,
-      kind,
-      nextEntries,
-      Object.fromEntries(slots.map((x) => [x.slot.key, x.exercise.id])),
-      strength!.short,
-      nextCompleted,
-    )
   }
 
   function updateSet(slotKey: string, i: number, patch: Partial<LoggedSet>) {
@@ -150,330 +185,720 @@ export function SessionScreen({
       const arr = [...(cur[slotKey] ?? [])]
       const last = arr[arr.length - 1]
       arr.push(last ? { ...last, done: false } : { weight: 0, reps: 0, rir: 2, done: false })
-      return { ...cur, [slotKey]: arr }
+      const next = { ...cur, [slotKey]: arr }
+      persistDraft(next, completed)
+      return next
     })
   }
 
-  function completeExercise(key: string) {
-    const next = [...completed, key]
+  function markeerAf(key: string, af: boolean) {
+    const next = af ? [...completed, key] : completed.filter((k) => k !== key)
     setCompleted(next)
     persistDraft(entries, next)
-    setJustDone(key)
-    window.setTimeout(() => {
-      setJustDone(null)
-      setActive(
-        nextUncompleted(
-          slots.map((r) => r.slot.key),
-          next,
-          key,
-        ),
-      )
-    }, 700)
+    return next
   }
 
-  function uncompleteExercise(key: string) {
-    const next = completed.filter((k) => k !== key)
-    setCompleted(next)
-    persistDraft(entries, next)
+  /** Naar de eerstvolgende oefening die nog niet afgerond is, of naar het afrondblad. */
+  function volgende(vanaf: number, af: string[]) {
+    const rest = slots.slice(vanaf + 1).find((r) => !af.includes(r.slot.key))
+    const eerder = slots.find((r) => !af.includes(r.slot.key))
+    const doel = rest ?? eerder
+    if (doel) setStep(doel.slot.key)
+    else setDoneOpen(true)
   }
 
+  const sets = resolved ? (entries[resolved.slot.key] ?? []) : []
+  const actieveSet = sets.findIndex((s) => !s.done)
+  const afgerond = resolved ? completed.includes(resolved.slot.key) : false
   const totalSets = slots.reduce((n, x) => n + (entries[x.slot.key]?.length ?? x.sets), 0)
-  const doneSets = slots.reduce(
-    (n, x) => n + (entries[x.slot.key] ?? []).filter((s) => s.done).length,
-    0,
+  const doneSets = slots.reduce((n, x) => n + (entries[x.slot.key] ?? []).filter((s) => s.done).length, 0)
+
+  /** De voortgangssegmenten: de warming-up telt als eerste stap. */
+  const stappen = [
+    { key: WARMUP_STEP, klaar: strength.warmup.done },
+    ...slots.map((r) => ({ key: r.slot.key, klaar: completed.includes(r.slot.key) })),
+  ]
+
+  const kop = (
+    <>
+      <TopLine
+        left={
+          <button type="button" onClick={onClose} className="text-muted">
+            ← {strength.naam}
+          </button>
+        }
+        right={
+          <button type="button" onClick={() => setLijstOpen(true)} className="text-dim">
+            {step === WARMUP_STEP ? 'Warming-up' : `Oefening ${index + 1} / ${slots.length}`}
+          </button>
+        }
+      />
+      <div className="mt-in-block flex gap-progress" aria-hidden>
+        {stappen.map((s) => (
+          <div
+            key={s.key}
+            className={`h-progress flex-1 transition-colors duration-color ${
+              s.klaar ? 'bg-accent' : s.key === step ? 'bg-muted' : 'bg-chip-border'
+            }`}
+          />
+        ))}
+      </div>
+    </>
   )
-  const completedCount = slots.filter((x) => completed.includes(x.slot.key)).length
+
+  if (step === WARMUP_STEP) {
+    return (
+      <Full>
+        <WarmupStep
+          date={date}
+          kind={kind}
+          plan={plan}
+          strength={strength}
+          kop={kop}
+          orderHelp={orderHelp}
+          onOrderHelp={() => setOrderHelp((x) => !x)}
+          onDone={() => setStep(eersteKey)}
+        />
+        <SessieBladen
+          date={date}
+          kind={kind}
+          slots={slots}
+          entries={entries}
+          completed={completed}
+          strength={strength}
+          doneSets={doneSets}
+          totalSets={totalSets}
+          lijstOpen={lijstOpen}
+          setLijstOpen={setLijstOpen}
+          doneOpen={doneOpen}
+          setDoneOpen={setDoneOpen}
+          messages={messages}
+          setMessages={setMessages}
+          onPick={setStep}
+          effectiveEntries={effectiveEntries}
+          onClose={onClose}
+          helpFor={helpFor}
+          setHelpFor={setHelpFor}
+          optionsFor={optionsFor}
+          setOptionsFor={setOptionsFor}
+          step={step}
+        />
+      </Full>
+    )
+  }
+
+  if (!resolved) return <Full>{null}</Full>
+
+  const target = targetFor(resolved.exercise, resolved.repMin, state, {
+    calibration: plan.cycle.calibration,
+    deload: plan.deload.active,
+  })
+  const advice = adviceFor(resolved, state, plan.cycle.calibration)
+  const bar = barWeightFor(resolved.exercise, state.settings)
+  const advicePlates =
+    advice === null ? undefined : bar > 0 ? platesFromTotal(advice.weight, bar) : advice.weight
+  const rustSeconden = resolved.slot.role === 'core' ? REST_CORE : REST_ACCESSORY
+  const huidige = actieveSet === -1 ? null : sets[actieveSet]
+  /*
+    Welke set de steppers bewerken. Zijn alle sets af, dan is dat de laatste — die heb
+    je net gedaan, dus daar wil je nog aan kunnen bijstellen. Anders zou de invoer
+    stilletjes terugspringen naar set 1.
+  */
+  const bewerkIndex = actieveSet === -1 ? Math.max(sets.length - 1, 0) : actieveSet
+  const laatsteOefening = slots.slice(index + 1).every((r) => completed.includes(r.slot.key))
+
+  const primair = () => {
+    if (actieveSet === -1) {
+      const af = markeerAf(resolved.slot.key, true)
+      setRest(null)
+      return volgende(index, af)
+    }
+    setSetDone(resolved.slot.key, actieveSet, true)
+    setJustChecked(actieveSet)
+    window.setTimeout(() => setJustChecked(null), 600)
+    setRest({
+      endsAt: Date.now() + rustSeconden * 1000,
+      total: rustSeconden,
+      label: `Rust na set ${actieveSet + 1}`,
+    })
+  }
 
   return (
-    <Full onClose={onClose} title={strength.naam}>
-      <div className="mb-3">
-        <div className="h-2 rounded-full bg-ink-700 overflow-hidden">
-          <div
-            className="h-full bg-accent transition-all"
-            style={{ width: `${totalSets ? (doneSets / totalSets) * 100 : 0}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-slate-400 mt-1">
-          <span>
-            {completedCount} van {slots.length} afgerond
-          </span>
-          <span>
-            {doneSets}/{totalSets} sets
-          </span>
-        </div>
-      </div>
+    <Full>
+      <Screen
+        bottom="free"
+        fill
+        action={
+          <div className="flex flex-col gap-block">
+            {rest && (
+              <RestTimer endsAt={rest.endsAt} totalSeconds={rest.total} label={rest.label} />
+            )}
+            <Actions>
+              <Primary onClick={primair}>
+                {actieveSet === -1
+                  ? laatsteOefening
+                    ? 'Sessie afronden'
+                    : 'Volgende oefening'
+                  : `Set ${actieveSet + 1} klaar`}
+              </Primary>
+              {actieveSet !== -1 && (
+                <Secondary
+                  onClick={() => {
+                    // overgeslagen sets blijven niet-afgevinkt en tellen dus niet mee
+                    const rest = sets.findIndex((s, i) => i > actieveSet && !s.done)
+                    if (rest === -1) {
+                      const af = markeerAf(resolved.slot.key, true)
+                      volgende(index, af)
+                    } else {
+                      updateSet(resolved.slot.key, actieveSet, { reps: 0 })
+                      setSetDone(resolved.slot.key, actieveSet, true)
+                    }
+                  }}
+                >
+                  Sla
+                  <br />
+                  over
+                </Secondary>
+              )}
+            </Actions>
+          </div>
+        }
+      >
+        {kop}
 
-      {plan.cycle.calibration && (
-        <p className="text-sm text-rose-300 mb-3">Kalibratieweek: {CALIBRATION_TEXT}.</p>
-      )}
+        <h1 className="mt-block font-serif text-exercise leading-exercise text-ink">
+          {resolved.exercise.naam}
+        </h1>
 
-      {/*
-        Alles wat de app aan deze sessie bijstuurt staat hier, met de reden erbij. Geen
-        stille correcties: als er een set af gaat of een oefening eruit kan, hoor je te
-        kunnen lezen waarom.
-      */}
-      {plan.guardrails.length > 0 && (
-        <ul className="mb-3 space-y-1">
-          {plan.guardrails.map((g) => (
-            <li
-              key={g.id}
-              className={`text-sm flex gap-2 ${g.tone === 'warn' ? 'text-amber-300' : 'text-slate-400'}`}
-            >
-              <span aria-hidden>•</span>
-              <span>{g.text}</span>
-            </li>
+        <div className="mt-in-block flex flex-wrap gap-meta text-label text-dim">
+          <span>
+            {resolved.sets} sets × {repBereik(resolved)}
+            {resolved.exercise.perSide && ' p/kant'}
+          </span>
+          <span>rust {klokje(rustSeconden)}</span>
+          {huidige && <span>RIR {huidige.rir}</span>}
+        </div>
+
+        <Toelichting
+          exercise={resolved.exercise}
+          settings={state.settings}
+          target={target}
+          advice={advice}
+          bar={bar}
+          kalibratie={plan.cycle.calibration}
+        />
+
+        <div className="mt-in-block flex gap-meta">
+          <Link onClick={() => setHelpFor(resolved.exercise)}>Uitleg</Link>
+          <Link onClick={() => setOptionsFor(resolved)}>Aanpassen</Link>
+          {afgerond && <Link onClick={() => markeerAf(resolved.slot.key, false)}>Zet terug</Link>}
+        </div>
+
+        <div className="mt-block flex flex-col">
+          {sets.map((s, i) => (
+            <SetRij
+              key={i}
+              nummer={i + 1}
+              set={s}
+              actief={i === actieveSet}
+              net={justChecked === i}
+              laatste={i === sets.length - 1}
+              waarde={setWaarde(resolved, s, !s.done && i !== actieveSet)}
+              onToggle={() => setSetDone(resolved.slot.key, i, !s.done)}
+            />
           ))}
-        </ul>
-      )}
+        </div>
 
-      <p className="text-sm text-slate-400 mb-2 tabular-nums">
-        Geschatte duur {strength.estimatedMin} min
-        {strength.tooLong?.dropName && ` · zonder ${strength.tooLong.dropName} ${strength.tooLong.minutesWithoutDrop} min`}
-      </p>
+        <div className="mt-in-block">
+          <Link onClick={() => addSet(resolved.slot.key)}>+ set toevoegen</Link>
+        </div>
 
-      {/* het voorstel is er één met een knop: anders blijft het bij een waarschuwing */}
-      {strength.tooLong?.dropKey && (
-        <button
-          className="btn-quiet btn-sm w-full mb-3"
-          onClick={() => A.skipSlot(date, strength.tooLong!.dropKey!)}
-        >
-          Haal {strength.tooLong.dropName} eruit
-        </button>
-      )}
-
-      <WarmupBlock date={date} kind={kind} warmup={strength.warmup} />
-
-      <div className="flex items-center gap-2 mb-2">
-        <span className="label flex-1">Volgorde</span>
-        {strength.manualOrder && (
-          <button className="btn-quiet btn-sm" onClick={() => A.resetSlotOrder(date)}>
-            Standaardvolgorde
-          </button>
-        )}
-        <RoundButton
-          label="Uitleg volgorde"
-          active={orderHelp}
-          onClick={() => setOrderHelp((x) => !x)}
-        >
-          ?
-        </RoundButton>
-      </div>
-      {orderHelp && <p className="text-sm text-slate-300 mb-2">{ORDER_RATIONALE}</p>}
-
-      <div className="rounded-2xl border border-ink-600 bg-ink-800 overflow-hidden">
-        {slots.map((r, i) => {
-          const isActive = active === r.slot.key
-          const isHelp = helpOpen.includes(r.slot.key)
-          const isCompleted = completed.includes(r.slot.key)
-          const sets = entries[r.slot.key] ?? []
-          const filled = sets.filter((s) => s.done).length
-          const advice = adviceFor(r, state, plan.cycle.calibration)
-          // stanggewicht: de gebruiker vult schijven in, de log bewaart het totaal
-          const bar = barWeightFor(r.exercise, state.settings)
-          const advicePlates =
-            advice === null ? undefined : bar > 0 ? platesFromTotal(advice.weight, bar) : advice.weight
-
-          return (
-            <div
-              key={r.slot.key}
-              className={`${i > 0 ? 'border-t border-ink-600' : ''} ${isActive ? 'bg-ink-700/40' : ''}`}
-            >
-              <div className="flex items-center gap-2 px-3 py-2.5">
-                <button
-                  className="flex-1 min-w-0 text-left py-1.5"
-                  onClick={() => setActive(isActive ? null : r.slot.key)}
-                >
-                  <span className="block font-semibold truncate">
-                    {isCompleted && (
-                      <span className="text-emerald-400 mr-1" aria-hidden>
-                        ✓
-                      </span>
-                    )}
-                    {r.exercise.naam}
-                  </span>
-                  <span className="block text-xs text-slate-400 tabular-nums">
-                    {r.sets} × {r.repMin === r.repMax ? r.repMin : `${r.repMin}-${r.repMax}`}
-                    {r.exercise.perSide && ' p/kant'}
-                    {filled > 0 && ` · ${filled} afgevinkt`}
-                  </span>
-                </button>
-                <RoundButton
-                  label={`Uitleg ${r.exercise.naam}`}
-                  active={isHelp}
-                  onClick={() =>
-                    setHelpOpen((cur) =>
-                      cur.includes(r.slot.key)
-                        ? cur.filter((k) => k !== r.slot.key)
-                        : [...cur, r.slot.key],
-                    )
-                  }
-                >
-                  ?
-                </RoundButton>
-                <RoundButton label={`Opties ${r.exercise.naam}`} onClick={() => setOptionsFor(r)}>
-                  ⋯
-                </RoundButton>
-              </div>
-
-              {isHelp && <Explanation exercise={r.exercise} />}
-
-              {isActive && (
-                <div className="px-3 pb-3 space-y-3">
-                  {loadHint(r.exercise, state.settings) && (
-                    <p className="text-xs text-slate-400">{loadHint(r.exercise, state.settings)}</p>
-                  )}
-                  {advice && (
-                    <p className="text-xs text-slate-400">
-                      Schatting {advice.weight} kg
-                      {bar > 0
-                        ? ' totaal (stang inbegrepen)'
-                        : isDumbbell(r.exercise)
-                          ? ` ${DUMBBELL_WEIGHT_UNIT}`
-                          : ''}{' '}
-                      —{' '}
-                      {advice.source === 'related'
-                        ? `afgeleid van ${advice.relatedName}`
-                        : 'op basis van je lichaamsgewicht'}
-                      . {ADVICE_HINT}
-                    </p>
-                  )}
-                  {sets.map((s, si) => (
-                    <div
-                      key={si}
-                      className={`rounded-xl border p-2 ${
-                        s.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-900/40'
-                      }`}
-                    >
-                      {/*
-                        kg en reps staan onder elkaar, elk over de volle breedte. Naast
-                        elkaar houdt een setrij op een 320px-scherm te weinig ruimte over
-                        en knijpen de invoervelden dicht.
-                      */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-xs font-bold text-slate-400">Set {si + 1}</span>
-                        <button
-                          aria-label={`Set ${si + 1} ${s.done ? 'weer openzetten' : 'afvinken'}`}
-                          onClick={() => setSetDone(r.slot.key, si, !s.done)}
-                          className={`flex-none w-11 h-11 rounded-lg border text-lg font-bold ${
-                            s.done
-                              ? 'bg-emerald-500 text-ink-900 border-emerald-500'
-                              : 'bg-ink-700 border-ink-600 text-slate-400'
-                          }`}
-                        >
-                          ✓
-                        </button>
-                      </div>
-                      <div className="mb-2">
-                        <p className="label mb-0.5">{weightInputLabel(r.exercise, state.settings)}</p>
-                        {isBandExercise(r.exercise) ? (
-                          <>
-                            <Stepper
-                              ariaLabel={`Bandniveau set ${si + 1}`}
-                              value={levelOf(s)}
-                              onChange={(v) => updateSet(r.slot.key, si, { weight: 0, level: v })}
-                              step={1}
-                              min={MIN_BAND_LEVEL}
-                              max={MAX_BAND_LEVEL}
-                            />
-                            <p className="text-xs text-slate-400 mt-1">{bandLabel(levelOf(s))}</p>
-                          </>
-                        ) : (
-                          <>
-                            <Stepper
-                              ariaLabel={`Gewicht set ${si + 1}`}
-                              value={bar > 0 ? platesFromTotal(s.weight, bar) : s.weight}
-                              onChange={(v) =>
-                                updateSet(r.slot.key, si, {
-                                  weight: bar > 0 ? totalFromPlates(v, bar) : v,
-                                })
-                              }
-                              step={r.exercise.minIncrement || 2.5}
-                              max={400}
-                              // alleen zolang er niets ingevuld is; anders zou 0 schijven
-                              // (de kale stang) weer als schatting worden weergegeven
-                              placeholder={s.weight === 0 ? advicePlates : undefined}
-                            />
-                            {bar > 0 && (s.weight > 0 || advicePlates !== undefined) && (
-                              <p className="text-xs text-slate-400 mt-1 tabular-nums">
-                                {barTotalLabel(
-                                  s.weight === 0 ? (advicePlates ?? 0) : platesFromTotal(s.weight, bar),
-                                  bar,
-                                )}
-                                {s.weight === 0 && ' (schatting)'}
-                              </p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <div className="mb-2">
-                        <p className="label mb-0.5">{repsInputLabel(r.exercise)}</p>
-                        <Stepper
-                          ariaLabel={`Reps set ${si + 1}`}
-                          value={s.reps}
-                          onChange={(v) => updateSet(r.slot.key, si, { reps: v })}
-                          step={1}
-                          max={100}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-slate-400 w-10">RIR</span>
-                        {[0, 1, 2, 3, 4].map((n) => (
-                          <button
-                            key={n}
-                            onClick={() => updateSet(r.slot.key, si, { rir: n })}
-                            className={`flex-1 min-h-[40px] rounded-lg text-sm font-bold ${
-                              s.rir === n ? 'bg-accent text-ink-900' : 'bg-ink-700 border border-ink-600'
-                            }`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button className="btn-quiet btn-sm w-full" onClick={() => addSet(r.slot.key)}>
-                    + set toevoegen
-                  </button>
-                  <RestTimer seconds={r.slot.role === 'core' ? 150 : 90} />
-                  {justDone === r.slot.key && (
-                    <div className="flex justify-center" aria-hidden>
-                      <span className="pop-check inline-flex w-12 h-12 items-center justify-center rounded-full bg-emerald-500 text-ink-900 text-2xl font-bold">
-                        ✓
-                      </span>
-                    </div>
-                  )}
-                  {isCompleted ? (
-                    <button
-                      className="btn-quiet w-full"
-                      onClick={() => uncompleteExercise(r.slot.key)}
-                    >
-                      ✓ Afgerond — zet terug
-                    </button>
-                  ) : (
-                    <button
-                      className={`${allSetsDone(sets) ? 'btn-primary' : 'btn-quiet'} w-full`}
-                      onClick={() => completeExercise(r.slot.key)}
-                    >
-                      Oefening klaar
-                    </button>
-                  )}
-                </div>
+        {/* de invoer wordt naar onderen geduwd: daar zit je duim tussen twee sets in */}
+        <div className="mt-auto flex flex-col gap-block pt-block">
+          <div className="flex flex-col gap-in-block">
+            <div className="flex items-baseline justify-between gap-column">
+              <Caps>{weightInputLabel(resolved.exercise, state.settings)}</Caps>
+              {!isBandExercise(resolved.exercise) && (
+                <span className="text-caps-lg text-faint">
+                  stap {formatDecimal(resolved.exercise.minIncrement || 2.5)} kg
+                </span>
               )}
             </div>
-          )
-        })}
+            {isBandExercise(resolved.exercise) ? (
+              <>
+                <Stepper
+                  ariaLabel={`Bandniveau set ${bewerkIndex + 1}`}
+                  value={levelOf(sets[bewerkIndex] ?? { weight: 0 })}
+                  onChange={(v) => updateSet(resolved.slot.key, bewerkIndex, { weight: 0, level: v })}
+                  step={1}
+                  min={MIN_BAND_LEVEL}
+                  max={MAX_BAND_LEVEL}
+                />
+                <p className="text-meta text-dim">{bandLabel(levelOf(sets[bewerkIndex] ?? { weight: 0 }))}</p>
+              </>
+            ) : (
+              <>
+                <Stepper
+                  ariaLabel={`Gewicht set ${bewerkIndex + 1}`}
+                  value={(() => {
+                    const s = sets[bewerkIndex]
+                    if (!s) return 0
+                    return bar > 0 ? platesFromTotal(s.weight, bar) : s.weight
+                  })()}
+                  onChange={(v) =>
+                    updateSet(resolved.slot.key, bewerkIndex, {
+                      weight: bar > 0 ? totalFromPlates(v, bar) : v,
+                    })
+                  }
+                  step={resolved.exercise.minIncrement || 2.5}
+                  max={400}
+                  suffix={bar > 0 || isDumbbell(resolved.exercise) ? undefined : 'kg'}
+                  // alleen zolang er niets ingevuld is; anders zou 0 schijven
+                  // (de kale stang) weer als schatting worden weergegeven
+                  placeholder={(sets[bewerkIndex]?.weight ?? 0) === 0 ? advicePlates : undefined}
+                />
+                {bar > 0 && <StangTotaal set={sets[bewerkIndex]} bar={bar} schatting={advicePlates} />}
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-in-block">
+            <Caps>{repsInputLabel(resolved.exercise)}</Caps>
+            <Stepper
+              ariaLabel={`Reps set ${bewerkIndex + 1}`}
+              value={sets[bewerkIndex]?.reps ?? 0}
+              onChange={(v) => updateSet(resolved.slot.key, bewerkIndex, { reps: v })}
+              step={1}
+              max={100}
+            />
+          </div>
+
+          {/*
+            RIR hoort bij de set die je net gedaan hebt: zonder beoordeling achteraf is
+            dit wat de progressie te lezen krijgt.
+          */}
+          <Segments<number>
+            label="RIR"
+            options={[0, 1, 2, 3, 4].map((n) => ({ id: n, label: n }))}
+            value={sets[bewerkIndex]?.rir}
+            onChange={(v) => v !== undefined && updateSet(resolved.slot.key, bewerkIndex, { rir: v })}
+          />
+        </div>
+      </Screen>
+
+      <SessieBladen
+        date={date}
+        kind={kind}
+        slots={slots}
+        entries={entries}
+        completed={completed}
+        strength={strength}
+        doneSets={doneSets}
+        totalSets={totalSets}
+        lijstOpen={lijstOpen}
+        setLijstOpen={setLijstOpen}
+        doneOpen={doneOpen}
+        setDoneOpen={setDoneOpen}
+        messages={messages}
+        setMessages={setMessages}
+        onPick={setStep}
+        effectiveEntries={effectiveEntries}
+        onClose={onClose}
+        helpFor={helpFor}
+        setHelpFor={setHelpFor}
+        optionsFor={optionsFor}
+        setOptionsFor={setOptionsFor}
+        step={step}
+      />
+    </Full>
+  )
+}
+
+/* -------------------------------------------------------------------------
+ * De warming-up: de eerste stap, en meteen wat er van deze sessie te weten valt
+ * ---------------------------------------------------------------------- */
+
+function WarmupStep({
+  date,
+  kind,
+  plan,
+  strength,
+  kop,
+  orderHelp,
+  onOrderHelp,
+  onDone,
+}: {
+  date: string
+  kind: DayKind
+  plan: ReturnType<typeof buildDay>
+  strength: NonNullable<ReturnType<typeof buildDay>['strength']>
+  kop: ReactNode
+  orderHelp: boolean
+  onOrderHelp: () => void
+  onDone: () => void
+}) {
+  const [help, setHelp] = useState(false)
+  const warmup: Warmup = strength.warmup
+
+  /*
+    Alles wat de app aan deze sessie bijstuurt staat hier, vóór de eerste oefening.
+    Geen stille correcties: als er een set af gaat of een oefening eruit kan, hoor je
+    te kunnen lezen waarom — en dat lees je aan het begin, niet halverwege.
+  */
+  const regels = [
+    plan.cycle.calibration ? `Kalibratieweek: ${CALIBRATION_TEXT}.` : null,
+    ...plan.guardrails.map((g) => g.text),
+  ].filter(Boolean) as string[]
+
+  return (
+    <Screen
+      bottom="free"
+      fill
+      action={
+        <Actions>
+          <Primary
+            onClick={() => {
+              if (!warmup.done) A.setWarmupDone(date, kind, true)
+              onDone()
+            }}
+          >
+            {warmup.done ? 'Naar de eerste oefening' : 'Warming-up klaar'}
+          </Primary>
+          <Secondary onClick={onDone}>
+            Sla
+            <br />
+            over
+          </Secondary>
+        </Actions>
+      }
+    >
+      {kop}
+
+      <h1 className="mt-block font-serif text-exercise leading-exercise text-ink">Warming-up</h1>
+      <div className="mt-in-block flex flex-wrap gap-meta text-label text-dim">
+        <span>{warmupLabel(warmup)}</span>
+        <span>
+          {strength.slots.length} oefeningen · ~{strength.estimatedMin} min
+        </span>
       </div>
 
-      <button className="btn-primary w-full mt-4" onClick={() => setDoneOpen(true)}>
-        Sessie afronden
+      {regels.length > 0 && (
+        <div className="mt-block flex flex-col gap-in-block">
+          <Caps tone="accent">Bijgestuurd</Caps>
+          {regels.map((r, i) => (
+            <p key={i} className="quote">
+              {r}
+            </p>
+          ))}
+          {/* het voorstel is er één met een knop: anders blijft het bij een waarschuwing */}
+          {strength.tooLong?.dropKey && (
+            <Link onClick={() => A.skipSlot(date, strength.tooLong!.dropKey!)}>
+              Haal {strength.tooLong.dropName} eruit
+            </Link>
+          )}
+        </div>
+      )}
+
+      {help && <p className="quote mt-block">{WARMUP_HINT}</p>}
+
+      <div className="mt-block flex flex-col gap-in-block">
+        <div className="flex items-baseline justify-between gap-column">
+          <Caps>Waarmee</Caps>
+          <Link onClick={() => setHelp((x) => !x)}>Uitleg warming-up</Link>
+        </div>
+        <ChoiceGrid
+          options={WARMUP_TYPES}
+          value={warmup.type}
+          onChange={(t) => A.setWarmupType(date, kind, t)}
+          columns={2}
+        />
+      </div>
+
+      <div className="mt-block flex flex-col gap-in-block">
+        <Caps>Duur warming-up</Caps>
+        <Stepper
+          ariaLabel="Duur warming-up"
+          value={warmup.minutes}
+          onChange={(v) => A.setWarmupMinutes(date, kind, v)}
+          step={1}
+          min={1}
+          max={60}
+          suffix="min"
+        />
+      </div>
+
+      <div className="mt-block flex items-baseline justify-between gap-column">
+        <Caps>Volgorde</Caps>
+        <div className="flex gap-meta">
+          {strength.manualOrder && (
+            <Link onClick={() => A.resetSlotOrder(date)}>Standaardvolgorde</Link>
+          )}
+          <Link onClick={onOrderHelp}>Uitleg volgorde</Link>
+        </div>
+      </div>
+      {orderHelp && <p className="quote mt-in-block">{ORDER_RATIONALE}</p>}
+    </Screen>
+  )
+}
+
+/* -------------------------------------------------------------------------
+ * De setrijen
+ * ---------------------------------------------------------------------- */
+
+function SetRij({
+  nummer,
+  set,
+  actief,
+  net,
+  laatste,
+  waarde,
+  onToggle,
+}: {
+  nummer: number
+  set: LoggedSet
+  actief: boolean
+  /** net afgevinkt: het vinkje loopt één keer vol */
+  net: boolean
+  laatste: boolean
+  waarde: string
+  onToggle: () => void
+}) {
+  const label = set.done ? 'text-dim' : actief ? 'font-semibold text-ink' : 'text-faint'
+  const value = set.done ? 'text-muted' : actief ? 'text-ink' : 'text-faint'
+
+  return (
+    <div
+      className={`flex items-center gap-column border-t-hair border-rule py-row ${
+        laatste ? 'border-b-hair' : ''
+      }`}
+    >
+      <button
+        type="button"
+        aria-label={`Set ${nummer} ${set.done ? 'weer openzetten' : 'afvinken'}`}
+        onClick={onToggle}
+        className={`flex h-checkbox w-checkbox flex-none items-center justify-center border-hair text-meta
+                    transition-colors duration-color ${net ? 'pop-check' : ''} ${
+                      set.done
+                        ? 'border-accent bg-accent text-on-accent'
+                        : actief
+                          ? 'border-checkbox-border text-transparent'
+                          : 'border-checkbox-idle text-transparent'
+                    }`}
+      >
+        ✓
       </button>
+      <div className={`w-set-label flex-none text-label ${label}`}>Set {nummer}</div>
+      <div className={`flex-1 font-serif text-set-value ${value}`}>{waarde}</div>
+      {set.done ? (
+        <div className="shrink-0 text-meta text-faint">RIR {set.rir}</div>
+      ) : actief ? (
+        <Caps tone="accent" size="lg" className="shrink-0">
+          Nu
+        </Caps>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Wat er in een setrij staat. Een set die nog moet komen toont het repbereik in
+ * plaats van een verzonnen exact aantal — dat getal weet niemand nog.
+ */
+function setWaarde(r: ResolvedSlot, s: LoggedSet, toonBereik: boolean): string {
+  const belasting = isBandExercise(r.exercise)
+    ? bandLabel(levelOf(s))
+    : `${fmt(s.weight)} kg${isDumbbell(r.exercise) ? ` ${DUMBBELL_WEIGHT_UNIT}` : ''}`
+  // een set die nog moet komen toont het bereik, niet een verzonnen exact aantal
+  const reps = !s.done && toonBereik ? repBereik(r) : String(s.reps)
+  return `${belasting} × ${reps}`
+}
+
+function repBereik(r: ResolvedSlot): string {
+  return r.repMin === r.repMax ? String(r.repMin) : `${r.repMin}–${r.repMax}`
+}
+
+function klokje(seconden: number): string {
+  return `${Math.floor(seconden / 60)}:${String(seconden % 60).padStart(2, '0')}`
+}
+
+/** Het totaal met stang erbij, of de schatting zolang er niets ingevuld is. */
+function StangTotaal({ set, bar, schatting }: { set?: LoggedSet; bar: number; schatting?: number }) {
+  const leeg = (set?.weight ?? 0) === 0
+  if (leeg && schatting === undefined) return null
+  const schijven = leeg ? (schatting ?? 0) : platesFromTotal(set!.weight, bar)
+  return (
+    <p className="text-meta text-dim">
+      {barTotalLabel(schijven, bar)}
+      {leeg && ' (schatting)'}
+    </p>
+  )
+}
+
+/** De regel onder de oefeningnaam: wat de app over dit gewicht te zeggen heeft. */
+function Toelichting({
+  exercise,
+  settings,
+  target,
+  advice,
+  bar,
+  kalibratie,
+}: {
+  exercise: Exercise
+  settings: Settings
+  target: Target
+  advice: ReturnType<typeof startWeightAdvice>
+  bar: number
+  kalibratie: boolean
+}) {
+  const regels: string[] = []
+
+  if (!target.byFeel) {
+    if (target.level !== null) regels.push(`Streef ${bandLabel(target.level)}.`)
+    else if (target.weight !== null) regels.push(`Streef ${fmt(target.weight)} kg × ${target.reps}.`)
+  } else if (kalibratie) {
+    regels.push(`${CALIBRATION_TEXT}.`)
+  }
+  // de kalibratienotitie staat er hierboven al; niet twee keer hetzelfde zeggen
+  if (target.note && !regels.some((r) => r.startsWith(target.note!))) regels.push(target.note)
+  if (advice) {
+    const eenheid = bar > 0 ? ' totaal (stang inbegrepen)' : isDumbbell(exercise) ? ` ${DUMBBELL_WEIGHT_UNIT}` : ''
+    const bron =
+      advice.source === 'related' ? `afgeleid van ${advice.relatedName}` : 'op basis van je lichaamsgewicht'
+    regels.push(`Schatting ${fmt(advice.weight)} kg${eenheid} — ${bron}. ${ADVICE_HINT}`)
+  }
+  const hint = loadHint(exercise, settings)
+  if (hint) regels.push(hint)
+
+  if (regels.length === 0) return null
+  return (
+    <div className="mt-in-block flex flex-col gap-tight">
+      {regels.map((r, i) => (
+        <p key={i} className="font-serif italic text-note text-muted">
+          {r}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------
+ * De bladen: oefeningenlijst, uitleg, opties, afronden
+ * ---------------------------------------------------------------------- */
+
+function SessieBladen(props: {
+  date: string
+  kind: DayKind
+  slots: ResolvedSlot[]
+  entries: Record<string, LoggedSet[]>
+  completed: string[]
+  strength: NonNullable<ReturnType<typeof buildDay>['strength']>
+  doneSets: number
+  totalSets: number
+  lijstOpen: boolean
+  setLijstOpen: (v: boolean) => void
+  doneOpen: boolean
+  setDoneOpen: (v: boolean) => void
+  messages: string[] | null
+  setMessages: (v: string[]) => void
+  onPick: (key: string) => void
+  effectiveEntries: () => Record<string, LoggedSet[]>
+  onClose: () => void
+  helpFor: Exercise | null
+  setHelpFor: (e: Exercise | null) => void
+  optionsFor: ResolvedSlot | null
+  setOptionsFor: (r: ResolvedSlot | null) => void
+  step: string
+}) {
+  const {
+    date,
+    kind,
+    slots,
+    entries,
+    completed,
+    strength,
+    doneSets,
+    totalSets,
+    lijstOpen,
+    setLijstOpen,
+    doneOpen,
+    setDoneOpen,
+    messages,
+    setMessages,
+    onPick,
+    effectiveEntries,
+    onClose,
+    helpFor,
+    setHelpFor,
+    optionsFor,
+    setOptionsFor,
+    step,
+  } = props
+
+  return (
+    <>
+      <Sheet open={lijstOpen} onClose={() => setLijstOpen(false)} title={strength.naam}>
+        <div className="flex flex-col">
+          <button
+            type="button"
+            className="flex items-center justify-between gap-column border-t-hair border-rule py-row text-left"
+            onClick={() => {
+              setLijstOpen(false)
+              onPick(WARMUP_STEP)
+            }}
+          >
+            <span className={step === WARMUP_STEP ? 'text-list text-ink' : 'text-list text-muted'}>
+              Warming-up
+            </span>
+            <span className="text-meta text-faint">{strength.warmup.done ? '✓' : warmupLabel(strength.warmup)}</span>
+          </button>
+          {slots.map((r) => {
+            const af = completed.includes(r.slot.key)
+            const gedaan = (entries[r.slot.key] ?? []).filter((s) => s.done).length
+            return (
+              <button
+                key={r.slot.key}
+                type="button"
+                className="flex items-center justify-between gap-column border-t-hair border-rule py-row text-left last:border-b-hair"
+                onClick={() => {
+                  setLijstOpen(false)
+                  onPick(r.slot.key)
+                }}
+              >
+                <span className={`min-w-0 truncate text-list ${step === r.slot.key ? 'text-ink' : 'text-muted'}`}>
+                  {r.exercise.naam}
+                </span>
+                <span className="shrink-0 text-meta text-faint">
+                  {af ? '✓' : `${gedaan}/${entries[r.slot.key]?.length ?? r.sets}`}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-block">
+          <button
+            className="btn-primary w-full"
+            onClick={() => {
+              setLijstOpen(false)
+              setDoneOpen(true)
+            }}
+          >
+            Sessie afronden
+          </button>
+        </div>
+      </Sheet>
+
+      {helpFor && (
+        <Sheet open onClose={() => setHelpFor(null)} title={`Uitleg ${helpFor.naam}`}>
+          <Explanation exercise={helpFor} />
+        </Sheet>
+      )}
 
       <SlotOptions resolved={optionsFor} date={date} onClose={() => setOptionsFor(null)} />
 
       <Sheet open={doneOpen} onClose={() => setDoneOpen(false)} title="Sessie afronden">
         {messages === null ? (
-          <>
-            <p className="text-sm text-slate-400 mb-1">
+          <div className="flex flex-col gap-block">
+            <p className="text-body text-muted">
               {doneSets} van {totalSets} sets afgevinkt. Alleen afgevinkte sets tellen mee.
             </p>
             {/*
@@ -481,26 +906,27 @@ export function SessionScreen({
               bewust — een los schermpje erna wordt overgeslagen, en zonder beoordeling
               moet de progressie terugvallen op de RIR per set.
             */}
-            <p className="font-semibold mt-4 mb-2">Hoe ging het?</p>
-            <ChoiceGrid
-              options={FEELS}
-              buttonClass="min-h-[56px] text-sm"
-              onChange={(feel) =>
-                setMessages(
-                  A.completeSession(
-                    date,
-                    kind,
-                    slots,
-                    effectiveEntries(),
-                    strength.short,
-                    completed,
-                    feel,
-                  ),
-                )
-              }
-            />
+            <div className="flex flex-col gap-in-block">
+              <Caps>Hoe ging het?</Caps>
+              <ChoiceGrid
+                options={FEELS}
+                onChange={(feel) =>
+                  setMessages(
+                    A.completeSession(
+                      date,
+                      kind,
+                      slots,
+                      effectiveEntries(),
+                      strength.short,
+                      completed,
+                      feel,
+                    ),
+                  )
+                }
+              />
+            </div>
             <button
-              className="btn-quiet w-full mt-2"
+              className="btn-quiet w-full"
               onClick={() =>
                 setMessages(
                   A.completeSession(date, kind, slots, effectiveEntries(), strength.short, completed),
@@ -509,16 +935,16 @@ export function SessionScreen({
             >
               Afronden zonder beoordeling
             </button>
-          </>
+          </div>
         ) : (
-          <>
-            <p className="font-semibold text-emerald-300 mb-2">Sessie opgeslagen.</p>
+          <div className="flex flex-col gap-block">
+            <Caps tone="accent">Sessie opgeslagen</Caps>
             {messages.length === 0 ? (
-              <p className="text-sm text-slate-400 mb-4">Streefwaarden blijven gelijk.</p>
+              <p className="quote">Streefwaarden blijven gelijk.</p>
             ) : (
-              <ul className="space-y-2 mb-4">
+              <ul className="flex flex-col gap-in-block">
                 {messages.map((m, i) => (
-                  <li key={i} className="text-sm text-slate-200">
+                  <li key={i} className="quote">
                     {m}
                   </li>
                 ))}
@@ -527,10 +953,10 @@ export function SessionScreen({
             <button className="btn-primary w-full" onClick={onClose}>
               Klaar
             </button>
-          </>
+          </div>
         )}
       </Sheet>
-    </Full>
+    </>
   )
 }
 
@@ -543,114 +969,20 @@ function adviceFor(r: ResolvedSlot, state: UserState, calibration: boolean) {
   return startWeightAdvice(r.exercise, state, programFor(state).startScale)
 }
 
-/**
- * Het blok waar elke krachtsessie mee begint. Staat bewust boven de oefeningen en
- * niet ertussen: het is de opwarming, geen zevende oefening. Type en duur zijn
- * instelbaar en het vinkje wordt bij de sessie opgeslagen.
- */
-function WarmupBlock({ date, kind, warmup }: { date: string; kind: DayKind; warmup: Warmup }) {
-  const [help, setHelp] = useState(false)
-
-  return (
-    <div
-      className={`rounded-2xl border p-3 mb-3 ${
-        warmup.done ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-ink-600 bg-ink-800'
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span className="flex-1 min-w-0">
-          <span className="block font-semibold">
-            {warmup.done && (
-              <span className="text-emerald-400 mr-1" aria-hidden>
-                ✓
-              </span>
-            )}
-            Warming-up
-          </span>
-          <span className="block text-xs text-slate-400 tabular-nums">{warmupLabel(warmup)}</span>
-        </span>
-        <RoundButton label="Uitleg warming-up" active={help} onClick={() => setHelp((x) => !x)}>
-          ?
-        </RoundButton>
-        <button
-          aria-label={`Warming-up ${warmup.done ? 'weer openzetten' : 'afvinken'}`}
-          onClick={() => A.setWarmupDone(date, kind, !warmup.done)}
-          className={`shrink-0 w-11 h-11 rounded-lg border text-lg font-bold ${
-            warmup.done
-              ? 'bg-emerald-500 text-ink-900 border-emerald-500'
-              : 'bg-ink-700 border-ink-600 text-slate-400'
-          }`}
-        >
-          ✓
-        </button>
-      </div>
-
-      {help && <p className="text-sm text-slate-300 mt-2">{WARMUP_HINT}</p>}
-
-      <div className="mt-3">
-        <ChoiceGrid
-          options={WARMUP_TYPES}
-          value={warmup.type}
-          onChange={(t) => A.setWarmupType(date, kind, t)}
-          columns={2}
-          buttonClass="min-h-[44px] text-sm"
-        />
-      </div>
-
-      <div className="mt-2">
-        <p className="label mb-0.5">Duur</p>
-        <Stepper
-          ariaLabel="Duur warming-up"
-          value={warmup.minutes}
-          onChange={(v) => A.setWarmupMinutes(date, kind, v)}
-          step={1}
-          min={1}
-          max={60}
-          suffix="min"
-        />
-      </div>
-    </div>
-  )
-}
-
-function RoundButton({
-  children,
-  onClick,
-  label,
-  active,
-}: {
-  children: ReactNode
-  onClick: () => void
-  label: string
-  active?: boolean
-}) {
-  return (
-    <button
-      aria-label={label}
-      onClick={onClick}
-      className={`shrink-0 w-11 h-11 rounded-full border flex items-center justify-center text-lg font-bold ${
-        active ? 'bg-accent text-ink-900 border-accent' : 'bg-ink-700 border-ink-600 text-slate-300'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
-
 function Explanation({ exercise }: { exercise: Exercise }) {
   const figure = exercise.hasFigure ? getFigure(exercise.id) : null
   const c = exercise.coaching
 
   return (
-    <div className="px-3 pb-3 space-y-3">
+    <div className="flex flex-col gap-block">
       {figure && <FigurePair start={figure.start} end={figure.end} props={figure.props} />}
-      <div className="space-y-2 text-sm">
+      <div className="flex flex-col gap-in-block text-body">
         <Block label="Start">{c.setup}</Block>
         <Block label="Uitvoering">
-          <ul className="space-y-1">
+          <ul className="flex flex-col gap-tight">
             {c.execution.map((line, i) => (
               <li key={i} className="flex gap-2">
-                <span className="text-slate-500" aria-hidden>
+                <span className="text-faint" aria-hidden>
                   ·
                 </span>
                 <span>{line}</span>
@@ -662,7 +994,7 @@ function Explanation({ exercise }: { exercise: Exercise }) {
         {c.note && <Block label="Apparaat">{c.note}</Block>}
       </div>
       {exercise.loads.length > 0 && (
-        <p className="text-xs text-slate-500">
+        <p className="text-meta text-faint">
           Belast: {exercise.loads.map((l) => LOAD_LABEL[l]).join(', ')}
         </p>
       )}
@@ -672,9 +1004,9 @@ function Explanation({ exercise }: { exercise: Exercise }) {
 
 function Block({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <p className="label mb-0.5">{label}</p>
-      <div className="text-slate-300">{children}</div>
+    <div className="flex flex-col gap-tight">
+      <Caps>{label}</Caps>
+      <div className="text-muted">{children}</div>
     </div>
   )
 }
@@ -708,8 +1040,8 @@ function SlotOptions({
   return (
     <Sheet open onClose={onClose} title={resolved.exercise.naam}>
       {picking === null ? (
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="flex flex-col gap-in-block">
+          <div className="mb-in-block flex flex-wrap gap-column">
             {!target.byFeel &&
               (target.level !== null ? (
                 <Chip tone="lift">streef {bandLabel(target.level)}</Chip>
@@ -723,8 +1055,8 @@ function SlotOptions({
               </Chip>
             ))}
           </div>
-          {resolved.warning && <p className="text-sm text-rose-300">{resolved.warning}</p>}
-          <div className="grid grid-cols-2 gap-2">
+          {resolved.warning && <p className="quote">{resolved.warning}</p>}
+          <div className="grid grid-cols-2 gap-in-block">
             <button
               className="btn-ghost disabled:opacity-40"
               disabled={index <= 0}
@@ -768,14 +1100,14 @@ function SlotOptions({
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          <p className="text-sm text-slate-400 mb-2">
+        <div className="flex flex-col gap-in-block">
+          <p className="mb-in-block text-body text-muted">
             {picking === 'once'
               ? 'Alleen voor vandaag.'
               : 'Wordt vanaf nu de standaard en rouleert niet mee.'}
           </p>
           {candidates.length === 0 && (
-            <p className="text-sm text-slate-400">Geen alternatief beschikbaar binnen je instellingen.</p>
+            <p className="text-body text-muted">Geen alternatief beschikbaar binnen je instellingen.</p>
           )}
           {candidates.map((c) => (
             <button
@@ -799,26 +1131,7 @@ function SlotOptions({
   )
 }
 
-function Full({
-  title,
-  onClose,
-  children,
-}: {
-  title: string
-  onClose: () => void
-  children: ReactNode
-}) {
-  return (
-    <div className="fixed inset-0 z-40 bg-ink-900 overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-ink-900/95 backdrop-blur border-b border-ink-700 safe-top">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
-          <button className="btn-ghost btn-sm" onClick={onClose}>
-            ← Terug
-          </button>
-          <span className="font-bold truncate">{title}</span>
-        </div>
-      </div>
-      <div className="max-w-md mx-auto px-4 py-4 pb-24">{children}</div>
-    </div>
-  )
+/** De sessie dekt het hele scherm af: geen navigatiebalk, geen weg eromheen. */
+function Full({ children }: { children: ReactNode }) {
+  return <div className="safe-top fixed inset-0 z-40 flex flex-col bg-bg">{children}</div>
 }
