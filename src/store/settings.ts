@@ -1,6 +1,6 @@
 import { BAR_IDS, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { DEFAULT_PLATES } from '../logic/plates'
-import type { LoadArea, Sensitivity, Settings } from '../types'
+import type { LoadArea, MuscleZone, Sensitivity, Settings, Tempo } from '../types'
 
 /**
  * Eén plek waar een `Settings`-object heel gemaakt wordt.
@@ -29,6 +29,21 @@ export const ALL_AREAS: LoadArea[] = [
 
 const SENSITIVITIES: string[] = ['ok', 'careful', 'off']
 
+/** De drie spiergroepen waar het tempo apart voor in te stellen is. */
+export const ZONES: MuscleZone[] = ['benen', 'bovenlichaam', 'romp']
+
+export const ZONE_LABEL: Record<MuscleZone, string> = {
+  benen: 'Benen',
+  bovenlichaam: 'Bovenlichaam',
+  romp: 'Romp',
+}
+
+const TEMPOS: string[] = ['opbouwen', 'onderhoud']
+
+function alleZones(tempo: Tempo): Record<MuscleZone, Tempo> {
+  return Object.fromEntries(ZONES.map((z) => [z, tempo])) as Record<MuscleZone, Tempo>
+}
+
 /**
  * Vaste gebruikersids van dit huishouden. Ze staan hier omdat de startinstellingen
  * per gebruiker verschillen; store.ts exporteert ze door voor de rest van de app.
@@ -43,6 +58,7 @@ export function defaultSettings(): Settings {
     travelMode: false,
     barWeights: { ...DEFAULT_BAR_WEIGHTS },
     plates: [...DEFAULT_PLATES],
+    progressie: alleZones('opbouwen'),
   }
 }
 
@@ -55,6 +71,10 @@ export function defaultSettingsFor(userId: string): Settings {
   const settings = defaultSettings()
   // Rob traint met een gevoelige zijkant van de heup; dat is zijn startpunt, geen regel.
   if (userId === ROB) settings.sensitive.lateral_hip = 'careful'
+  // Anouc traint om het vol te houden, niet om zwaarder te tillen: overal onderhoud.
+  // Dat is een startpunt en geen oordeel — het staat in Instellingen en gaat per
+  // spiergroep om te zetten.
+  if (userId === ANOUC) settings.progressie = alleZones('onderhoud')
   return settings
 }
 
@@ -96,7 +116,23 @@ export function normalizeSettings(raw: unknown, fallback?: Settings): Settings {
     travelMode: s.travelMode === true,
     barWeights,
     plates: normalizePlates(s.plates, base.plates),
+    progressie: normalizeProgressie(s.progressie, base.progressie),
   }
+}
+
+/** Het tempo per spiergroep: onbekende waarden vallen terug op wat er al stond. */
+function normalizeProgressie(
+  raw: unknown,
+  fallback: Record<MuscleZone, Tempo> | undefined,
+): Record<MuscleZone, Tempo> {
+  const terugval = fallback ?? alleZones('opbouwen')
+  const uit = { ...terugval }
+  const s = isObject(raw) ? raw : {}
+  for (const zone of ZONES) {
+    const v = s[zone]
+    if (typeof v === 'string' && TEMPOS.includes(v)) uit[zone] = v as Tempo
+  }
+  return uit
 }
 
 /**

@@ -397,7 +397,6 @@ describe('v11 -> v12: meldingen wegklikken', () => {
     expect(root.users[ROB].runPlans[MON]).toBe(8)
     expect(root.users[ROB].deviations).toHaveLength(1)
     expect(root.users[ROB].settings.plates).toEqual([2.5, 5])
-    expect(root.users[ROB].dismissedWarnings).toEqual({})
   })
 })
 
@@ -482,14 +481,14 @@ describe('v13 -> v14: de werkelijk gelopen afstand is de maat', () => {
   it('komt via de volledige migratie op de huidige versie uit', () => {
     const root = migrate(structuredClone(v13))
     expect(root.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(14)
+    expect(SCHEMA_VERSION).toBe(15)
     expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
     expect(root.users[ROB].runs['2026-08-06'].km).toBe(6)
   })
 
-  it('tilt ook data van vóór de gebruikers in één keer door naar 14', () => {
+  it('tilt ook data van vóór de gebruikers in één keer door naar de huidige versie', () => {
     const root = migrate(structuredClone(v5))
-    expect(root.schemaVersion).toBe(14)
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
     // de looplog uit v5 had al een afstand; die blijft staan
     expect(root.users[ROB].runs[MON].km).toBe(6.5)
     expect(root.users[ROB].runs[MON].plannedKm).toBe(6)

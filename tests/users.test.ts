@@ -221,11 +221,16 @@ describe('het schema van Anouc', () => {
     const sets = [{ weight: 40, reps: 12, rir: 1, done: true }]
     const start = emptyExerciseState()
 
-    const standaard = applyProgression(ex, bounds, sets, start, { allowIncrease: true, iso: WO })
+    const standaard = applyProgression(ex, bounds, sets, start, {
+      allowIncrease: true,
+      iso: WO,
+      feel: 'makkelijk',
+    })
     const rustig = applyProgression(ex, bounds, sets, start, {
       allowIncrease: true,
       pace: 'gentle',
       iso: WO,
+      feel: 'makkelijk',
     })
 
     // standaard: bovengrens gehaald, dus meteen een schijf erbij

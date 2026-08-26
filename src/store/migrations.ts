@@ -1,6 +1,6 @@
 import { TEMPLATES } from '../data/plan'
 import { DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
-import { defaultSettingsFor, normalizeSettings } from './settings'
+import { ANOUC, defaultSettingsFor, normalizeSettings } from './settings'
 
 /**
  * Migratiepad voor opgeslagen data.
@@ -443,6 +443,62 @@ function v13_to_v14(state: RawState): RawState {
   return { ...state, users: next }
 }
 
+/**
+ * v14 -> v15: progressie op data, en het hardloopadvies eruit.
+ *
+ * Drie dingen tegelijk, want ze komen uit dezelfde verandering:
+ *
+ * 1. **`settings.progressie`** — het tempo per spiergroep (benen, bovenlichaam, romp),
+ *    met per spiergroep 'opbouwen' of 'onderhoud'. Bestaande gebruikers krijgen het
+ *    startpunt van hun profiel: Rob overal opbouwen, Anouc overal onderhoud. Wie iets
+ *    anders wil zet het om in Instellingen.
+ * 2. **`hitStreak` per oefening** — de teller waar de nieuwe progressieregel op loopt:
+ *    hoeveel sessies op rij er alles gehaald is. Die begint voor iedereen op 0. Met
+ *    terugwerkende kracht tellen zou kunnen, maar dan zou de eerste sessie na de update
+ *    bij een handvol oefeningen tegelijk het gewicht omhoog gooien — en dat is precies
+ *    wat de rem van twee per sessie moet voorkomen.
+ * 3. **`dismissedWarnings` weg** — daar stonden weggeklikte structurele meldingen in. De
+ *    enige melding die zich elke week herhaalde ging over zware benen vlak voor de
+ *    duurloop, en die bestaat niet meer sinds de app zich niet meer met hardlopen
+ *    bemoeit. Een lijst met weggeklikte meldingen die niet meer bestaan houdt niemand bij.
+ *
+ * Alles wat er verder staat — sessies, loops, streefgewichten, check-ins, instellingen —
+ * blijft onaangeroerd.
+ */
+function v14_to_v15(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!isRecord(raw)) {
+      next[id] = raw
+      continue
+    }
+    const { dismissedWarnings: _weg, ...user } = raw
+
+    // het tempo per spiergroep; normalizeSettings vult later aan wat hier ontbreekt
+    const settings = isRecord(user.settings) ? { ...user.settings } : {}
+    if (!isRecord(settings.progressie)) {
+      const tempo = id === ANOUC ? 'onderhoud' : 'opbouwen'
+      settings.progressie = { benen: tempo, bovenlichaam: tempo, romp: tempo }
+    }
+    user.settings = settings
+
+    // iedereen begint met een schone teller
+    if (isRecord(user.exerciseState)) {
+      const exerciseState: Record<string, unknown> = {}
+      for (const [oefening, es] of Object.entries(user.exerciseState)) {
+        exerciseState[oefening] = isRecord(es) ? { ...es, hitStreak: 0, raiseNote: null } : es
+      }
+      user.exerciseState = exerciseState
+    }
+
+    next[id] = user
+  }
+
+  return { ...state, users: next }
+}
+
 /** Een bruikbaar aantal kilometers, of null als er niets te lezen valt. */
 function getal(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null
@@ -462,6 +518,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   11: v11_to_v12,
   12: v12_to_v13,
   13: v13_to_v14,
+  14: v14_to_v15,
 }
 
 /**

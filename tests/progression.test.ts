@@ -65,6 +65,7 @@ describe('progressie op gewicht', () => {
     const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10, 1), base, {
       allowIncrease: true,
       iso: MON,
+      feel: 'makkelijk',
     })
     expect(r.next.targetWeight).toBe(102.5)
     expect(r.next.targetReps).toBe(8)
@@ -111,6 +112,7 @@ describe('progressie op reps', () => {
     const r = applyProgression(dbPress, { repMin: 8, repMax: 12 }, sets(1, 15, 14, 1), start, {
       allowIncrease: true,
       iso: MON,
+      feel: 'goed',
     })
     expect(r.next.targetWeight).toBe(17.5)
     expect(r.next.targetReps).toBe(8)
@@ -150,17 +152,17 @@ describe('double progression op gevoel', () => {
     expect(r.next.lastNote).toContain('zwaar')
   })
 
-  it('valt zonder beoordeling terug op de gelogde RIR', () => {
-    const metRir = applyProgression(legPress, bounds, sets(3, 100, 10, 1), base, {
-      allowIncrease: true,
-      iso: MON,
-    })
-    const teZwaar = applyProgression(legPress, bounds, sets(3, 100, 10, 3), base, {
-      allowIncrease: true,
-      iso: MON,
-    })
-    expect(metRir.next.targetWeight).toBe(102.5)
-    expect(teZwaar.next.targetWeight).toBe(100)
+  it('verhoogt zonder beoordeling niets: dan doet de opbouwregel het werk', () => {
+    // Vroeger viel dit terug op de gelogde RIR, en dan verhoogde deze regel bij elke
+    // sessie op de bovengrens. Twee regels die naar dezelfde sets kijken nemen om de
+    // beurt een stap; nu is dit de handmatige route en telt `opbouw.ts` de sessies.
+    for (const rir of [1, 3]) {
+      const r = applyProgression(legPress, bounds, sets(3, 100, 10, rir), base, {
+        allowIncrease: true,
+        iso: MON,
+      })
+      expect(r.next.targetWeight, `RIR ${rir}`).toBe(100)
+    }
   })
 })
 
