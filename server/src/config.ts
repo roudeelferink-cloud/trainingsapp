@@ -27,6 +27,13 @@ export interface Config {
   cacheFile: string
   /** hoe lang een API-aanroep mag duren */
   timeoutMs: number
+  /**
+   * Ander adres voor de API. Leeg in het gewone geval; de tests zetten hier een
+   * nagebootste API neer, zodat de echte aanroep in `claude.ts` een keer over een echte
+   * verbinding gaat in plaats van weggemockt te worden. Dat de client dit ook uit
+   * `ANTHROPIC_BASE_URL` zou lezen laten we hier expliciet zien.
+   */
+  baseUrl: string | null
 }
 
 /**
@@ -72,6 +79,7 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: getal(env.REVIEW_PORT, 8098),
     cacheFile: nietLeeg(env.REVIEW_CACHE_FILE) ?? 'data/reviews.json',
     timeoutMs: getal(env.REVIEW_TIMEOUT_MS, 180_000),
+    baseUrl: nietLeeg(env.ANTHROPIC_BASE_URL),
   }
 }
 

@@ -28,7 +28,12 @@ export function maakClaudeClient(config: Config): ModelClient {
       'Er staat geen ANTHROPIC_API_KEY in de omgeving. Zet hem in server/.env.',
     )
   }
-  const client = new Anthropic({ apiKey: config.apiKey, timeout: config.timeoutMs, maxRetries: 2 })
+  const client = new Anthropic({
+    apiKey: config.apiKey,
+    timeout: config.timeoutMs,
+    maxRetries: 2,
+    ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+  })
 
   return {
     async vraag(signalen: Signalen): Promise<unknown> {
