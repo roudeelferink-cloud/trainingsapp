@@ -5,6 +5,11 @@ Offline-first, installeerbaar, donker thema. Geen accounts, geen wachtwoorden en
 cloud: alles staat in `localStorage` op het toestel zelf. Verhuizen naar een ander
 toestel gaat via export en import.
 
+De app draait op de Pi thuis en is via Tailscale bereikbaar — zie
+[README-HOSTING.md](README-HOSTING.md). Daarnaast staat er één blok op Historie dat
+níét lokaal is: het advies, dat een servertje ernaast bij Claude ophaalt. Alle
+bijsturingen die de app zelf doet blijven lokaal en veranderen daar niet door.
+
 - **Rob** — doorlopend krachtschema met nadruk op benen, naast 3x per week hardlopen.
 - **Anouc** — 2x full body (woensdag en zaterdag) van 45-60 min, naast haar eigen 3x
   hardlopen.
@@ -23,8 +28,17 @@ gebruik dus via `npm run preview`, niet via `npm run dev`.
 
 Let op bij testen op je telefoon: service workers vragen een secure context, dus
 `localhost` of HTTPS. Via `npm run preview -- --host` op een LAN-adres laadt de app wel,
-maar registreert de service worker niet — geen installatie, geen offline. Daarvoor is
-GitHub Pages (HTTPS) nodig.
+maar registreert de service worker niet — geen installatie, geen offline. Daarvoor is het
+adres achter `tailscale serve` (HTTPS) nodig; zie [README-HOSTING.md](README-HOSTING.md).
+
+Het adviesblok praat met het servertje uit `server/`. Tijdens ontwikkelen zet Vite
+`/api` door naar `127.0.0.1:8098`, dus die twee draaien naast elkaar:
+
+```bash
+cd server && npm install && npm run build && npm start   # in een tweede terminal
+```
+
+Draait het servertje niet, dan zwijgt het adviesblok en werkt de rest gewoon.
 
 ## Testen
 
@@ -74,38 +88,66 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `unilateraal.test.ts` | de vlag `unilateral` op elke oefening: expliciet en compleet, "reps per zijde" alleen bij eenarmig of eenbenig werk, de uitlegregel erbij, en de ×2 in volume en duurschatting |
 | `sessieNavigatie.test.ts` | navigeren binnen een sessie: vooruit en achteruit zonder rondlopen, springen vanaf de voortgangsbalk, een set van een afgeronde oefening bijstellen, en de afrondknop die alleen op de laatste oefening "Sessie afronden" zegt |
 | `extraOefening.test.ts` | de extra oefening na een te makkelijke sessie: de gemeten sessieduur, elke voorwaarde die het aanbod tegenhoudt, twee makkelijke sessies op rij die het streefgewicht verhogen, en het opnieuw afronden zonder dubbele progressie |
+| `advies.test.tsx` | het adviesblok: wanneer er opgehaald wordt, het ophalen zelf (inclusief elke manier waarop dat mis kan gaan), het advies per profiel bewaren, en het blok dat zwijgt zolang er niets is |
+| `overzetten.test.ts` | verhuizen naar het nieuwe adres: een echte export van de Pages-versie (schemaVersion 14) inlezen zonder verlies — historie, streefgewichten, check-ins, dagchecks, pincode en beide profielen — plus een tweede rondje export-import |
+| `hosting.test.ts` | de PWA op het nieuwe adres: basispad, `start_url`, `scope` en `id` op `/`, relatieve iconen, `/api` buiten de service worker, en geen Pages-workflow meer |
 | `hardloopopbouw.test.ts` | het rollend gemiddelde over vier weken werkelijk gelopen km, de eigen opbouwlijn van de duurloop (10 → 15 km, daarboven onderhoud), de contextregel onder de afstand, het meebewegende weekplafond (+0% tot +15%) en de blokkerende rem op drie stijgingen op rij |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
 laden van de module.
 
-## Deployen naar GitHub Pages
+## Publiceren
 
-De app draait vanaf een submap op Pages, dus de base-path moet mee. Die komt uit de
-env-variabele `VITE_BASE`.
-
-**Optie 1 — automatisch via Actions.** `.github/workflows/deploy.yml` staat er al in.
-Zet in de repo-instellingen *Settings → Pages → Source* op **GitHub Actions** en push
-naar `main` (of `master`). De workflow zet `VITE_BASE` op `/<repo-naam>/` en publiceert
-`dist/`.
-
-De workflow draait `npm test` vóór `npm run build`. Faalt een test, dan stopt de
-build-job daar en draait de deploy-job niet — die hangt er via `needs: build` aan. Er
-komt dus nooit een versie online die de tests niet haalt.
-
-**Optie 2 — handmatig.**
+De app gaat niet meer naar GitHub Pages. Dat kon niet blijven: het adviesblok praat met
+de Claude-API, en een sleutel in een browserbundel is voor iedereen te lezen. De app
+draait nu op hengelo-pi in twee containers — nginx voor de bundel, een Node-servertje
+voor `/api/review` — en komt via `tailscale serve` het tailnet op.
 
 ```bash
-VITE_BASE=/trainingsapp/ npm run build
-npx gh-pages -d dist          # of push dist/ naar de gh-pages branch
+docker compose up -d --build
 ```
 
-Vervang `trainingsapp` door de naam van je repository. Draait de app op een eigen
-domein of in de root, dan kan `VITE_BASE` weg.
+Alles wat daar met de hand bij hoort — de sleutel in `server/.env`, `tailscale serve`
+aanzetten, de Tailscale-ACL zodat Anouc's toestel alleen bij deze poort kan, en het
+overzetten van je gegevens van het oude adres — staat in
+[README-HOSTING.md](README-HOSTING.md).
 
-Na de eerste keer openen: in Chrome/Safari *Toevoegen aan beginscherm*. Daarna start
-hij als losse app en werkt hij offline. Updates worden automatisch opgehaald
-(`autoUpdate`) en zijn actief na het sluiten en heropenen van de app.
+`.github/workflows/tests.yml` draait bij elke push de tests van de app én van het
+servertje. Er hangt geen publicatie meer aan: die doe je op de Pi.
+
+Na de eerste keer openen: in Chrome/Safari *Toevoegen aan beginscherm*. Daarna start hij
+als losse app en werkt hij offline. Updates worden automatisch opgehaald (`autoUpdate`)
+en zijn actief na het sluiten en heropenen van de app.
+
+## Het adviesblok
+
+Op Historie staat één blok dat van buiten komt: **Advies**. De app stuurt haar eigen
+staat naar `POST /api/review`, het servertje rekent daar de signalen uit met exact
+dezelfde functies als de app (`guardrails.ts`, `feel.ts`, `runningLoad.ts`,
+`deload.ts`), stuurt die feiten naar Claude en geeft een advies in vaste vorm terug:
+`{ signalen, advies, toon }`.
+
+Vier dingen liggen daarbij vast:
+
+- **De app rekent, het model oordeelt.** Er gaan geen rauwe setjes naartoe. Het model
+  krijgt de uitgerekende getallen en mag er iets van vinden; het rekent zelf niets uit,
+  want dan zou het advies andere cijfers noemen dan het scherm ernaast.
+- **Hooguit één advies per profiel per dag**, gecachet op de server. Opnieuw openen kost
+  niets. Na drie mislukte pogingen op een dag houdt de server op.
+- **Half advies is geen advies.** Ontbreekt er een veld in het antwoord, dan komt er een
+  nette fout en geen blok.
+- **Het vervangt niets.** Alle guardrails, gewichtsvoorstellen en loopafstanden komen
+  precies zoals ze deden uit de lokale logica. Zonder bereikbare Pi zwijgt het blok en
+  merk je verder niets — geen foutmelding tijdens een sessie.
+
+Het servertje heeft zijn eigen `package.json`, `node_modules` en tests:
+
+```bash
+cd server
+npm install
+npm test           # 57 tests, met een gemockte API-client
+npm run build      # typecheck + één gebundeld bestand in dist/
+```
 
 ## Eén gebruiker per toestel
 
@@ -661,10 +703,13 @@ src/
   logic/wipeGuard.ts  pincode en pogingenteller voor het wissen
   logic/load.ts       hoe de belasting boven een invoerveld heet
   data/programs.ts    de twee programma's: week, sjablonen, looptype, tempo
+  logic/review.ts     het advies van de server: wanneer ophalen, en stil blijven als het niet lukt
+  store/schema.ts     de vorm van de opgeslagen staat en het migratiepad (zonder browser)
   store/store.ts      localStorage-store, export/import
   store/settings.ts   standaardinstellingen en het heel maken van halve settings
   store/migrations.ts migratiepad tussen schemaVersions
   store/actions.ts    alle mutaties
+  components/Advies.tsx  het adviesblok op Historie
   components/ErrorBoundary.tsx  vangnet per scherm: melding en terug naar Vandaag
   components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
   components/Activities.tsx  invoer en weergave van losse activiteiten
@@ -672,4 +717,16 @@ src/
   screens/            Welkom, Vandaag, Sessie, Week, Voortgang, Meekijken, Instellingen
                       (Meekijken zit onder Instellingen → Profiel, niet in de onderbalk)
 tests/                vitest-suite, draait zonder browser
+  fixtures/           een echte export van de Pages-versie, voor de overzet-test
+server/               het review-servertje (eigen package.json en tests)
+  src/signalen.ts     de feitelijke signalen, uitgerekend met de logica uit src/
+  src/prompt.ts       systeemprompt, opdracht en het antwoordschema
+  src/claude.ts       de enige plek die het netwerk op gaat
+  src/advies.ts       de keuring van het antwoord: liever niets dan half
+  src/cache.ts        dagcache per profiel, en de rem op het aantal aanroepen
+  src/review.ts       de endpoint zelf, zonder HTTP eromheen
+  src/http.ts         twee routes op node:http
+docker-compose.yml    nginx + het servertje, alleen op 127.0.0.1
+nginx.conf            de bundel en /api/ op één origin
+README-HOSTING.md     wat je met de hand doet: sleutel, tailscale serve, ACL
 ```
