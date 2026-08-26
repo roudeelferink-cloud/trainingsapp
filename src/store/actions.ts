@@ -16,7 +16,7 @@ import {
   zoneOf,
   type Kandidaat,
 } from '../logic/opbouw'
-import { bumpTargets, extraSlotKey } from '../logic/extra'
+import { BUMP_MARKER, bumpTargets, extraSlotKey } from '../logic/extra'
 import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
 import { DELOAD_RISK, deloadFor } from '../logic/deload'
 import { round05 } from '../logic/running'
@@ -45,6 +45,8 @@ import type {
   WarmupType,
 } from '../types'
 import { normalizeSettings } from './settings'
+
+export { BUMP_MARKER }
 import { currentUserId, getState, setState } from './store'
 
 export function setCheckin(iso: string, value: number): void {
@@ -546,12 +548,17 @@ export function completeSession(
       Een sessie kan een tweede keer afgerond worden: er kwam een extra oefening bij na
       een te makkelijke sessie. Wat er toen al in stond en niet veranderd is, mag de
       progressie geen tweede keer sturen — anders levert één sessie twee stappen op.
+
+      Er wordt hier bewust niet gekeken of de sessie nog als afgerond staat: het toevoegen
+      van een extra oefening zet `completedAt` juist op null om de sessie weer te kunnen
+      openen. Deed die voorwaarde mee, dan was er nooit iets overgeslagen en telde elke
+      oefening van de sessie een tweede keer. Alleen `completeSession` schrijft `entries`,
+      dus opgeslagen sets die identiek zijn zijn per definitie al eerder geteld.
     */
     const eerder = s.sessions[sessionKeyFor(iso, kind)]
     const alGeteld = (slotKey: string, sets: LoggedSet[]) =>
-      !!eerder?.completedAt &&
-      eerder.exercises?.[slotKey] === slots.find((x) => x.slot.key === slotKey)?.exercise.id &&
-      sameSets(eerder.entries?.[slotKey], sets)
+      eerder?.exercises?.[slotKey] === slots.find((x) => x.slot.key === slotKey)?.exercise.id &&
+      sameSets(eerder?.entries?.[slotKey], sets)
 
     /*
       De opbouwregel verzamelt onderweg wie er aan de drempel komt; welke van die
@@ -841,12 +848,7 @@ export function applyEasyBump(iso: string, kind: DayKind, slots: ResolvedSlot[])
   return messages
 }
 
-/**
- * Markering dat een sessie zijn nabeschouwing gehad heeft zonder dat er een oefening bij
- * kwam. Staat in hetzelfde veld, want hij doet hetzelfde werk: de volgende sessie krijgt
- * geen aanbod meer over deze.
- */
-export const BUMP_MARKER = 'volume_omhoog'
+
 
 /**
  * Bewaart het opgehaalde advies bij de gebruiker waar het over gaat.

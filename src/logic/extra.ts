@@ -191,3 +191,14 @@ function lichtstEerst(a: Exercise, b: Exercise): number {
   if (zwaarte !== 0) return zwaarte
   return a.id.localeCompare(b.id)
 }
+
+/**
+ * Markering dat een sessie zijn nabeschouwing gehad heeft zonder dat er een oefening bij
+ * kwam. Staat in hetzelfde veld als de extra oefening, want hij doet hetzelfde werk: de
+ * volgende sessie krijgt geen aanbod meer over deze.
+ *
+ * Staat hier en niet bij de acties omdat het servertje in `server/` hem ook moet kunnen
+ * lezen — het moet weten of `log.extra` een oefening is of deze markering — en dat
+ * bestand hoort geen React mee te trekken.
+ */
+export const BUMP_MARKER = 'volume_omhoog'

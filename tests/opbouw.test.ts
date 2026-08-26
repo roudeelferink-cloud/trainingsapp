@@ -17,6 +17,8 @@ import {
   zoneOf,
 } from '../src/logic/opbouw'
 import { stateFor, targetFor } from '../src/logic/progression'
+import { sessionVolumeKg, weeklyStrengthVolume } from '../src/logic/stats'
+import { mondayOf } from '../src/logic/dates'
 import { SessionScreen } from '../src/screens/SessionScreen'
 import * as F from '../src/store/actions'
 import * as A from '../src/store/actions'
@@ -457,5 +459,117 @@ describe('de oude makkelijk-regel verhoogt niet dubbel', () => {
     expect(na.targetWeight!).toBeLessThanOrEqual(voor + 5)
     expect(na.hitStreak).toBe(0)
     expect(na.raiseNote ?? null).toBeNull()
+  })
+})
+
+/**
+ * Werk dat er binnen een sessie bij komt.
+ *
+ * De app biedt na een te makkelijke sessie één extra oefening aan; die komt in het
+ * sessielog terecht als een gewoon slot. Deze tests leggen vast dat hij daarna ook als
+ * gewoon werk telt — in het tilvolume en in de opbouwteller — want dat is iets wat
+ * ongemerkt kan wegvallen zodra er aan de sessieopbouw gesleuteld wordt.
+ */
+describe('een extra oefening binnen een sessie', () => {
+  beforeEach(metStreefgewichten)
+
+  /** Voegt de extra oefening toe en logt hem, met de rest van de sessie ongemoeid. */
+  function metExtra(iso: string, exerciseId: string) {
+    const kind = buildDay(getState(), iso).strength!.kind
+    expect(A.addExtraExercise(iso, kind, exerciseId)).toEqual({ ok: true })
+
+    const slots = buildDay(getState(), iso).strength!.slots
+    const bestaand = getState().sessions[`${iso}:${kind}`]?.entries ?? {}
+    const entries: Record<string, LoggedSet[]> = { ...bestaand }
+    for (const r of slots) {
+      if (entries[r.slot.key]) continue
+      const t = targetFor(r.exercise, r.repMin, getState(), { calibration: false, deload: false })
+      entries[r.slot.key] = Array.from({ length: r.sets }, () => ({
+        weight: t.weight ?? 0,
+        reps: t.reps,
+        rir: 2,
+        done: true,
+      }))
+    }
+    A.completeSession(iso, kind, slots, entries, false, slots.map((r) => r.slot.key))
+    return kind
+  }
+
+  it('komt als gewoon slot in het sessielog terecht', () => {
+    logSessie(MON)
+    const kind = buildDay(getState(), MON).strength!.kind
+    metExtra(MON, 'plank')
+
+    const log = getState().sessions[`${MON}:${kind}`]
+    expect(Object.keys(log.entries)).toContain(`${kind}:extra`)
+    expect(log.exercises[`${kind}:extra`]).toBe('plank')
+    expect(log.extra).toBe('plank')
+  })
+
+  it('telt mee in het tilvolume van die week', () => {
+    setState((s) => ({
+      ...s,
+      exerciseState: {
+        ...s.exerciseState,
+        db_shoulder_press: es({ targetWeight: 12.5, targetReps: 8 }),
+      },
+    }))
+    logSessie(MON)
+    const kind = buildDay(getState(), MON).strength!.kind
+    const voor = sessionVolumeKg(getState().sessions[`${MON}:${kind}`])
+    const voorWeek = weeklyStrengthVolume(getState(), 1)[0].kg
+
+    metExtra(MON, 'db_shoulder_press')
+
+    expect(sessionVolumeKg(getState().sessions[`${MON}:${kind}`])).toBeGreaterThan(voor)
+    // en de weekgrafiek rekent met dezelfde functie, dus die schuift mee
+    if (weeklyStrengthVolume(getState(), 1)[0].weekStart === mondayOf(MON)) {
+      expect(weeklyStrengthVolume(getState(), 1)[0].kg).toBeGreaterThan(voorWeek)
+    }
+  })
+
+  it('telt mee in de opbouwteller van die oefening', () => {
+    // een oefening met een streefgewicht, zodat er iets te tellen valt
+    setState((s) => ({
+      ...s,
+      exerciseState: {
+        ...s.exerciseState,
+        db_shoulder_press: es({ targetWeight: 12.5, targetReps: 8 }),
+      },
+    }))
+
+    logSessie(MON)
+    expect(stateFor(getState(), 'db_shoulder_press').hitStreak ?? 0).toBe(0)
+
+    metExtra(MON, 'db_shoulder_press')
+    expect(stateFor(getState(), 'db_shoulder_press').hitStreak).toBe(1)
+  })
+
+  it('telt niet dubbel als de rest van de sessie ongemoeid blijft', () => {
+    logSessie(MON)
+    const voor = stateFor(getState(), 'leg_press').hitStreak
+    metExtra(MON, 'plank')
+    expect(stateFor(getState(), 'leg_press').hitStreak).toBe(voor)
+  })
+})
+
+/**
+ * Losse activiteiten staan hier volledig buiten. Een avondrondje op de fiets is geen
+ * krachtwerk, en het hoort de opbouw van een oefening niet aan te raken.
+ */
+describe('losse activiteiten raken de krachtprogressie niet', () => {
+  beforeEach(metStreefgewichten)
+
+  it('verandert niets aan tilvolume of teller', () => {
+    logSessie(MON)
+    const volume = weeklyStrengthVolume(getState(), 1)[0].kg
+    const teller = stateFor(getState(), 'leg_press').hitStreak
+
+    A.addActivity(MON, { type: 'fietsen', minutes: 65, distanceKm: 22, intensity: 'rustig', note: null })
+    A.addActivity(MON, { type: 'wandelen', minutes: 40, distanceKm: 3, intensity: 'rustig', note: null })
+
+    expect(weeklyStrengthVolume(getState(), 1)[0].kg).toBe(volume)
+    expect(stateFor(getState(), 'leg_press').hitStreak).toBe(teller)
+    expect(getState().activities).toHaveLength(2)
   })
 })

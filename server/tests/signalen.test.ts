@@ -5,6 +5,7 @@ import { deloadFor } from '../../src/logic/deload'
 import { dayGuardrails } from '../../src/logic/guardrails'
 import { averageRunKm, longestRunKm, weekRunFacts } from '../../src/logic/runningLoad'
 import { DREMPEL, MAX_VERHOGINGEN_PER_SESSIE } from '../../src/logic/opbouw'
+import { BUMP_MARKER } from '../../src/logic/extra'
 import { ANOUC } from '../../src/store/schema'
 import { DEZE_MAANDAG, VANDAAG, WEKEN, anoucState, leegState, robState } from './helpers'
 
@@ -150,6 +151,48 @@ describe('signalen', () => {
     const s = buildSignalen(state, VANDAAG)
     expect(s.progressie.tellers[0].oefening).toBe('leg_press')
     expect(s.progressie.tellers[0].gehaaldOpRij).toBe(2)
+  })
+
+  it('noemt de oefeningen die er binnen een sessie bij gedaan zijn', () => {
+    const state = robState()
+    // een sessie in de lopende week, zodat hij binnen het venster van acht weken valt
+    const recent = Object.keys(state.sessions).sort().at(-1)!
+    state.sessions = { ...state.sessions, [recent]: { ...state.sessions[recent], extra: 'plank' } }
+    const s = buildSignalen(state, VANDAAG)
+    const alleExtra = s.weken.flatMap((w) => w.extraOefeningen)
+    expect(alleExtra).toContain('Plank')
+  })
+
+  it('houdt de markering van een volumeverhoging uit de lijst met extra oefeningen', () => {
+    const state = robState()
+    const recent = Object.keys(state.sessions).sort().at(-1)!
+    state.sessions = { ...state.sessions, [recent]: { ...state.sessions[recent], extra: BUMP_MARKER } }
+    const s = buildSignalen(state, VANDAAG)
+    expect(s.weken.flatMap((w) => w.extraOefeningen)).toEqual([])
+  })
+
+  it('stuurt losse activiteiten niet als krachtwerk mee', () => {
+    const state = robState()
+    state.activities = [
+      {
+        id: 'a1',
+        date: DEZE_MAANDAG,
+        type: 'fietsen',
+        minutes: 65,
+        distanceKm: 22,
+        intensity: 'rustig',
+        note: 'rondje Twente',
+        createdAt: `${DEZE_MAANDAG}T20:00:00.000Z`,
+      },
+    ]
+    const s = buildSignalen(state, VANDAAG)
+
+    // niet in het tilvolume, niet als sessie, en de notitie gaat niet mee
+    const zonder = buildSignalen(robState(), VANDAAG)
+    expect(s.weken.map((w) => w.tilvolumeKg)).toEqual(zonder.weken.map((w) => w.tilvolumeKg))
+    expect(s.weken.map((w) => w.krachtsessies)).toEqual(zonder.weken.map((w) => w.krachtsessies))
+    expect(JSON.stringify(s)).not.toContain('fietsen')
+    expect(JSON.stringify(s)).not.toContain('rondje Twente')
   })
 
   it('is JSON, en niets anders — alles moet door JSON.stringify heen kunnen', () => {

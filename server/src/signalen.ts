@@ -7,6 +7,7 @@ import { DREMPEL, MAX_VERHOGINGEN_PER_SESSIE, zoneOf } from '../../src/logic/opb
 import { averageRunKm, longestRunKm, weekRunFacts } from '../../src/logic/runningLoad'
 import { sessionVolumeKg } from '../../src/logic/stats'
 import { BY_ID } from '../../src/data/exercises'
+import { BUMP_MARKER } from '../../src/logic/extra'
 import type { Feel, MuscleZone, Tempo, UserState } from '../../src/types'
 
 /**
@@ -45,6 +46,12 @@ export interface WeekSignaal {
   /** beoordelingen van kracht én loop, in de volgorde waarin ze gelogd zijn */
   gevoel: Feel[]
   zwareSessies: number
+  /**
+   * Oefeningen die er binnen een sessie bij gedaan zijn, met hun naam. Het tilvolume
+   * hierboven telt ze al mee; dit staat er apart bij omdat het iets anders betekent dan
+   * een zware sessie — dit is werk dat er bewust bij is gezet.
+   */
+  extraOefeningen: string[]
   slaapGem: number | null
   energieGem: number | null
   benenGem: number | null
@@ -188,11 +195,16 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
     let langste = 0
     const overgeslagen: string[] = []
 
+    const extraOefeningen: string[] = []
     for (const log of Object.values(state.sessions ?? {})) {
       if (!log.completedAt || !dagen.has(log.date)) continue
       krachtsessies++
       tilvolume += sessionVolumeKg(log)
       if (log.feel) gevoel.push(log.feel)
+      // `extra` houdt óf de oefening vast die erbij kwam, óf de markering dat er in
+      // plaats daarvan volume bij is gezet. Alleen het eerste is een oefening.
+      const bij = log.extra && log.extra !== BUMP_MARKER ? BY_ID[log.extra] : undefined
+      if (bij) extraOefeningen.push(bij.naam)
     }
     for (const run of Object.values(state.runs ?? {})) {
       if (!run.completedAt || !dagen.has(run.date)) continue
@@ -226,6 +238,7 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
       tilvolumeKg: Math.round(tilvolume),
       gevoel,
       zwareSessies: gevoel.filter((f) => f === 'zwaar').length,
+      extraOefeningen,
       slaapGem: gemiddelde(checks.map((c) => c.sleep)),
       energieGem: gemiddelde(checks.map((c) => c.energy)),
       benenGem: gemiddelde(benen),
