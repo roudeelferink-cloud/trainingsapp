@@ -193,7 +193,7 @@ geïnstalleerd (nagekeken in `systemctl --user list-unit-files` en
 
 ## Wat ik wél heb gecontroleerd
 
-- **1034 tests groen**: 954 in de app (`npm test`), 80 in het servertje
+- **1036 tests groen**: 954 in de app (`npm test`), 82 in het servertje
   (`npm --prefix server test`). Samen met `npm run test:alles`.
 - **Typecheck groen** in allebei de projecten.
 - **`npm run build`** draait door, en in de uitvoer staan `start_url`/`scope`/`id` op `/`
@@ -217,23 +217,83 @@ geïnstalleerd (nagekeken in `systemctl --user list-unit-files` en
 - **De afscherming nagemeten**: `:8098` op de host is niet bereikbaar, en `:8097` op het
   tailscale-adres ook niet — dat moet inderdaad via `tailscale serve`.
 
+### Tegen de echte API, met de sleutel erin (26 augustus)
+
+Sinds de sleutel in `server/.env` staat is dit niet meer nagebootst maar echt. Container
+opnieuw gebouwd, en alles hieronder liep via `http://127.0.0.1:8097/api/review` — dus door
+nginx heen, op het adres dat de telefoon ook gebruikt.
+
+**De nieuwe grenzen.** Eén `POST` voor profiel `anouc` met de export uit
+`tests/fixtures/export-pages-v14.json`:
+
+| | vóór de fix (rob, uit de dagcache) | nu (anouc) |
+| --- | --- | --- |
+| signalen | 8 | **5** |
+| adviezen | 6 | **4** |
+
+Status 200, 22 seconden. Een tweede aanroep op een andere dag gaf 5 signalen en 2
+adviezen — ook binnen de grenzen, en korter omdat er minder te melden was.
+
+**Het inkorten hoefde niet te vuren.** Dat is de nuttigste uitkomst: er stond geen enkele
+`ingekort`-regel in de log, dus het model schreef uit zichzelf vijf en vier. De aantallen
+in de opdracht komen dus aan; de inkorting in `advies.ts` is een vangnet en niet het ding
+dat het werk doet. Dat verschil was niet af te lezen aan het advies zelf — vijf signalen
+ziet er hetzelfde uit of het er nu vijf of acht waren — dus dat staat nu in de log.
+
+**Wat er wél ingekort is.** Het advies dat vóór de fix voor rob opgeslagen was (8 en 6)
+gaat bij het lezen van de dagcache door dezelfde keuring, dus dat staat nu als 5 en 4 in
+`reviews.json`. Eén kanttekening: rob's telefoon heeft die 8 al opgeslagen en haalt pas
+morgen een nieuwe op. Tot die tijd staat er op zijn scherm nog het lange advies; er gaat
+niets stuk van, en morgen is het weg.
+
+**Cache: tweede aanroep, geen tweede API-call.** Dezelfde `POST` nog een keer, zelfde
+profiel en dezelfde dag:
+
+- `gecached: true`, en `gegenereerdOp` exact hetzelfde tijdstip als de eerste keer
+- het advies letterlijk identiek
+- 0,02 seconde in plaats van 22 — dat is geen aanroep die snel was, dat is geen aanroep
+- in de log staat `advies voor anouc (2026-08-26), uit de cache`, en `pogingen` in
+  `reviews.json` bleef op 1 staan
+
+**Daglimiet: drie pogingen, dan 429.** Dit hoefde niet met unit-tests: door de container
+tijdelijk naar een dood API-adres te laten wijzen mislukt elke aanroep echt, zonder dat
+het iets kost. Vier keer achter elkaar, op een eigen datum zodat de gewone dagcache er
+buiten bleef:
+
+```
+poging 1: {"fout":"api_onbereikbaar","bericht":"De Claude-API gaf geen antwoord: Connection error."} [502]
+poging 2: {"fout":"api_onbereikbaar",...}                                                            [502]
+poging 3: {"fout":"api_onbereikbaar",...}                                                            [502]
+poging 4: {"fout":"te_vaak","bericht":"Vandaag al 3 keer geprobeerd voor anouc. Morgen weer."}        [429]
+```
+
+De cacherij stond daarna op `pogingen: 3` zonder advies — precies zoals bedoeld: de teller
+telt pogingen en niet successen, dus een kapot netwerk omzeilt de limiet niet. Daarna is
+het dode adres eruit gehaald, de dagcache teruggezet en gecontroleerd dat de container
+weer normaal draait (geen `ANTHROPIC_BASE_URL` in de omgeving, beide profielen met een
+geldig advies voor vandaag).
+
+De app zelf loopt hier niet tegenaan: die vraagt hooguit één keer per dag. De limiet is er
+voor het geval er iets blijft hangen.
+
 ## Wat ik niet heb kunnen controleren
 
-Vijf dingen, en dat zijn precies de dingen die aan jouw kant zitten.
+Nog vier dingen, en dat zijn precies de dingen die aan jouw kant zitten. Punt 1 hieronder
+is inmiddels wél gedaan; hij blijft staan omdat wat eruit kwam er nog steeds toe doet.
 
-1. **Een echte aanroep naar de Claude-API.** Er staat geen sleutel op deze Pi, en ik ga er
-   geen aanmaken. Het pad ernaartoe is met een nagebootste API getest, maar of het echte
-   model binnen `max_tokens` een antwoord geeft dat door de keuring komt — en of het advies
-   ergens over gaat — zie je pas bij de eerste echte aanroep. Dat is meteen de nuttigste
-   eerste test na het invullen van de sleutel.
+1. **Een echte aanroep naar de Claude-API.** ~~Er staat geen sleutel op deze Pi.~~
+   *Afgehandeld.* De sleutel staat er inmiddels, en de aanroep is gedaan — zie "Tegen de
+   echte API" hierboven. Wat het opleverde in het kort: de eerste poging liep stuk op het
+   schema (`minItems: 2` en `maxItems` bestaan niet in structured output, dus een 400 en
+   geen advies), en het model hield zich daarna niet aan de gevraagde aantallen — acht
+   signalen en zes adviezen. Allebei opgelost, allebei nu afgedekt: de nagebootste API in
+   `server/tests/nepApi.ts` weigert dezelfde schema's als de echte, en de aantallen staan
+   in de opdracht met een inkorting als vangnet.
 
-   *Nagekomen (26 augustus):* die eerste echte aanroep is gedaan en liep stuk op het
-   schema — `minItems: 2` en `maxItems` bestaan niet in structured output, dus een 400 en
-   geen advies. Opgelost, en de nagebootste API in `server/tests/nepApi.ts` weigert nu
-   dezelfde schema's als de echte, zodat dit niet nog eens ongemerkt kan. Het model hield
-   zich daarna niet aan de gevraagde aantallen (acht signalen, zes adviezen); die grenzen
-   staan nu in de opdracht en worden achteraf ingekort in plaats van geweigerd. Wat het
-   model inhoudelijk van je training vindt blijft iets wat je zelf moet beoordelen.
+   Wat blijft: of het advies inhoudelijk klopt over jóuw training is niets wat een test
+   kan zeggen. Lees de eerste paar zelf na en kijk of de getallen die het noemt overeenkomen
+   met wat er op Week en Historie staat — dat is de enige controle die telt.
+
 2. **`tailscale serve`.** Aanzetten vraagt root en verandert wat er buiten de Pi te zien
    is; dat is niet iets om ongevraagd te doen. Het commando in README-HOSTING.md is
    ongetest op dit toestel — `tailscale serve status` zegt nu "No serve config".

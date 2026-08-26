@@ -146,7 +146,7 @@ Het servertje heeft zijn eigen `package.json`, `node_modules` en tests:
 ```bash
 cd server
 npm install
-npm test           # 80 tests, met een gemockte API-client én een nagebootste API
+npm test           # 82 tests, met een gemockte API-client én een nagebootste API
 npm run build      # typecheck + één gebundeld bestand in dist/
 ```
 
