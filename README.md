@@ -41,8 +41,9 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `library.test.ts` | bibliotheek-invarianten: ≥6 oefeningen per patroon, unieke ids, geldige `bodyweightAlternative`, kuit/abductie blijven `core`, zaterdag zonder zware beenbelasting |
 | `cycle.test.ts` | weeknummer, cyclusweek, kalibratie, rotatie na 3 cycli |
 | `day.test.ts` | weekstructuur, woensdag altijd leeg, deload, check-in-afschaling, korte versie, gevoelige gebieden, reismodus, verplaatsen/ruilen, de geplande loopafstand per dag en de geschatte duur |
-| `running.test.ts` | de kale rekenkunde van het loopschema: opbouw per week, de verdeling kort/kort/lang en het afronden |
-| `runningLoad.test.ts` | het weekplafond op het rollend gemiddelde, werkelijk gelopen kilometers inclusief losse rondjes, terugschalen na een te lange loop, de rem na een zware loop, handmatige afstanden en de deloadkorting |
+| `hardlopen.test.ts` | dat de app géén loopadvies meer geeft (geen afstand, geen plafond, geen rem, geen waarschuwing over de duurloop), dat registreren precies blijft zoals het was, en wat er nog wél geconstateerd wordt: gelopen kilometers per week, de langste loop en het gemiddelde |
+| `opbouw.test.ts` | de progressieregel: wanneer een sessie meetelt, de stap per materiaal, het tempo per spiergroep, hooguit twee verhogingen per sessie met benen eerst, niets in een deloadweek, de uitlegregel op het sessiescherm, en dat de oude regel niet dubbel verhoogt |
+| `opbouwHistorie.test.ts` | dezelfde regel over de historie in `tests/fixtures/`, afgedraaid door de echte `completeSession` |
 | `progression.test.ts` | streefwaarden, progressie op gewicht en op reps, double progression op gevoel, de maximale sprong per week, het uitsmeren van een te grote stap en de −10%-regel |
 | `plates.test.ts` | afronden op wat te laden is: schijven per paar, stanggewicht, het dumbbellrek en bandwerk zonder kilo's |
 | `deload.test.ts` | de drie aanleidingen (drie zware sessies, twee slechte weken, elke achtste week), het overslaan met bevestiging en de kortingen |
@@ -74,7 +75,6 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `unilateraal.test.ts` | de vlag `unilateral` op elke oefening: expliciet en compleet, "reps per zijde" alleen bij eenarmig of eenbenig werk, de uitlegregel erbij, en de ×2 in volume en duurschatting |
 | `sessieNavigatie.test.ts` | navigeren binnen een sessie: vooruit en achteruit zonder rondlopen, springen vanaf de voortgangsbalk, een set van een afgeronde oefening bijstellen, en de afrondknop die alleen op de laatste oefening "Sessie afronden" zegt |
 | `extraOefening.test.ts` | de extra oefening na een te makkelijke sessie: de gemeten sessieduur, elke voorwaarde die het aanbod tegenhoudt, twee makkelijke sessies op rij die het streefgewicht verhogen, en het opnieuw afronden zonder dubbele progressie |
-| `hardloopopbouw.test.ts` | het rollend gemiddelde over vier weken werkelijk gelopen km, de eigen opbouwlijn van de duurloop (10 → 15 km, daarboven onderhoud), de contextregel onder de afstand, het meebewegende weekplafond (+0% tot +15%) en de blokkerende rem op drie stijgingen op rij |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
 laden van de module.
@@ -160,8 +160,8 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
   repsplafond, dan schuift de app de oefening door naar de belaste variant — staande
   heupabductie aan de kabel met enkelmanchet — en loopt de progressie daar in kilo's verder.
   In reismodus blijft het bandwerk staan; een kabeltoren gaat niet mee in de koffer.
-- **Hardloopvolume:** 22 km in week 1 (6 + 6 + 10), daarna 5% opbouw per week, met een hard
-  plafond van +10% boven het gemiddelde van de twee voorgaande weken.
+- **Hardlopen:** drie loopdagen in het schema, in eigen tempo. De app schrijft geen
+  afstand voor; ze registreert wat je gelopen hebt.
 
 ### Anouc — full body + hardlopen
 
@@ -204,52 +204,71 @@ en elk voorstel is te overschrijven; die afwijking wordt dan vastgelegd.
 ### Gevoelsregistratie
 
 - **Per sessie** (kracht én hardlopen) een afsluitende beoordeling: **makkelijk / goed /
-  zwaar**. Die drie knoppen ronden de sessie meteen af — één tik. Overslaan mag; dan valt
-  de progressie terug op de RIR die je per set gelogd hebt.
+  zwaar**. Die drie knoppen ronden de sessie meteen af — één tik. Overslaan mag, en kost
+  je niets: de progressie loopt op wat je gelogd hebt, niet op deze knoppen.
 - **Per dag** een optionele dagcheck: slaap en energie, allebei op een schaal van 3
   (slecht / oké / goed). Niet invullen heeft geen enkel gevolg.
 
-### Progressie (`src/logic/progression.ts`)
+### Progressie (`src/logic/opbouw.ts` en `src/logic/progression.ts`)
 
-- **Double progression** — alle sets op de bovengrens van de rep-range én de sessie als
-  makkelijk of goed beoordeeld: het gewicht mag omhoog. Zwaar, of de reps niet gehaald:
-  het gewicht blijft staan.
-- **Maximaal 2,5 kg per week** op samengesteld werk en **1,25 kg** op isolatie, per
-  oefening. Meerdere goede sessies in dezelfde week leveren niet meer op dan één.
-- **Alleen wat te laden is** — het voorstel wordt afgerond op het stanggewicht plus de
-  schijven die er liggen (`src/logic/plates.ts`, instelbaar per gebruiker). Schijven gaan
-  per paar, dus met 1,25 kg als lichtste schijf is 2,5 kg de kleinste stap. Past de
-  kleinste stap niet binnen de weekgrens — een dumbbellrek dat van 5 naar 12,5 kg springt,
-  of isolatie op een machine met een stap van 2,5 kg — dan wordt hij uitgesmeerd: hij mag
-  pas als er genoeg weken tussen zitten om gemiddeld onder de grens te blijven, en tot die
-  tijd komen er reps bij. Zonder die uitsmering zou zo'n oefening nooit meer zwaarder
-  kunnen worden, en dat is geen rem maar een muur.
-- **Twee sessies op rij onder de ondergrens** → streefgewicht 10% omlaag, afgerond naar
-  beneden op wat te laden is.
+Het gewicht gaat omhoog op wat je gedaan hebt, niet op een knop die je moet indrukken.
 
-### Hardloopvolume (`src/logic/runningLoad.ts`)
+- **Drie sessies op rij helemaal gehaald** → het gewicht omhoog, en de teller begint
+  opnieuw. "Helemaal" is alle drie tegelijk: alle geplande sets gedaan, elke set minstens
+  de geplande reps, en elke set op minstens het streefgewicht.
+- **Een set naar beneden bijstellen telt als niet gehaald.** Daar staat geen boete op: de
+  teller gaat naar 0 en je bouwt opnieuw op vanaf wat je wél gehaald hebt.
+- **De stap past bij het materiaal** — 2,5 kg bij stangwerk (twee keer de lichtste schijf),
+  de eerstvolgende maat in het dumbbellrek, 5 kg op de leg press, en `minIncrement` bij een
+  machine met een pin. Altijd afgerond op een gewicht dat echt te laden is
+  (`src/logic/plates.ts`, instelbaar per gebruiker).
+- **Tempo per spiergroep** — in Instellingen staat per spiergroep (benen / bovenlichaam /
+  romp) of je *opbouwt* (drempel 3 sessies) of *onderhoudt* (drempel 6, en dan altijd de
+  kleinste stap). Rob staat overal op opbouwen, Anouc overal op onderhoud.
+- **Hooguit twee oefeningen per sessie**, benen eerst, en geen enkele in een deloadweek.
+  Wie boven de twee uitkomt blijft op de drempel staan en is de volgende sessie als eerste
+  aan de beurt.
+- **Eén regel waarom** bij een oefening die net omhoog ging: "3× 140 kg × 12 gehaald — nu
+  145". Die staat er precies één sessie.
 
-De weekkilometers komen uit wat er **werkelijk gelopen** is, losse rondjes hardlopen
-inbegrepen: anders zou de bewaking te omzeilen zijn door buiten het schema om te loggen.
+Daarnaast staat de handmatige route er nog: beoordeel je een sessie als **makkelijk** of
+**goed**, dan mag het gewicht omhoog volgens de oude double progression (alle sets op de
+bovengrens), met de bestaande rem van maximaal 2,5 kg per week op samengesteld werk en
+1,25 kg op isolatie. Zonder beoordeling verhoogt die route niets — anders zouden er twee
+regels naar dezelfde sets kijken en om de beurt een stap nemen. Ging het gewicht via die
+route omhoog, dan telt dat als de stap van die sessie en slaat de opbouwregel hem over.
 
-- **Plafond** — nooit meer dan 10% boven het gemiddelde van de twee voorgaande weken. Twee
-  weken, niet één: dan trekt één week met een gemiste loop het schema niet onderuit. Een
-  week zonder enige gelogde loop telt als "niets ingevuld" en valt terug op het plan.
-- **Verder gelopen dan gepland** — dat eet van het weekplafond, dus de lopen die er die
-  week nog staan schuiven naar beneden, met de reden erbij.
-- **Zwaar beoordeeld** — een als zwaar beoordeelde loop haalt de rest van de week 10% omlaag.
-- **Verdeling** — de duurloop krijgt zijn aandeel als eerste en houdt wat er overblijft; de
-  korte lopen krijgen de rest, binnen 5 tot 8 km. Die volgorde is het hele punt: andersom
-  (korte lopen eerst op hun ondergrens, duurloop als restpost) kon een teruggeschaalde week
-  een zondag van 6 km opleveren met dinsdag en donderdag op 5 — dat was de bug.
-- **Zware benen vlak voor de duurloop** — zie hieronder; die regel telt de werkelijke
-  beenbelasting van de sessie, niet de naam ervan.
+Reps opbouwen gaat wel gewoon door zonder beoordeling; dat is geen stap omhoog, en het is
+de enige weg die het rustige programma van Anouc heeft. **Twee sessies op rij onder de
+ondergrens** zet het streefgewicht 10% omlaag, afgerond naar beneden op wat te laden is.
 
-### Zware benen vlak voor de duurloop (`src/logic/legLoad.ts`)
+### Hardlopen (`src/logic/runningLoad.ts`)
 
-Deze regel keek eerst naar de naam van de sessie — "benen A" en "benen B" waren zwaar, de
-rest niet. Dat klopte voor één programma en voor geen enkel ander, en de harde grens van
-48 uur maakte de standaardweek per toeval stil. Nu wordt geteld wat er echt gepland staat:
+**De app plant het hardlopen niet.** Ze schrijft geen afstand voor, kent geen weekplafond,
+bouwt de duurloop niet op en remt niet af. Dat heeft er wel gezeten — een plafond op het
+rollend gemiddelde, een opbouwlijn van 10 naar 15 km, een rem na drie stijgende weken —
+en het is er uit: de loopplanning gaat met de hand beter dan met een formule, en een half
+plan naast een goed plan is erger dan geen plan.
+
+Wat er wel is:
+
+- **Registreren** — afstand, tijd, tempo, fietsen in plaats van lopen, verplaatsen naar
+  een andere dag, en de afsluitende beoordeling.
+- **Zelf een afstand zetten** voor een dag. Doe je dat, dan staat er één feitelijke regel
+  onder: hoe die afstand zich verhoudt tot je gemiddelde loop van deze soort en tot je
+  langste loop van de laatste vier weken. Geen oordeel, geen voorstel.
+- **Optellen achteraf** — op Vandaag en Week staat wat er deze week gelopen is (`3× / 34
+  km`), en op Historie de kale kilometers per week. Losse rondjes hardlopen tellen mee;
+  fietsen niet.
+
+### Zware beenbelasting (`src/logic/legLoad.ts`)
+
+Er is één waarschuwing over beenwerk over, en die gaat volledig over krachttraining: **twee
+dagen zwaar beenwerk achter elkaar**. Hij komt vooral in beeld bij het naar voren halen van
+een sessie, en hij staat op de tweede van de twee dagen — dat is de dag waar je nog iets
+aan kunt doen.
+
+De belasting wordt geteld uit wat er echt gepland staat, niet uit de naam van de sessie:
 
 - **Wat voor werk** — zwaar samengesteld beenwerk (squat, leg press, RDL, lunges, hip
   thrust) telt vol mee, beenisolatie (leg curl, leg extension, kuiten, abductie) voor 0,3
@@ -261,26 +280,6 @@ rest niet. Dat klopte voor één programma en voor geen enkel ander, en de harde
 
 Boven de 3 heet dat zwaar, boven de 6 heel zwaar. Ter ijking: benen A komt op ~9, een full
 body met één matige beenoefening op ~2,8 — die laatste levert dus geen melding op.
-
-Het tijdvenster is een oplopende schaal in plaats van een harde grens, met de
-grenswaarden bij de strengere band zodat 24 en 48 uur voorspelbaar afgehandeld worden:
-
-| Uren tot de duurloop | Melden bij |
-| --- | --- |
-| tot en met 24 | zwaar (≥ 3) |
-| 24 tot en met 48 | heel zwaar (≥ 6) |
-| meer dan 48 | nooit |
-
-**Herhaling wordt gedempt.** Staat dezelfde combinatie er de twee weken ervoor ook, dan is
-het de opzet van de week en geen incident. Dan komt er één structurele signalering in
-plaats van elke week hetzelfde regeltje, met een knop om de sessie meteen te verplaatsen.
-Weggeklikt blijft hij vier weken stil; verandert het patroon eerder — een andere dag, een
-andere sessie, een ander niveau — dan is het een andere melding en staat hij er weer. De
-sleutel ís het patroon, dus dat werkt vanzelf.
-
-De melding noemt de sessie, het aantal uren en de oefeningen die de belasting veroorzaken:
-"Full body B op za 15 aug staat 24 uur voor de duurloop van zo 16 aug — Smith squat, Kabel
-pull-through en Step-up doen het meeste werk."
 
 ### Deload (`src/logic/deload.ts`)
 
@@ -300,11 +299,10 @@ dan duurt. Kernoefeningen worden nooit voorgesteld om te schrappen.
 
 ### Zichtbaar en overschrijfbaar
 
-Elke bijsturing staat als losse regel op Vandaag, in de sessie en op de weekpagina — "Deze
-week al 14 km gelopen van de 22 — resterende lopen teruggeschaald naar 4 km". Wat je zelf
-anders doet komt in `deviations` te staan en is terug te lezen op Voortgang: een zelf
-gezette loopafstand, verder lopen dan gepland, zwaarder tillen dan voorgesteld en een
-overgeslagen deload. De app stuurt daar niets mee bij; het is er om later een patroon uit
+Elke bijsturing staat als losse regel op Vandaag, in de sessie en op de weekpagina — "3×
+140 kg × 12 gehaald — nu 145", of de uitleg bij een deloadweek. Wat je zelf anders doet
+komt in `deviations` te staan en is terug te lezen op Voortgang: verder lopen dan gepland,
+zwaarder tillen dan voorgesteld en een overgeslagen deload. De app stuurt daar niets mee bij; het is er om later een patroon uit
 te kunnen lezen.
 
 ## Materiaal
@@ -456,10 +454,10 @@ alle sets), berekend met dezelfde conventie.
   zaterdag uit). Los daarvan staat de **dagcheck** (slaap en energie, schaal van 3): die
   stuurt de dag van vandaag niet, maar telt mee in de deloadbeslissing.
 - **Na afloop:** elke sessie — kracht én loop — sluit je af met makkelijk, goed of zwaar.
-  Bij een loop leg je daar ook de werkelijk gelopen afstand vast, voorgevuld met wat er
-  gepland stond, plus eventueel de tijd; gepland en werkelijk blijven apart bewaard.
-- **Geplande loopafstand:** het voorstel van de app is aan te passen per loop, en weer los
-  te laten. Wat je zelf kiest wint, ook van de +10%-bewaking.
+  Bij een loop leg je daar ook de werkelijk gelopen afstand vast, plus eventueel de tijd;
+  wat je van plan was en wat je liep blijven apart bewaard.
+- **Geplande loopafstand:** zelf in te vullen per loop, en weer weg te halen. De app zet
+  hier nooit een eigen getal neer.
 - **Per sessie:** korte versie (alleen `core`-oefeningen, ~25 min), verplaatsen naar een
   andere dag, overslaan met reden. Een loop kan daarnaast vervangen worden door 30 min
   fietsen — dat telt als voltooid.
@@ -477,8 +475,7 @@ alle sets), berekend met dezelfde conventie.
   rustdag is nooit een geldige bestemming.
 
   **De guardrails gelden op de nieuwe datum.** Per dag staat er bij wat die keuze oplevert:
-  zwaar beenwerk dat te dicht op de duurloop komt, twee zware beendagen achter elkaar, of
-  een week die over het loopplafond gaat. Dat houdt je niet tegen — je ziet het vooraf en
+  twee zware beendagen achter elkaar. Dat houdt je niet tegen — je ziet het vooraf en
   kiest zelf. Alleen conflicten die er zónder deze verplaatsing ook al waren blijven
   ongenoemd; die horen niet bij deze keuze.
 - **Per oefening:** eenmalig wisselen, permanent vervangen (rouleert dan niet meer mee),
@@ -643,8 +640,8 @@ src/
   logic/warmup.ts     het warming-upblok waar elke krachtsessie mee begint
   logic/progression.ts streefwaarden, double progression en de maximale sprong per week
   logic/plates.ts     afronden op wat er echt te laden is: schijven, stang, dumbbellrek
-  logic/running.ts    de kale rekenkunde van het loopschema: opbouw en verdeling
-  logic/runningLoad.ts loopvolume met de rem erop: weekplafond, deload, gevoel
+  logic/runningLoad.ts hardlopen: optellen wat er gelopen is, verder geen sturing
+  logic/opbouw.ts     progressie op gelogde sessies: drempel, stap, tempo en de rem
   logic/deload.ts     wanneer een deloadweek nodig is, en wat er dan af gaat
   logic/duration.ts   geschatte sessieduur en de waarschuwing boven het uur
   logic/guardrails.ts alle bijsturingen van een dag, met per stuk één regel waarom
