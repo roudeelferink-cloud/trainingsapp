@@ -482,16 +482,84 @@ describe('v13 -> v14: de werkelijk gelopen afstand is de maat', () => {
   it('komt via de volledige migratie op de huidige versie uit', () => {
     const root = migrate(structuredClone(v13))
     expect(root.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(14)
+    expect(SCHEMA_VERSION).toBe(15)
     expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
     expect(root.users[ROB].runs['2026-08-06'].km).toBe(6)
   })
 
-  it('tilt ook data van vóór de gebruikers in één keer door naar 14', () => {
+  it('tilt ook data van vóór de gebruikers in één keer door naar de huidige versie', () => {
     const root = migrate(structuredClone(v5))
-    expect(root.schemaVersion).toBe(14)
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
     // de looplog uit v5 had al een afstand; die blijft staan
     expect(root.users[ROB].runs[MON].km).toBe(6.5)
     expect(root.users[ROB].runs[MON].plannedKm).toBe(6)
+  })
+})
+
+describe('v14 -> v15: het advies van de server krijgt een plek', () => {
+  const v14 = {
+    schemaVersion: 14,
+    currentUser: 'rob',
+    pin: '1234',
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        settings: { bodyweightKg: 84 },
+        checkins: { [MON]: 4 },
+        dayChecks: { [MON]: { sleep: 2, energy: 3 } },
+        runs: {
+          '2026-08-04': {
+            date: '2026-08-04', kind: 'short', plannedKm: 6, km: 7.5,
+            minutes: 45, bike: false, completedAt: '2026-08-04T18:00:00.000Z',
+          },
+        },
+        exerciseState: { leg_press: { targetWeight: 140, targetReps: 10, belowMinStreak: 0 } },
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen' },
+    },
+  }
+
+  it('zet het adviesveld op leeg: er is nog nooit een advies opgehaald', () => {
+    const out = runMigrations(structuredClone(v14), 14, 15) as Record<string, any>
+    expect(out.schemaVersion).toBe(15)
+    expect(out.users.rob.review).toBeNull()
+    expect(out.users.anouc.review).toBeNull()
+  })
+
+  it('laat een advies staan dat er al was', () => {
+    const met = structuredClone(v14) as Record<string, any>
+    const advies = {
+      datum: MON,
+      gegenereerdOp: `${MON}T07:00:00.000Z`,
+      review: { signalen: ['x'], advies: ['y'], toon: 'z' },
+    }
+    met.users.rob.review = advies
+    const out = runMigrations(met, 14, 15) as Record<string, any>
+    expect(out.users.rob.review).toEqual(advies)
+  })
+
+  it('raakt de rest van de gebruiker niet aan', () => {
+    const out = runMigrations(structuredClone(v14), 14, 15) as Record<string, any>
+    expect(out.users.rob.runs['2026-08-04'].km).toBe(7.5)
+    expect(out.users.rob.checkins).toEqual({ [MON]: 4 })
+    expect(out.users.rob.dayChecks).toEqual({ [MON]: { sleep: 2, energy: 3 } })
+    expect(out.users.rob.exerciseState.leg_press.targetWeight).toBe(140)
+    expect(out.pin).toBe('1234')
+  })
+
+  it('komt via de volledige migratie op de huidige versie uit', () => {
+    const root = migrate(structuredClone(v14))
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(root.users[ROB].review).toBeNull()
+    expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
+  })
+
+  it('weigert een advies dat half is: dan liever geen blok', () => {
+    const half = structuredClone(v14) as Record<string, any>
+    half.users.rob.review = { datum: MON, review: { signalen: ['x'] } }
+    expect(migrate(half).users[ROB].review).toBeNull()
   })
 })

@@ -443,6 +443,32 @@ function v13_to_v14(state: RawState): RawState {
   return { ...state, users: next }
 }
 
+/**
+ * v14 -> v15: het advies van de review-endpoint krijgt een plek per gebruiker.
+ *
+ * De app haalt sinds deze versie hooguit één keer per dag een advies op bij de server op
+ * de Pi en bewaart het laatste hier. Bestaande data krijgt `null`: er is nog nooit een
+ * advies opgehaald, en het adviesblok zwijgt tot dat wel gebeurd is.
+ *
+ * Dit veld is een kopie van wat de server zei, geen bron voor een berekening. Alle lokale
+ * guardrails rekenen precies zoals ze deden; er verandert dus niets aan wat de app
+ * voorstelt, ook niet als dit veld leeg blijft of leeg gemaakt wordt.
+ */
+function v14_to_v15(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!isRecord(raw)) {
+      next[id] = raw
+      continue
+    }
+    next[id] = { ...raw, review: raw.review ?? null }
+  }
+
+  return { ...state, users: next }
+}
+
 /** Een bruikbaar aantal kilometers, of null als er niets te lezen valt. */
 function getal(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null
@@ -462,6 +488,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   11: v11_to_v12,
   12: v12_to_v13,
   13: v13_to_v14,
+  14: v14_to_v15,
 }
 
 /**

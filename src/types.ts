@@ -357,6 +357,37 @@ export interface DeloadSkip {
   acknowledged: string
 }
 
+/* ---------- advies van de server ---------- */
+
+/**
+ * Het advies zoals de review-endpoint het teruggeeft. Bewust een vaste, kleine vorm:
+ * drie velden, allemaal verplicht. De server valideert hem voor hij hem doorgeeft, dus
+ * wat hier binnenkomt is compleet of het komt niet binnen.
+ */
+export interface ReviewAdvies {
+  /** wat er opvalt, met het getal erbij waar de uitspraak op rust */
+  signalen: string[]
+  /** wat je ermee zou doen; concreet, per regel één ding */
+  advies: string[]
+  /** één regel die de week samenvat: hoe het ervoor staat */
+  toon: string
+}
+
+/**
+ * Het laatst opgehaalde advies van deze gebruiker.
+ *
+ * Dit is een kopie, geen bron: alles wat de app zelf bijstuurt blijft uit de lokale
+ * guardrails komen. Staat hier niets, dan zwijgt het adviesblok — dat is precies wat er
+ * hoort te gebeuren zonder bereikbare server.
+ */
+export interface ReviewCache {
+  /** de dag waarover dit advies gaat; hooguit één per dag per gebruiker */
+  datum: string
+  /** ISO-tijdstip waarop de server dit advies maakte */
+  gegenereerdOp: string
+  review: ReviewAdvies
+}
+
 export interface DayOverride {
   short?: boolean
   /** slotKey -> exerciseId, alleen voor vandaag */
@@ -433,6 +464,11 @@ export interface UserState {
   notices: { date: string; text: string }[]
   /** ISO-tijdstip van de laatste export; null = nog nooit geëxporteerd */
   lastExportAt: string | null
+  /**
+   * Het laatste advies van de review-endpoint; null als er nog nooit een opgehaald is.
+   * Staat per gebruiker, want Rob en Anouc trainen anders en krijgen dus een ander advies.
+   */
+  review: ReviewCache | null
 }
 
 /**

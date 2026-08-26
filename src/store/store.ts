@@ -1,126 +1,28 @@
 import { useSyncExternalStore } from 'react'
-import type { AppState, ProgramId, UserState } from '../types'
-import { mondayOf, today } from '../logic/dates'
-import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
-import { runMigrations, type RawState } from './migrations'
-
-export const SCHEMA_VERSION = 14
-/** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
-const KEY = 'trainingsapp.state.v1'
-
-/** Vaste gebruikers van dit huishouden. Ids zijn stabiel; namen mogen wijzigen. */
-export { ANOUC, ROB }
-
-export const USER_SEEDS: { id: string; naam: string; programId: ProgramId }[] = [
-  { id: ROB, naam: 'Rob', programId: 'kracht_hardlopen' },
-  { id: ANOUC, naam: 'Anouc', programId: 'fullbody_hardlopen' },
-]
-
-export function defaultUser(id: string, naam: string, programId: ProgramId): UserState {
-  return {
-    id,
-    naam,
-    programId,
-    startDate: mondayOf(today()),
-    settings: defaultSettingsFor(id),
-    permanentReplacements: {},
-    checkins: {},
-    dayChecks: {},
-    sessions: {},
-    runs: {},
-    runPlans: {},
-    deloadSkips: {},
-    dismissedWarnings: {},
-    deviations: [],
-    activities: [],
-    skips: {},
-    moves: {},
-    runMoves: {},
-    overrides: {},
-    exerciseState: {},
-    notices: [],
-    lastExportAt: null,
-  }
-}
-
-/** Lege gebruiker; de losse velden zijn identiek aan wat de logica verwacht. */
-export function defaultState(): UserState {
-  return defaultUser(ROB, 'Rob', 'kracht_hardlopen')
-}
-
-export function defaultRoot(): AppState {
-  return {
-    schemaVersion: SCHEMA_VERSION,
-    currentUser: '',
-    pin: null,
-    users: Object.fromEntries(
-      USER_SEEDS.map((u) => [u.id, defaultUser(u.id, u.naam, u.programId)]),
-    ),
-  }
-}
-
-/* ---------------- migratie ---------------- */
-
-function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramId): UserState {
-  const base = defaultUser(id, naam, programId)
-  if (!raw || typeof raw !== 'object') return base
-  const s = raw as Partial<UserState>
-  // de startinstellingen van deze gebruiker als terugval, daarna repareren wat er niet klopt
-  const settings = normalizeSettings(s.settings, base.settings)
-  return {
-    ...base,
-    ...s,
-    id,
-    naam: typeof s.naam === 'string' && s.naam.trim() ? s.naam : naam,
-    programId: s.programId === 'fullbody_hardlopen' || s.programId === 'kracht_hardlopen'
-      ? s.programId
-      : programId,
-    startDate: typeof s.startDate === 'string' ? s.startDate : base.startDate,
-    settings,
-    permanentReplacements: s.permanentReplacements ?? {},
-    checkins: s.checkins ?? {},
-    dayChecks: s.dayChecks ?? {},
-    sessions: s.sessions ?? {},
-    runs: s.runs ?? {},
-    runPlans: s.runPlans ?? {},
-    deloadSkips: s.deloadSkips ?? {},
-    dismissedWarnings: s.dismissedWarnings ?? {},
-    deviations: Array.isArray(s.deviations) ? s.deviations : [],
-    activities: Array.isArray(s.activities) ? s.activities : [],
-    skips: s.skips ?? {},
-    moves: s.moves ?? {},
-    runMoves: s.runMoves ?? {},
-    overrides: s.overrides ?? {},
-    exerciseState: s.exerciseState ?? {},
-    notices: Array.isArray(s.notices) ? s.notices : [],
-    lastExportAt: typeof s.lastExportAt === 'string' ? s.lastExportAt : null,
-  }
-}
+import type { AppState, UserState } from '../types'
+import {
+  ANOUC,
+  ROB,
+  SCHEMA_VERSION,
+  USER_SEEDS,
+  defaultRoot,
+  defaultState,
+  defaultUser,
+  isPin,
+  migrate,
+} from './schema'
 
 /**
- * Tilt opgeslagen data naar de huidige schemaVersion en vult ontbrekende velden aan.
- * Oude data wordt opgehoogd, niet geweigerd of gewist. Crasht nooit op half-lege data.
+ * De store: wat er op dit toestel staat, en wie eraan mag komen.
+ *
+ * De vorm van de staat en het migratiepad staan in `schema.ts` — die zijn ook buiten de
+ * browser bruikbaar. Hier zit alles wat wél aan de browser vastzit: localStorage, de
+ * abonnementen en de acties die schrijven.
  */
-export function migrate(raw: unknown): AppState {
-  const base = defaultRoot()
-  if (!raw || typeof raw !== 'object') return base
+export { ANOUC, ROB, SCHEMA_VERSION, USER_SEEDS, defaultRoot, defaultState, defaultUser, isPin, migrate }
 
-  const incoming = raw as RawState
-  const from = typeof incoming.schemaVersion === 'number' ? incoming.schemaVersion : 1
-  const migrated = from < SCHEMA_VERSION ? runMigrations(incoming, from, SCHEMA_VERSION) : incoming
-  const s = migrated as Partial<AppState>
-
-  const rawUsers = (s.users && typeof s.users === 'object' ? s.users : {}) as Record<string, unknown>
-  const users: Record<string, UserState> = {}
-  for (const seed of USER_SEEDS) {
-    users[seed.id] = migrateUser(rawUsers[seed.id], seed.id, seed.naam, seed.programId)
-  }
-
-  const currentUser = typeof s.currentUser === 'string' && users[s.currentUser] ? s.currentUser : ''
-  const pin = isPin(s.pin) ? s.pin : null
-
-  return { schemaVersion: SCHEMA_VERSION, currentUser, pin, users }
-}
+/** Het achtervoegsel is historisch; versiebeheer loopt via schemaVersion en migrations.ts. */
+const KEY = 'trainingsapp.state.v1'
 
 /* ---------------- opslag ---------------- */
 
@@ -209,14 +111,6 @@ export function setCurrentUser(id: string): void {
 }
 
 /* ---------------- pincode en wissen ---------------- */
-
-/**
- * Pincode voor "alles wissen". Zie `AppState.pin`: misklikbeveiliging, geen echte
- * beveiliging — hij staat leesbaar in localStorage.
- */
-export function isPin(code: unknown): code is string {
-  return typeof code === 'string' && /^[0-9]{4}$/.test(code)
-}
 
 export function hasPin(): boolean {
   return isPin(root.pin)
