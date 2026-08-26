@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:server": "npm --prefix server test",
+    "test:alles": "npm test && npm run test:server",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

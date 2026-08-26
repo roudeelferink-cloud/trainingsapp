@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    // alleen zodat tsc de type-only import van data/figures.ts naar een .tsx kan volgen;
+    // in server/ staat geen JSX
+    "jsx": "react-jsx",
+    "types": ["node"]
+  },
+  "include": ["src", "tests"]
+}
