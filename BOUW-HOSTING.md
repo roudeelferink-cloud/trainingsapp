@@ -23,8 +23,16 @@ GET  /healthz        voor de container-healthcheck
 app als `ReviewAdvies`. Het model krijgt dat schema mee via `output_config.format`, maar
 dat is een verzoek en geen garantie: `advies.ts` keurt het antwoord daarna zelf. Ontbreekt
 er een veld, is een lijst leeg, staat er een getal waar een zin hoort of is een regel
-langer dan 400 tekens — dan komt er een `502` met een bericht en géén half advies. Zeven
+langer dan 400 tekens — dan komt er een `502` met een bericht en géén half advies. Veertien
 manieren waarop een antwoord stuk kan zijn staan als losse test in `server/tests/advies.test.ts`.
+
+Te véél is geen fout: schrijft het model acht signalen waar er vijf gevraagd zijn, dan
+worden de eerste vijf gehouden en gaat de rest eraf. Een bruikbaar advies weggooien om
+een vormkwestie zou het omgekeerde zijn van wat er hoort te gebeuren. De aantallen (twee
+tot vijf signalen, één tot vier adviezen) staan in de opdracht aan het model en als
+inkorting in `advies.ts` — níét in het schema: structured output kent `maxItems` niet en
+accepteert `minItems` alleen als 0 of 1. Een schema dat dat wel bevat wordt met een 400
+geweigerd, en dan komt er helemaal geen advies.
 
 **De signalen, niet de setjes.** `server/src/signalen.ts` roept precies de functies aan
 die de app zelf gebruikt: `dayGuardrails`, `legRunConflict` en `legStackAround` uit
@@ -185,7 +193,7 @@ geïnstalleerd (nagekeken in `systemctl --user list-unit-files` en
 
 ## Wat ik wél heb gecontroleerd
 
-- **1011 tests groen**: 954 in de app (`npm test`), 57 in het servertje
+- **1034 tests groen**: 954 in de app (`npm test`), 80 in het servertje
   (`npm --prefix server test`). Samen met `npm run test:alles`.
 - **Typecheck groen** in allebei de projecten.
 - **`npm run build`** draait door, en in de uitvoer staan `start_url`/`scope`/`id` op `/`
@@ -195,13 +203,17 @@ geïnstalleerd (nagekeken in `systemctl --user list-unit-files` en
   diepe link (`/historie`) 200 via de fallback.
 - **De echte export van 53 kB door de endpoint gestuurd** via nginx: hij wordt aangenomen,
   gemigreerd, en komt netjes uit op `503 geen_sleutel` (want er staat nog geen sleutel).
-- **Het volledige pad met een nagebootste Claude-API.** Met `ANTHROPIC_BASE_URL` naar een
-  eigen stubserver heb ik de echte aanroep laten lopen en het verzoek opgevangen:
+- **Het volledige pad met een nagebootste Claude-API.** Die stubserver was eerst een
+  wegwerpscript; hij staat nu als `server/tests/nepApi.ts` in de suite, en
+  `claude.test.ts` praat er over een echte verbinding tegenaan. Gecontroleerd:
   `claude-opus-5`, `thinking: adaptive`, `effort: high`, `output_config.format` van het
-  type `json_schema`, beta-header `server-side-fallback-2026-07-01` — en een prompt van
-  6358 tekens waar `loopvolume` in staat en `entries` niet. Het advies kwam terug, de
-  tweede aanroep kwam uit de cache (`gecached: true`, geen tweede aanroep naar de API), en
-  `reviews.json` stond op schijf.
+  type `json_schema`, beta-header `server-side-fallback-2026-07-01`, de terugval naar een
+  aanroep zonder die parameter, en een prompt waar `loopvolume` in staat en `entries`
+  niet. De nagebootste API keurt het schema net zo streng als de echte, dus een schema met
+  `maxItems` of `minItems: 2` maakt de tests rood in plaats van pas de eerste echte
+  aanroep. Daarnaast, met de draaiende stack: het advies kwam terug, de tweede aanroep
+  kwam uit de cache (`gecached: true`, geen tweede aanroep naar de API), en `reviews.json`
+  stond op schijf.
 - **De afscherming nagemeten**: `:8098` op de host is niet bereikbaar, en `:8097` op het
   tailscale-adres ook niet — dat moet inderdaad via `tailscale serve`.
 
@@ -210,10 +222,18 @@ geïnstalleerd (nagekeken in `systemctl --user list-unit-files` en
 Vijf dingen, en dat zijn precies de dingen die aan jouw kant zitten.
 
 1. **Een echte aanroep naar de Claude-API.** Er staat geen sleutel op deze Pi, en ik ga er
-   geen aanmaken. Het pad ernaartoe is met een stubserver getest, maar of het echte model
-   binnen `max_tokens` een antwoord geeft dat door de keuring komt — en of het advies
+   geen aanmaken. Het pad ernaartoe is met een nagebootste API getest, maar of het echte
+   model binnen `max_tokens` een antwoord geeft dat door de keuring komt — en of het advies
    ergens over gaat — zie je pas bij de eerste echte aanroep. Dat is meteen de nuttigste
    eerste test na het invullen van de sleutel.
+
+   *Nagekomen (26 augustus):* die eerste echte aanroep is gedaan en liep stuk op het
+   schema — `minItems: 2` en `maxItems` bestaan niet in structured output, dus een 400 en
+   geen advies. Opgelost, en de nagebootste API in `server/tests/nepApi.ts` weigert nu
+   dezelfde schema's als de echte, zodat dit niet nog eens ongemerkt kan. Het model hield
+   zich daarna niet aan de gevraagde aantallen (acht signalen, zes adviezen); die grenzen
+   staan nu in de opdracht en worden achteraf ingekort in plaats van geweigerd. Wat het
+   model inhoudelijk van je training vindt blijft iets wat je zelf moet beoordelen.
 2. **`tailscale serve`.** Aanzetten vraagt root en verandert wat er buiten de Pi te zien
    is; dat is niet iets om ongevraagd te doen. Het commando in README-HOSTING.md is
    ongetest op dit toestel — `tailscale serve status` zegt nu "No serve config".

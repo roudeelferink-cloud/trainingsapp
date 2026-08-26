@@ -135,7 +135,8 @@ Vier dingen liggen daarbij vast:
 - **Hooguit één advies per profiel per dag**, gecachet op de server. Opnieuw openen kost
   niets. Na drie mislukte pogingen op een dag houdt de server op.
 - **Half advies is geen advies.** Ontbreekt er een veld in het antwoord, dan komt er een
-  nette fout en geen blok.
+  nette fout en geen blok. Té véél is wél in orde: schrijft het model meer regels dan
+  gevraagd, dan worden de eerste gehouden en gaat de rest eraf.
 - **Het vervangt niets.** Alle guardrails, gewichtsvoorstellen en loopafstanden komen
   precies zoals ze deden uit de lokale logica. Zonder bereikbare Pi zwijgt het blok en
   merk je verder niets — geen foutmelding tijdens een sessie.
@@ -145,7 +146,7 @@ Het servertje heeft zijn eigen `package.json`, `node_modules` en tests:
 ```bash
 cd server
 npm install
-npm test           # 57 tests, met een gemockte API-client
+npm test           # 80 tests, met een gemockte API-client én een nagebootste API
 npm run build      # typecheck + één gebundeld bestand in dist/
 ```
 
