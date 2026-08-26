@@ -7,7 +7,7 @@ import { stateFor } from '../src/logic/progression'
 import * as A from '../src/store/actions'
 import { getState, resetState, setState } from '../src/store/store'
 import type { DayKind, Feel, SessionLog } from '../src/types'
-import { MON } from './helpers'
+import { DI, MON, VR } from './helpers'
 
 /**
  * De extra oefening na een te makkelijke sessie: wanneer hij aangeboden wordt, wanneer
@@ -171,19 +171,14 @@ describe('het aanbod komt er alleen als alles klopt', () => {
   })
 
   it('zwijgt op een dag met een openstaande waarschuwing', () => {
-    const { iso, kind } = sessieDag()
-    logSessie(iso, kind, { feel: 'makkelijk', minuten: 30 })
-    // ruim over het weekvolume heen: dat is een waarschuwing, geen dag om werk bij te doen
-    setState((s) => ({
-      ...s,
-      runs: {
-        [addDays(MON, 1)]: {
-          date: addDays(MON, 1), kind: 'short', plannedKm: 6, km: 40,
-          minutes: 240, bike: false, completedAt: `${addDays(MON, 1)}T18:00:00.000Z`,
-        },
-      },
-    }))
-    expect(uitkomst(iso, kind)).toEqual({ kind: 'niets', reason: 'waarschuwing' })
+    // benen B naar dinsdag: twee zware beendagen achter elkaar. Geen dag om er nog
+    // werk bij te doen, hoe makkelijk de sessie ook viel.
+    setState((s) => ({ ...s, moves: { [VR]: DI, [DI]: VR } }))
+    const kind = buildDay(getState(), DI).strength!.kind
+    expect(buildDay(getState(), DI).guardrails.some((g) => g.tone === 'warn')).toBe(true)
+
+    logSessie(DI, kind, { feel: 'makkelijk', minuten: 30 })
+    expect(uitkomst(DI, kind)).toEqual({ kind: 'niets', reason: 'waarschuwing' })
   })
 
   it('zwijgt als de vorige sessie al een extra oefening kreeg', () => {

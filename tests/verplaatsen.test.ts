@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { addDays, mondayOf, weekday } from '../src/logic/dates'
 import { REST_DAY_REASON, applyMove, buildDay, moveTargets, moveWarnings } from '../src/logic/day'
-import { plannedRunKm, remainingRuns, weekLoad, weekProjection } from '../src/logic/runningLoad'
+import { remainingRuns } from '../src/logic/runningLoad'
 import * as A from '../src/store/actions'
 import { ANOUC, ROB, getState, resetState, setCurrentUser, setState } from '../src/store/store'
 import { DI, DO, MON, VR, WO, ZA, ZO, baseState } from './helpers'
@@ -104,10 +104,12 @@ describe('over de weekgrens', () => {
     expect(buildDay(getState(), VOLGENDE_MA).strength?.movedFrom).toBe(ZA)
   })
 
-  it('telt een verplaatste loop in de week waar hij landt', () => {
-    // de duurloop van zondag naar de maandag erna: die week krijgt er een loop bij
-    const waarschuwingen = moveWarnings(s0, ZO, VOLGENDE_MA, 'run')
-    expect(waarschuwingen.join(' ')).toContain('plafond')
+  it('verplaatst een loop over de weekgrens zonder er iets van te vinden', () => {
+    // de duurloop van zondag naar de maandag erna: die week krijgt er een loop bij, en
+    // dat is precies wat er gebeurt — de app heeft er verder geen mening over
+    expect(moveWarnings(s0, ZO, VOLGENDE_MA, 'run')).toEqual([])
+    expect(A.moveRun(ZO, VOLGENDE_MA).ok).toBe(true)
+    expect(remainingRuns(getState(), VOLGENDE_MA)).toHaveLength(4)
   })
 })
 
@@ -135,11 +137,10 @@ describe('woensdag blijft rustdag', () => {
 })
 
 describe('guardrails gelden op de nieuwe datum', () => {
-  it('waarschuwt als zwaar beenwerk vlak voor de duurloop landt', () => {
+  it('zegt niets over zwaar beenwerk vlak voor de duurloop', () => {
     const zaterdag = moveTargets(s0, MON).find((t) => t.date === ZA)!
     expect(zaterdag.blocked).toBeNull()
-    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
-    expect(zaterdag.warnings.join(' ')).toContain('24 uur')
+    expect(zaterdag.warnings.join(' ')).not.toContain('duurloop')
   })
 
   it('waarschuwt als twee zware beensessies naast elkaar komen', () => {
@@ -147,22 +148,13 @@ describe('guardrails gelden op de nieuwe datum', () => {
     expect(dinsdag.warnings.join(' ')).toContain('Twee dagen zwaar beenwerk')
   })
 
-  it('waarschuwt als een week te veel kilometers krijgt', () => {
-    // een vierde loop in dezelfde week
-    const waarschuwingen = moveWarnings(s0, VOLGENDE_MA === '' ? ZO : addDays(ZO, 7), DO, 'run')
-    expect(waarschuwingen.join(' ')).toContain('plafond')
+  it('zegt niets over een week die er een loop bij krijgt', () => {
+    expect(moveWarnings(s0, addDays(ZO, 7), DO, 'run')).toEqual([])
   })
 
   it('zwijgt bij een verplaatsing die niets nieuws oplevert', () => {
     // duwen van dinsdag naar donderdag raakt geen enkele guardrail
     expect(moveWarnings(s0, DI, DO, 'strength')).toEqual([])
-  })
-
-  it('hangt een bestaand conflict niet aan een nieuwe keuze', () => {
-    // benen B staat sowieso 48 uur voor de duurloop; hem naar maandag ruilen verandert
-    // daar niets aan, dus dat is geen waarschuwing bij deze keuze
-    const maandag = moveTargets(s0, VR).find((t) => t.date === MON)!
-    expect(maandag.warnings.join(' ')).not.toContain('duurloop')
   })
 
   it('houdt de gebruiker niet tegen', () => {
@@ -171,30 +163,11 @@ describe('guardrails gelden op de nieuwe datum', () => {
   })
 
   it('blijft de beenbelasting-check gelden op de nieuwe datum', () => {
-    A.moveSession(MON, ZA)
-    const guardrails = buildDay(getState(), ZA).guardrails
-    expect(guardrails.some((g) => g.id.startsWith('benen-voor-duurloop'))).toBe(true)
-    expect(guardrails.find((g) => g.id.startsWith('benen-voor-duurloop'))!.text).toContain('24 uur')
-  })
-
-  it('blijft het weekplafond gelden op de nieuwe datum', () => {
-    // de duurloop van deze week naar de maandag erna: die week heeft dan vier lopen
-    const volgendeWeek = VOLGENDE_MA
-    expect(A.moveRun(ZO, volgendeWeek).ok).toBe(true)
-
-    const load = weekLoad(getState(), volgendeWeek)
-    const lopen = remainingRuns(getState(), volgendeWeek)
-    expect(lopen).toHaveLength(4)
-
-    // de week komt daarmee boven de richtlijn uit; de app zegt dat vooraf in plaats van
-    // stilletjes elke loop in te korten — de duurloop heeft sinds de eigen opbouwlijn
-    // niets meer met het weekplafond te maken
-    const samen = lopen.reduce(
-      (sum, r) => sum + plannedRunKm(getState(), r.date, r.kind).km,
-      0,
-    )
-    expect(samen).toBeGreaterThan(load.km)
-    expect(weekProjection(getState(), volgendeWeek).over).toBe(true)
+    // benen A naar vrijdag: dan staan er twee zware beendagen achter elkaar
+    expect(A.moveSession(MON, DO).ok).toBe(true)
+    const guardrails = buildDay(getState(), VR).guardrails
+    expect(guardrails.some((g) => g.id === 'benen-stapeling')).toBe(true)
+    expect(guardrails.find((g) => g.id === 'benen-stapeling')!.text).toContain('24 uur')
   })
 })
 

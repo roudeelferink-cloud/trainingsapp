@@ -294,7 +294,7 @@ describe('de guardrails werken voor allebei de profielen', () => {
 
       it('laat de geplande loopafstand zelf zetten', () => {
         const loopdag = [MON, DI, WO, DO, VR, ZA, ZO].find((iso) => buildDay(getState(), iso).run)!
-        A.setPlannedRunKm(loopdag, buildDay(getState(), loopdag).run!.kind, 9)
+        A.setPlannedRunKm(loopdag, 9)
         const run = buildDay(getState(), loopdag).run!
         expect(run.plannedKm).toBe(9)
         expect(run.manualPlan).toBe(true)

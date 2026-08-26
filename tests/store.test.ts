@@ -299,11 +299,11 @@ describe('migratie van oudere data', () => {
 })
 
 describe('acties op de gedeelde staat', () => {
-  it('verplaatst een beensessie naar zaterdag, maar niet zonder waarschuwing vooraf', () => {
+  it('verplaatst een beensessie naar zaterdag', () => {
     const zaterdag = moveTargets(getState(), MON, 'strength').find((t) => t.date === ZA)!
-    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
+    expect(zaterdag.blocked).toBeNull()
 
-    // de waarschuwing houdt de gebruiker niet tegen
+    // een waarschuwing houdt de gebruiker nergens tegen
     expect(A.moveSession(MON, ZA).ok).toBe(true)
     expect(getState().moves[MON]).toBe(ZA)
   })

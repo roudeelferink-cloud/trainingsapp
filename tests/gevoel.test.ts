@@ -3,7 +3,6 @@ import { buildDay } from '../src/logic/day'
 import { addDays } from '../src/logic/dates'
 import { deloadFor } from '../src/logic/deload'
 import { heavyCountBefore, weekIsPoor } from '../src/logic/feel'
-import { plannedRunKm } from '../src/logic/runningLoad'
 import * as A from '../src/store/actions'
 import { getState, resetState, setState } from '../src/store/store'
 import { DI, DO, MON, VR, ZO } from './helpers'
@@ -87,29 +86,19 @@ describe('dagcheck', () => {
 })
 
 describe('geplande loopafstand', () => {
-  it('is per gebruiker met de hand te zetten en weer los te laten', () => {
-    A.setPlannedRunKm(ZO, 'long', 14)
+  it('is met de hand te zetten en weer weg te halen', () => {
+    A.setPlannedRunKm(ZO, 14)
     expect(buildDay(getState(), ZO).run!.plannedKm).toBe(14)
     expect(buildDay(getState(), ZO).run!.manualPlan).toBe(true)
 
     A.clearPlannedRunKm(ZO)
     expect(buildDay(getState(), ZO).run!.manualPlan).toBe(false)
+    expect(buildDay(getState(), ZO).run!.plannedKm).toBe(0)
   })
 
-  it('legt de afwijking van het voorstel vast', () => {
-    const voorstel = plannedRunKm(getState(), ZO, 'long').km
-    A.setPlannedRunKm(ZO, 'long', voorstel + 4)
-
-    const afwijking = getState().deviations.at(-1)!
-    expect(afwijking.kind).toBe('run_plan')
-    expect(afwijking.suggested).toBe(voorstel)
-    expect(afwijking.chosen).toBe(voorstel + 4)
-  })
-
-  it('legt niets vast als je precies het voorstel kiest', () => {
-    const voorstel = plannedRunKm(getState(), ZO, 'long').km
-    A.setPlannedRunKm(ZO, 'long', voorstel)
-    expect(getState().deviations).toHaveLength(0)
+  it('legt geen afwijking vast: er is geen voorstel om van af te wijken', () => {
+    A.setPlannedRunKm(ZO, 18)
+    expect(getState().deviations.filter((d) => d.kind === 'run_plan')).toHaveLength(0)
   })
 })
 
@@ -192,35 +181,3 @@ describe('deload overslaan', () => {
   })
 })
 
-describe('structurele melding wegklikken', () => {
-  it('legt vast wanneer je hem wegklikte en houdt hem dan stil', () => {
-    A.dismissWarning('benen-duurloop:6-7:full_body_b:hoog', MON)
-    expect(getState().dismissedWarnings['benen-duurloop:6-7:full_body_b:hoog']).toBe(MON)
-
-    A.undismissWarning('benen-duurloop:6-7:full_body_b:hoog')
-    expect(getState().dismissedWarnings).toEqual({})
-  })
-
-  it('negeert een lege sleutel', () => {
-    A.dismissWarning('', MON)
-    expect(getState().dismissedWarnings).toEqual({})
-  })
-
-  it('haalt de melding van het scherm en laat hem na vier weken terugkomen', () => {
-    // benen B staat elke week 48 uur voor de duurloop: dat is een patroon, geen incident
-    const dag = [MON, DI, DO, VR, ZO].find((iso) =>
-      buildDay(getState(), iso).guardrails.some((g) => g.dismissKey),
-    )
-    expect(dag).toBeTruthy()
-
-    const melding = buildDay(getState(), dag!).guardrails.find((g) => g.dismissKey)!
-    expect(melding.move).toBeTruthy()
-
-    A.dismissWarning(melding.dismissKey!, dag!)
-    expect(buildDay(getState(), dag!).guardrails.some((g) => g.id === melding.id)).toBe(false)
-
-    // en vier weken later staat hij er weer
-    const later = addDays(dag!, 28)
-    expect(buildDay(getState(), later).guardrails.some((g) => g.dismissKey)).toBe(true)
-  })
-})

@@ -21,7 +21,7 @@ import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../
 import { formatLong, formatShort, addDays, today } from '../logic/dates'
 import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
-import { fmt, runContext, weekLoad } from '../logic/runningLoad'
+import { fmt, runContext, weekRunFacts } from '../logic/runningLoad'
 import { DAY_SCORES, FEELS, feelLabel } from '../logic/feel'
 import { DELOAD_RISK } from '../logic/deload'
 import * as A from '../store/actions'
@@ -189,16 +189,15 @@ function useStats(plan: DayPlan): Stat[] {
   const s = plan.strength
 
   if (run && !run.skipped) {
-    const load = weekLoad(state, plan.date)
+    // Feitelijk, geen richtlijn: hoe vaak en hoeveel er deze week gelopen is. De app
+    // heeft geen mening meer over wat daar had moeten staan.
+    const week = weekRunFacts(state, plan.date)
     items.push({
       label: 'Deze week',
-      value: fmt(load.done),
-      suffix: ` / ${fmt(load.km)} km`,
+      value: `${week.aantal}×`,
+      suffix: ` / ${fmt(week.km)} km`,
       flex: 1.4,
     })
-    if (!run.bike && !run.free && run.km !== run.plannedKm) {
-      items.push({ label: 'Gepland', value: fmt(run.plannedKm), suffix: ' km' })
-    }
   } else if (s && !s.skipped) {
     items.push({ label: 'Duur', value: `~${s.estimatedMin}`, suffix: ' min' })
     items.push({ label: 'Oefeningen', value: String(s.slots.length) })
@@ -217,12 +216,13 @@ function useStats(plan: DayPlan): Stat[] {
  * ---------------------------------------------------------------------- */
 
 /**
- * De afstand van vandaag: één feitelijke regel eronder en een knop om hem zelf te zetten.
+ * De afstand van vandaag: die zet je zelf, of je zet hem niet.
  *
- * De app kapte de afstand af op wat het gemiddelde toestond. Dat werkte averechts —
- * minder lopen verlaagde het gemiddelde, en daarmee het plafond, en daarmee de volgende
- * afstand. Nu vul je hem zelf in en zegt de app alleen wat ze ziet: hoe deze afstand zich
- * verhoudt tot je gemiddelde loop van deze soort en tot je langste loop.
+ * De app rekende hier ooit een afstand voor en kapte hem af op wat het gemiddelde
+ * toestond. Dat werkte averechts — minder lopen verlaagde het gemiddelde, en daarmee het
+ * plafond, en daarmee de volgende afstand. Nu staat er alleen wat jij invult, met
+ * eronder wat de app ziet: hoe die afstand zich verhoudt tot je gemiddelde loop van deze
+ * soort en tot je langste loop. Verder heeft ze er geen mening over.
  */
 function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
   const state = useStore()
@@ -230,7 +230,7 @@ function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
   const [open, setOpen] = useState(false)
   const [km, setKm] = useState(0)
 
-  if (!run || run.skipped || run.bike || run.free) return null
+  if (!run || run.skipped || run.bike) return null
 
   return (
     <div className="mt-block flex flex-col gap-in-block">
@@ -252,8 +252,8 @@ function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
           <p className="text-body text-muted">
             {run.manualPlan
               ? 'Deze afstand heb je zelf gezet.'
-              : `Voorstel van de app: ${fmt(run.plannedKm)} km.`}{' '}
-            Je mag hier zetten wat je wilt — de app rekent mee en houdt je niet tegen.
+              : 'De app schrijft geen afstand voor. Zet hier wat je van plan bent, of laat het leeg.'}{' '}
+            De app rekent mee en houdt je nergens tegen.
           </p>
           <div className="flex flex-col gap-in-block">
             <Caps>Gepland</Caps>
@@ -272,7 +272,7 @@ function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
           <button
             className="btn-primary w-full"
             onClick={() => {
-              A.setPlannedRunKm(iso, run.kind, km)
+              A.setPlannedRunKm(iso, km)
               setOpen(false)
             }}
           >
@@ -286,7 +286,7 @@ function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
                 setOpen(false)
               }}
             >
-              Terug naar het voorstel van de app
+              Afstand weghalen
             </button>
           )}
         </div>
@@ -312,11 +312,8 @@ function Bijsturing({ plan }: { plan: DayPlan }) {
   const [moveFrom, setMoveFrom] = useState<{ date: string; what: MoveWhat } | null>(null)
 
   // buildDay zet elke guardrail ook in de notities; de guardrail zelf voegt de knoppen toe
-  const acties = new Map(plan.guardrails.filter((g) => g.move || g.dismissKey).map((g) => [g.text, g]))
+  const acties = new Map(plan.guardrails.filter((g) => g.move).map((g) => [g.text, g]))
   const regels = [...plan.notes]
-  if (plan.run && !plan.run.bike) {
-    for (const w of plan.run.why) if (!regels.includes(w)) regels.push(w)
-  }
   if (regels.length === 0) return null
 
   return (
@@ -330,9 +327,6 @@ function Bijsturing({ plan }: { plan: DayPlan }) {
             {g ? (
               <div className="flex gap-meta">
                 {g.move && <Link onClick={() => setMoveFrom(g.move!)}>Verplaatsen</Link>}
-                {g.dismissKey && (
-                  <Link onClick={() => A.dismissWarning(g.dismissKey!, plan.date)}>Niet meer tonen</Link>
-                )}
               </div>
             ) : null}
           </div>

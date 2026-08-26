@@ -65,8 +65,8 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
               bars={volume.map((v) => ({ label: `w${v.week}`, value: v.km, highlight: v.deload }))}
             />
             <Uitleg>
-              Oker = deloadweek. De app schaalt automatisch terug als een week meer dan 10% boven het
-              gemiddelde van de twee voorgaande weken zou uitkomen. Losse rondjes hardlopen tellen mee.
+              Oker = deloadweek. Wat je gelopen hebt, meer niet: de app schrijft geen kilometers
+              voor en stuurt er niet in bij. Losse rondjes hardlopen tellen mee.
             </Uitleg>
           </>
         )}

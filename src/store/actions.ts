@@ -10,7 +10,6 @@ import { bumpTargets, extraSlotKey } from '../logic/extra'
 import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
 import { DELOAD_RISK, deloadFor } from '../logic/deload'
 import { round05 } from '../logic/running'
-import { plannedRunKm } from '../logic/runningLoad'
 import { mondayOf } from '../logic/dates'
 import type {
   Activity,
@@ -284,24 +283,12 @@ export function setBike(iso: string, bike: boolean): void {
  * Zet de geplande afstand van één loop met de hand. Dit wint van alles wat de app
  * uitrekent — inclusief de +10%-bewaking — maar de afwijking wordt vastgelegd.
  */
-export function setPlannedRunKm(iso: string, kind: RunKind, km: number): void {
+export function setPlannedRunKm(iso: string, km: number): void {
   if (!Number.isFinite(km) || km <= 0) return
-  const gekozen = round05(km)
-  setState((s) => {
-    const voorstel = plannedRunKm(s, iso, kind)
-    const next = { ...s, runPlans: { ...s.runPlans, [iso]: gekozen } }
-    if (Math.abs(voorstel.km - gekozen) < 0.01) return next
-    return recordDeviation(next, {
-      date: iso,
-      kind: 'run_plan',
-      suggested: voorstel.km,
-      chosen: gekozen,
-      note: `Geplande afstand zelf op ${gekozen} km gezet; de app stelde ${voorstel.km} km voor.`,
-    })
-  })
+  setState((s) => ({ ...s, runPlans: { ...s.runPlans, [iso]: round05(km) } }))
 }
 
-/** Terug naar de afstand die de app voorstelt. */
+/** De zelfgezette afstand weer weghalen. */
 export function clearPlannedRunKm(iso: string): void {
   setState((s) => {
     const runPlans = { ...s.runPlans }
@@ -371,26 +358,6 @@ export function skipDeload(iso: string, acknowledged: boolean): { ok: boolean; r
     })
   })
   return { ok: true }
-}
-
-/* ---- meldingen wegklikken ---- */
-
-/**
- * Klikt een structurele melding weg. De sleutel ís het patroon, dus zodra de combinatie
- * verandert komt de melding vanzelf terug; verandert er niets, dan blijft hij vier weken
- * stil. Zie `isDismissed` in `guardrails.ts`.
- */
-export function dismissWarning(signature: string, iso: string): void {
-  if (!signature) return
-  setState((s) => ({ ...s, dismissedWarnings: { ...s.dismissedWarnings, [signature]: iso } }))
-}
-
-export function undismissWarning(signature: string): void {
-  setState((s) => {
-    const dismissedWarnings = { ...s.dismissedWarnings }
-    delete dismissedWarnings[signature]
-    return { ...s, dismissedWarnings }
-  })
 }
 
 /** Toch de deload doen. Kan altijd, zonder drempel. */

@@ -115,11 +115,15 @@ describe('een loop verplaatsen', () => {
   })
 
   it('houdt alleen de rustdag geblokkeerd; de rest is een keuze met uitleg', () => {
-    // een beensessie naar zaterdag mag, maar niet zonder waarschuwing: zondag is de duurloop
+    // benen A naar zaterdag mag; de app zegt daar niets meer over, want de loop van
+    // zondag is niet haar zaak
     const zaterdag = moveTargets(getState(), MON, 'strength').find((t) => t.date === ZA)!
     expect(zaterdag.blocked).toBeNull()
-    expect(zaterdag.warnings.length).toBeGreaterThan(0)
-    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
+    expect(zaterdag.warnings.join(' ')).not.toContain('duurloop')
+
+    // twee zware beendagen achter elkaar is wat er nog wél gemeld wordt
+    const dinsdag = moveTargets(getState(), VR, 'strength').find((t) => t.date === DI)!
+    expect(dinsdag.warnings.join(' ')).toContain('Twee dagen zwaar beenwerk')
 
     // en de loop zelf heeft nergens een waarschuwing nodig
     const loopdagen = moveTargets(getState(), VR, 'run').filter((t) => t.blocked === null)
