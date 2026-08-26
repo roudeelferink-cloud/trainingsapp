@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Actions,
   Caps,
-  Meter,
   Primary,
   Screen,
   Secondary,
@@ -15,7 +14,7 @@ import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn, activityKm, activityTypeLabel, paceMinPerKm } from '../logic/activities'
 import { buildDay, moveTargets, type DayPlan } from '../logic/day'
 import { addDays, dayNumber, formatRange, formatShort, mondayOf, today, weekdayShort } from '../logic/dates'
-import { fmt, weekLoad } from '../logic/runningLoad'
+import { fmt, weekRunFacts } from '../logic/runningLoad'
 import { sessionVolumeKg } from '../logic/stats'
 import { weeksUntilDeload } from '../logic/deload'
 import * as A from '../store/actions'
@@ -41,12 +40,9 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
   const info = dag.cycle
   const deload = dag.deload
   const program = programFor(state)
-  const vrijLopen = program.runMode === 'free'
-  const week = weekLoad(state, monday)
+  const week = weekRunFacts(state, monday)
   const dagen = program.week.map((_, i) => addDays(monday, i))
   const plannen = dagen.map((iso) => buildDay(state, iso))
-
-  const redenen = [...week.reasons, ...(week.overCapReason ? [week.overCapReason] : [])]
 
   return (
     <Screen
@@ -66,7 +62,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
         <h1 className="whitespace-nowrap font-serif text-screen-title text-ink">Week {info.week}</h1>
         <div className="flex flex-col items-end gap-tight whitespace-nowrap text-caps-lg uppercase tracking-caps text-dim">
           <div>{formatRange(monday, addDays(monday, 6))}</div>
-          {markeringen(state, info.calibration, deload, vrijLopen).map((m) => (
+          {markeringen(state, info.calibration, deload).map((m) => (
             <div key={m} className="text-faint">
               {m}
             </div>
@@ -75,24 +71,8 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
       </div>
 
       <div className="mt-block">
-        <Stats variant="week" items={weekStats(plannen, week, vrijLopen)} />
+        <Stats variant="week" items={weekStats(plannen, week)} />
       </div>
-
-      {/* het loopplafond, en waarom het is wat het is */}
-      {!vrijLopen && (
-        <div className="mt-in-block">
-          <Meter ratio={week.km > 0 ? week.done / week.km : 0} />
-        </div>
-      )}
-      {redenen.length > 0 && (
-        <div className="mt-in-block flex flex-col gap-tight">
-          {redenen.map((reden, i) => (
-            <p key={i} className="text-meta leading-meta text-dim">
-              {reden}
-            </p>
-          ))}
-        </div>
-      )}
 
       <div className="mt-block flex flex-col">
         {dagen.map((iso, i) => (
@@ -143,19 +123,12 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
 }
 
 /** Wat er deze week aan de hand is dat het programma anders maakt. */
-function markeringen(
-  state: UserState,
-  kalibratie: boolean,
-  deload: DayPlan['deload'],
-  vrijLopen: boolean,
-): string[] {
+function markeringen(state: UserState, kalibratie: boolean, deload: DayPlan['deload']): string[] {
   return [
     deload.active ? 'deloadweek' : null,
     deload.skipped ? 'deload overgeslagen' : null,
     !deload.active && !deload.skipped ? `deload over ${weeksUntilDeload(deload.week)} wk` : null,
     kalibratie ? 'kalibratie' : null,
-    // dit programma schrijft geen loopafstanden voor; dan zegt het plafond ook niets
-    vrijLopen ? 'eigen afstand' : null,
     state.settings?.travelMode ? 'reismodus' : null,
   ].filter(Boolean) as string[]
 }
@@ -164,11 +137,7 @@ function markeringen(
  * De drie weekcijfers. Gelopen tegen het plafond, sessies gedaan tegen gepland, en
  * het tilvolume — alle drie afgeleid uit wat er gelogd is, niets voorspeld.
  */
-function weekStats(
-  plannen: DayPlan[],
-  week: ReturnType<typeof weekLoad>,
-  vrijLopen: boolean,
-): Stat[] {
+function weekStats(plannen: DayPlan[], week: ReturnType<typeof weekRunFacts>): Stat[] {
   let gepland = 0
   let gedaan = 0
   let volume = 0
@@ -182,12 +151,7 @@ function weekStats(
   }
 
   return [
-    {
-      label: 'Gelopen',
-      value: fmt(week.done),
-      suffix: vrijLopen ? ' km' : ` / ${fmt(week.km)} km`,
-      flex: 1.2,
-    },
+    { label: 'Gelopen', value: `${week.aantal}×`, suffix: ` / ${fmt(week.km)} km`, flex: 1.2 },
     { label: 'Sessies', value: String(gedaan), suffix: ` / ${gepland}`, flex: 1 },
     { label: 'Volume', value: formatThousands(volume), suffix: ' kg', flex: 1.1 },
   ]

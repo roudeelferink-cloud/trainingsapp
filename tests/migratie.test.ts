@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ANOUC, ROB, SCHEMA_VERSION, migrate } from '../src/store/store'
-import { runMigrations } from '../src/store/migrations'
+import { MIGRATIONS, runMigrations } from '../src/store/migrations'
 import { MON } from './helpers'
 
 /**
@@ -397,7 +397,6 @@ describe('v11 -> v12: meldingen wegklikken', () => {
     expect(root.users[ROB].runPlans[MON]).toBe(8)
     expect(root.users[ROB].deviations).toHaveLength(1)
     expect(root.users[ROB].settings.plates).toEqual([2.5, 5])
-    expect(root.users[ROB].dismissedWarnings).toEqual({})
   })
 })
 
@@ -482,7 +481,7 @@ describe('v13 -> v14: de werkelijk gelopen afstand is de maat', () => {
   it('komt via de volledige migratie op de huidige versie uit', () => {
     const root = migrate(structuredClone(v13))
     expect(root.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(15)
+    expect(SCHEMA_VERSION).toBe(16)
     expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
     expect(root.users[ROB].runs['2026-08-06'].km).toBe(6)
   })
@@ -561,5 +560,159 @@ describe('v14 -> v15: het advies van de server krijgt een plek', () => {
     const half = structuredClone(v14) as Record<string, any>
     half.users.rob.review = { datum: MON, review: { signalen: ['x'] } }
     expect(migrate(half).users[ROB].review).toBeNull()
+  })
+})
+
+describe('v15 -> v16: progressie op data, en het hardloopadvies eruit', () => {
+  const v15 = {
+    schemaVersion: 15,
+    currentUser: 'rob',
+    pin: '1234',
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        settings: { bodyweightKg: 84 },
+        checkins: { [MON]: 4 },
+        dayChecks: { [MON]: { sleep: 2, energy: 3 } },
+        review: {
+          datum: MON,
+          gegenereerdOp: `${MON}T07:00:00.000Z`,
+          review: { signalen: ['x'], advies: ['y'], toon: 'z' },
+        },
+        dismissedWarnings: { 'benen-duurloop:5-7:legs_b:hoog': MON },
+        runs: {
+          '2026-08-04': {
+            date: '2026-08-04', kind: 'short', plannedKm: 6, km: 7.5,
+            minutes: 45, bike: false, completedAt: '2026-08-04T18:00:00.000Z',
+          },
+        },
+        exerciseState: { leg_press: { targetWeight: 140, targetReps: 10, belowMinStreak: 0 } },
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen' },
+    },
+  }
+
+  it('zet het tempo per spiergroep klaar, per profiel verschillend', () => {
+    const out = runMigrations(structuredClone(v15), 15, 16) as Record<string, any>
+    expect(out.schemaVersion).toBe(16)
+    expect(out.users.rob.settings.progressie).toEqual({
+      benen: 'opbouwen',
+      bovenlichaam: 'opbouwen',
+      romp: 'opbouwen',
+    })
+    expect(out.users.anouc.settings.progressie).toEqual({
+      benen: 'onderhoud',
+      bovenlichaam: 'onderhoud',
+      romp: 'onderhoud',
+    })
+  })
+
+  it('laat een tempo staan dat er al was', () => {
+    const met = structuredClone(v15) as Record<string, any>
+    met.users.rob.settings.progressie = { benen: 'onderhoud', bovenlichaam: 'opbouwen', romp: 'onderhoud' }
+    const out = runMigrations(met, 15, 16) as Record<string, any>
+    expect(out.users.rob.settings.progressie.benen).toBe('onderhoud')
+  })
+
+  it('begint met een schone teller per oefening', () => {
+    const out = runMigrations(structuredClone(v15), 15, 16) as Record<string, any>
+    expect(out.users.rob.exerciseState.leg_press.hitStreak).toBe(0)
+    expect(out.users.rob.exerciseState.leg_press.raiseNote).toBeNull()
+    // en het streefgewicht dat er stond blijft staan
+    expect(out.users.rob.exerciseState.leg_press.targetWeight).toBe(140)
+  })
+
+  it('haalt de weggeklikte meldingen weg: die bestaan niet meer', () => {
+    const out = runMigrations(structuredClone(v15), 15, 16) as Record<string, any>
+    expect('dismissedWarnings' in out.users.rob).toBe(false)
+  })
+
+  it('laat het advies uit v15 met rust', () => {
+    const out = runMigrations(structuredClone(v15), 15, 16) as Record<string, any>
+    expect(out.users.rob.review.review.toon).toBe('z')
+  })
+
+  it('raakt de rest van de gebruiker niet aan', () => {
+    const out = runMigrations(structuredClone(v15), 15, 16) as Record<string, any>
+    expect(out.users.rob.runs['2026-08-04'].km).toBe(7.5)
+    expect(out.users.rob.checkins).toEqual({ [MON]: 4 })
+    expect(out.users.rob.dayChecks).toEqual({ [MON]: { sleep: 2, energy: 3 } })
+    expect(out.users.rob.settings.bodyweightKg).toBe(84)
+    expect(out.pin).toBe('1234')
+  })
+})
+
+/**
+ * De twee laatste stappen komen uit twee takken die naast elkaar liepen: v14 -> v15 voegde
+ * het advies toe, v15 -> v16 de progressie-instelling. Bij het samenvoegen zijn ze achter
+ * elkaar gezet in plaats van samengevoegd — versie 15 draaide al ergens, en een
+ * versienummer waarvan de inhoud achteraf verandert is geen versienummer meer.
+ *
+ * Deze tests gaan over de keten: dat hij doorloopt, dat de volgorde klopt, en dat een
+ * toestel dat halverwege blijft steken niet de helft van de ene stap krijgt.
+ */
+describe('de keten van 14 naar 16', () => {
+  const v14 = {
+    schemaVersion: 14,
+    currentUser: 'rob',
+    pin: '1234',
+    users: {
+      rob: {
+        id: 'rob',
+        naam: 'Rob',
+        programId: 'kracht_hardlopen',
+        startDate: MON,
+        settings: { bodyweightKg: 84 },
+        dismissedWarnings: { 'benen-duurloop:5-7:legs_b:hoog': MON },
+        exerciseState: { leg_press: { targetWeight: 140, targetReps: 10, belowMinStreak: 0 } },
+      },
+      anouc: { id: 'anouc', naam: 'Anouc', programId: 'fullbody_hardlopen' },
+    },
+  }
+
+  it('loopt zonder gaten door van 14 naar de huidige versie', () => {
+    expect(SCHEMA_VERSION).toBe(16)
+    for (let v = 1; v < SCHEMA_VERSION; v++) {
+      expect(MIGRATIONS[v], `stap ${v} -> ${v + 1}`).toBeTypeOf('function')
+    }
+  })
+
+  it('draait beide stappen in volgorde en levert allebei de uitkomsten', () => {
+    const out = runMigrations(structuredClone(v14), 14, 16) as Record<string, any>
+    expect(out.schemaVersion).toBe(16)
+    // uit v14 -> v15
+    expect(out.users.rob.review).toBeNull()
+    // uit v15 -> v16
+    expect(out.users.rob.settings.progressie.benen).toBe('opbouwen')
+    expect(out.users.rob.exerciseState.leg_press.hitStreak).toBe(0)
+    expect('dismissedWarnings' in out.users.rob).toBe(false)
+  })
+
+  it('doet halverwege stoppen precies de eerste stap, en niet de tweede', () => {
+    const out = runMigrations(structuredClone(v14), 14, 15) as Record<string, any>
+    expect(out.schemaVersion).toBe(15)
+    expect(out.users.rob.review).toBeNull()
+    // de tweede stap is nog niet geweest
+    expect(out.users.rob.settings.progressie).toBeUndefined()
+    expect(out.users.rob.dismissedWarnings).toBeTruthy()
+  })
+
+  it('komt langs de volledige migratie op alles tegelijk uit', () => {
+    const root = migrate(structuredClone(v14))
+    expect(root.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(root.users[ROB].review).toBeNull()
+    expect(root.users[ROB].settings.progressie.benen).toBe('opbouwen')
+    expect(root.users[ANOUC].settings.progressie.benen).toBe('onderhoud')
+    expect(root.users[ROB].exerciseState.leg_press.hitStreak).toBe(0)
+    expect(root.users[ROB].settings.bodyweightKg).toBe(84)
+  })
+
+  it('doet twee keer migreren niets extra', () => {
+    const eenmaal = migrate(structuredClone(v14))
+    const tweemaal = migrate(structuredClone(eenmaal))
+    expect(tweemaal).toEqual(eenmaal)
   })
 })

@@ -71,7 +71,8 @@ describe('de echte aanroep', () => {
     await maakClaudeClient(config({ baseUrl: api.url })).vraag(signalen())
 
     const prompt = api.verzoeken[0].body.messages[0].content as string
-    expect(prompt).toContain('loopvolume')
+    expect(prompt).toContain('progressie')
+    expect(prompt).toContain('hardlopen')
     expect(prompt).not.toContain('entries')
   })
 

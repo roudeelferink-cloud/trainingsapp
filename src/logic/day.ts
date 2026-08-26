@@ -5,9 +5,9 @@ import { cycleInfo, type CycleInfo } from './cycle'
 import { addDays, mondayOf, weekday } from './dates'
 import { deloadFor, type DeloadPlan } from './deload'
 import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
-import { dayGuardrails, legStackAround, rawLegRunConflict, type Guardrail } from './guardrails'
-import { scaledRunKm } from './running'
-import { plannedRunKm, runContext, weekProjection } from './runningLoad'
+import { dayGuardrails, legStackAround, type Guardrail } from './guardrails'
+import { round05 } from './running'
+import { runContext } from './runningLoad'
 import { scheduledRun, scheduledStrength } from './schedule'
 import { type ResolvedSlot } from './select'
 import { resolveSession } from './sessionSlots'
@@ -15,28 +15,27 @@ import { warmupOf } from './warmup'
 
 export interface RunBlock {
   kind: RunKind
-  /** de geplande afstand: wat de app voorschrijft, of wat je zelf ingesteld hebt */
+  /**
+   * De afstand die jij zelf voor deze dag gezet hebt; 0 als je niets gezet hebt. De app
+   * vult hier nooit een eigen getal in — de loopplanning is niet aan haar.
+   */
   plannedKm: number
-  /** de afstand voor vandaag, na de check-in van vanochtend */
+  /** hetzelfde getal, voor de schermen die de afstand van vandaag tonen */
   km: number
-  /** de geplande afstand is met de hand gezet */
+  /** er staat een zelfgezette afstand voor deze dag */
   manualPlan: boolean
   bike: boolean
-  /** de app schrijft geen afstand voor: jij loopt wat je wilt, de app registreert */
+  /** er staat geen afstand: jij loopt wat je wilt, de app registreert */
   free: boolean
-  capped: boolean
-  scaledDown: boolean
   done: boolean
   log: RunLog | null
   skipped: SkipReason | null
   /** deze loop stond oorspronkelijk op die datum */
   movedFrom: string | null
-  /** per bijsturing één regel waarom de afstand is wat hij is */
-  why: string[]
   /**
-   * Eén feitelijke regel bij de afstand van vandaag: hoe hij zich verhoudt tot je
-   * gemiddelde loop van deze soort en tot je langste loop. Leeg bij fietsen en bij een
-   * programma dat geen afstand voorschrijft.
+   * Eén feitelijke regel bij een zelfgezette afstand: hoe hij zich verhoudt tot je
+   * gemiddelde loop van deze soort en tot je langste loop. Leeg bij fietsen en zolang
+   * je zelf niets ingevuld hebt.
    */
   context: string
 }
@@ -125,40 +124,25 @@ export function buildDay(state: UserState, iso: string): DayPlan {
     const log = state.runs[iso] ?? null
     const bike = override?.bike ?? log?.bike ?? false
     const skip = state.skips[`${iso}:run`]
+    // De enige afstand die de app kent is de afstand die jij gezet hebt. Er wordt niets
+    // voorgerekend, niets afgetopt en niets teruggeschaald: dit blok zegt dát er een loop
+    // staat, en verder registreert het wat je gedaan hebt.
     const manual = state.runPlans?.[iso]
-    // een vrij programma schrijft niets voor, tenzij je zelf een afstand zet
-    const free = program.runMode === 'free' && !(typeof manual === 'number' && manual > 0)
-    const planned = free
-      ? { km: 0, capped: false, manual: false, reasons: [] as string[], context: '' }
-      : plannedRunKm(state, iso, runKind)
-    const scaled = free ? 0 : scaledRunKm(planned.km, checkin)
-    const why = planned.reasons.filter((r) => !guardrails.some((g) => g.text === r))
-    if (scaled < planned.km) {
-      why.push(`Check-in ${checkin}: 30% korter, ${planned.km} km wordt ${scaled} km.`)
-    }
-    // de afstand die er vandaag echt staat: het voorstel, na de check-in en na een
-    // handmatige schaling van deze dag
-    const vandaag = override?.runScale
-      ? Math.round(planned.km * override.runScale * 2) / 2
-      : scaled
+    const planned = typeof manual === 'number' && Number.isFinite(manual) && manual > 0 ? round05(manual) : 0
+
     run = {
       kind: runKind,
-      plannedKm: planned.km,
-      km: vandaag,
-      manualPlan: planned.manual,
+      plannedKm: planned,
+      km: planned,
+      manualPlan: planned > 0,
       bike,
-      free,
-      capped: planned.capped,
-      scaledDown: scaled < planned.km,
+      free: planned <= 0,
       done: !!log?.completedAt,
       log,
       skipped: skip?.what === 'run' ? skip.reason : null,
       movedFrom: runSlot.movedFrom,
-      why,
-      // de context hoort bij de afstand die er vandaag echt staat, dus na de check-in
-      context: free || bike ? '' : runContext(state, iso, runKind, vandaag),
+      context: planned > 0 && !bike ? runContext(state, iso, runKind, planned) : '',
     }
-    if (run.scaledDown) notes.push('Check-in laag: loop 30% korter, of vervang door 30 min fietsen.')
   }
 
   /* ---- kracht ---- */
@@ -363,36 +347,11 @@ export function moveWarnings(
   const next = applyMove(state, iso, target, what)
   const out: string[] = []
 
-  // loopvolume: valt de week waar hij naartoe gaat boven het plafond?
-  if (what === 'run') {
-    const na = weekProjection(next, target)
-    const voor = weekProjection(state, target)
-    if (na.over && na.planned > voor.planned + 0.01) {
-      out.push(
-        `Die week komt daarmee op ${fmtKm(na.planned)} km, boven het plafond van ${fmtKm(na.cap)} km — de andere lopen worden ingekort.`,
-      )
-    }
-  }
-
-  // zware benen te dicht op de duurloop, in beide betrokken weken
-  const weken = [mondayOf(iso), mondayOf(target)].filter((w, i, a) => a.indexOf(w) === i)
-  const voorConflicts = new Set(
-    weken.map((w) => rawLegRunConflict(state, w)?.situation).filter(Boolean),
-  )
-  for (const week of weken) {
-    const na = rawLegRunConflict(next, week)
-    if (na && !voorConflicts.has(na.situation)) out.push(na.text)
-  }
-
   // twee zware beensessies achter elkaar
   const stapel = legStackAround(next, target)
   if (stapel && !legStackAround(state, target)) out.push(stapel.text)
 
   return out
-}
-
-function fmtKm(km: number): string {
-  return String(Math.round(km * 10) / 10).replace('.', ',')
 }
 
 function blockName(kind: DayKind | RunKind, what: MoveWhat): string {

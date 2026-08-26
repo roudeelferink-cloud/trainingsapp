@@ -40,6 +40,8 @@ export const EXERCISES: Exercise[] = [
     orderCategory: 'heavy_legs', unilateral: false,
     equipment: ['leg_press', 'plates'], role: 'core', loads: L('knee_deep'),
     setsReps: { sets: 4, repMin: 8, repMax: 10 }, bodyweightAlternative: 'squat_bw',
+    // hier ligt zoveel gewicht op dat 2,5 kg erbij geen verschil is dat je voelt
+    progressStepKg: 5,
     cue: 'Voeten middenhoog, knieën volgen tenen.',
   }),
   ex({

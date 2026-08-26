@@ -87,10 +87,10 @@ describe('ochtend-check-in', () => {
     expect(laag.strength!.hiddenCalf).toBe(true)
   })
 
-  it('kort bij 1-2 de loop met 30% in', () => {
+  it('laat de loop met rust: de check-in stuurt alleen de krachtsessie', () => {
     const laag = buildDay(baseState({ checkins: { [DI]: 1 } }), DI)
-    expect(laag.run!.km).toBeLessThan(laag.run!.plannedKm)
-    expect(laag.run!.scaledDown).toBe(true)
+    expect(laag.run!.km).toBe(0)
+    expect(laag.run!.free).toBe(true)
   })
 
   it('zet bij 1-2 de zaterdagsessie uit', () => {
@@ -225,23 +225,17 @@ describe('verplaatsen', () => {
   })
 })
 
-describe('zware benen naar zaterdag: een keuze met uitleg', () => {
-  it('blokkeert de verplaatsing niet meer, maar waarschuwt wel', () => {
+describe('zware benen verplaatsen: een keuze met uitleg', () => {
+  it('blokkeert de verplaatsing niet, en waarschuwt niet over de duurloop', () => {
     const zaterdag = moveTargets(s0, MON).find((t) => t.date === ZA)!
     expect(zaterdag.blocked).toBeNull()
-    expect(zaterdag.warnings.join(' ')).toContain('duurloop')
+    // de app heeft geen mening meer over beenwerk vlak voor een loop
+    expect(zaterdag.warnings.join(' ')).not.toContain('duurloop')
   })
 
-  it('waarschuwt ook bij de ruil vanaf zaterdag', () => {
-    // za -> ma zet benen A op zaterdag, één dag voor de duurloop
-    const maandag = moveTargets(s0, ZA).find((t) => t.date === MON)!
-    expect(maandag.warnings.join(' ')).toContain('duurloop')
-  })
-
-  it('laat ma -> vr en ma -> zo zonder waarschuwing over de duurloop', () => {
-    const vrijdag = moveTargets(s0, MON).find((t) => t.date === VR)!
-    // vrijdag is al een beendag: daar staat de waarschuwing over twee zware dagen los van
-    expect(vrijdag.warnings.join(' ')).not.toContain('duurloop')
+  it('waarschuwt wel als er twee zware beendagen achter elkaar ontstaan', () => {
+    const dinsdag = moveTargets(s0, VR).find((t) => t.date === DI)!
+    expect(dinsdag.warnings.join(' ')).toContain('Twee dagen zwaar beenwerk')
   })
 
   it('waarschuwt niet bij een sessie zonder beenwerk', () => {
@@ -291,49 +285,37 @@ describe('resolveSlot', () => {
 })
 
 describe('de loop van de dag', () => {
-  it('schrijft dinsdag en donderdag 5-8 km voor en zondag de duurloop', () => {
-    for (const iso of [DI, DO]) {
+  it('schrijft geen enkele afstand voor', () => {
+    for (const iso of [DI, DO, ZO]) {
       const run = buildDay(s0, iso).run!
-      expect(run.km, iso).toBeGreaterThanOrEqual(5)
-      expect(run.km, iso).toBeLessThanOrEqual(8)
+      expect(run.km, iso).toBe(0)
+      expect(run.plannedKm, iso).toBe(0)
+      expect(run.free, iso).toBe(true)
+      expect(run.manualPlan, iso).toBe(false)
     }
-    expect(buildDay(s0, ZO).run!.km).toBe(10)
   })
 
-  it('houdt de zondagse duurloop altijd langer dan de korte lopen', () => {
-    // ook na een week waarin er veel minder gelopen is dan gepland
-    const state = baseState({
-      runs: {
-        [addDays(DI, 7)]: {
-          date: addDays(DI, 7), kind: 'short', plannedKm: 6, km: 4, minutes: 26,
-          bike: false, completedAt: 'x',
-        },
-      },
-    })
-    const derdeWeek = addDays(MON, 14)
-    const kort = buildDay(state, addDays(derdeWeek, 1)).run!.km
-    const lang = buildDay(state, addDays(derdeWeek, 6)).run!.km
-    expect(lang).toBeGreaterThan(kort)
+  it('zegt nog wel dát er een loop staat, en welke soort', () => {
+    expect(buildDay(s0, DI).run!.kind).toBe('short')
+    expect(buildDay(s0, ZO).run!.kind).toBe('long')
+    expect(buildDay(s0, MON).run).toBeNull()
   })
 
-  it('laat de geplande afstand met de hand overschrijven', () => {
+  it('neemt een afstand over die je zelf gezet hebt', () => {
     const state = baseState({ runPlans: { [ZO]: 13 } })
     const run = buildDay(state, ZO).run!
     expect(run.plannedKm).toBe(13)
     expect(run.km).toBe(13)
     expect(run.manualPlan).toBe(true)
-    expect(run.why.join(' ')).toContain('Zelf ingesteld')
+    expect(run.free).toBe(false)
+    // en dan staat er één feitelijke regel onder, geen voorstel
+    expect(run.context).toContain('13 km')
   })
 
-  it('legt per bijsturing uit waarom de afstand is wat hij is', () => {
-    const laag = buildDay(baseState({ checkins: { [DI]: 1 } }), DI)
-    expect(laag.run!.why.join(' ')).toContain('30% korter')
-  })
-
-  it('haalt in de deloadweek kilometers weg', () => {
-    const normaal = buildDay(s0, ZO).run!.km
-    const deload = buildDay(s0, addDays(ZO, 49)).run!.km
-    expect(deload).toBeLessThan(normaal)
+  it('houdt de deloadweek buiten het hardlopen', () => {
+    const state = baseState({ runPlans: { [ZO]: 13, [addDays(ZO, 49)]: 13 } })
+    expect(buildDay(state, ZO).run!.km).toBe(13)
+    expect(buildDay(state, addDays(ZO, 49)).run!.km).toBe(13)
   })
 })
 

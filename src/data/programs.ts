@@ -15,8 +15,6 @@ export interface Program {
   week: DaySpec[]
   /** weekdag die altijd leeg blijft (1 = maandag); null = geen vaste rustdag */
   restWeekday: number | null
-  /** 'planned' = de app rekent afstanden voor; 'free' = jij bepaalt, de app registreert */
-  runMode: 'planned' | 'free'
   /**
    * 'standard' = gewicht omhoog zodra de bovenste rep gehaald is;
    * 'gentle'   = eerst reps opbouwen tot boven de bovengrens, pas dan gewicht erbij.
@@ -106,10 +104,9 @@ export const PROGRAMS: Record<ProgramId, Program> = {
   kracht_hardlopen: {
     id: 'kracht_hardlopen',
     naam: 'Kracht + hardlopen',
-    omschrijving: '4 krachtsessies (benen/duwen/trekken), optionele zaterdag, 3 loopdagen met opbouw.',
+    omschrijving: '4 krachtsessies (benen/duwen/trekken), optionele zaterdag, 3 loopdagen in eigen tempo.',
     week: WEEK,
     restWeekday: REST_WEEKDAY,
-    runMode: 'planned',
     pace: 'standard',
     startScale: 1,
     templateFor: (kind, weekIndex) => {
@@ -124,7 +121,6 @@ export const PROGRAMS: Record<ProgramId, Program> = {
     omschrijving: '2x full body (woensdag en zaterdag) van 45-60 min, naast 3x hardlopen in eigen tempo.',
     week: FULL_BODY_WEEK,
     restWeekday: 1,
-    runMode: 'free',
     pace: 'gentle',
     startScale: 0.7,
     templateFor: (kind) => FULL_BODY_TEMPLATES[kind] ?? null,

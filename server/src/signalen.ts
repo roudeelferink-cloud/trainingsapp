@@ -2,32 +2,30 @@ import { cycleInfo } from '../../src/logic/cycle'
 import { addDays, mondayOf } from '../../src/logic/dates'
 import { deloadFor, weeksUntilDeload } from '../../src/logic/deload'
 import { dayChecksInWeek, heavyCountBefore, isPoorDay, weekIsPoor } from '../../src/logic/feel'
-import { dayGuardrails, legRunConflict, legStackAround } from '../../src/logic/guardrails'
-import {
-  averageRunKm,
-  longRunTarget,
-  longestRunKm,
-  risesInARow,
-  rollingReference,
-  weekLoad,
-  weekProjection,
-  weeklyKm,
-} from '../../src/logic/runningLoad'
+import { dayGuardrails, legStackAround } from '../../src/logic/guardrails'
+import { DREMPEL, MAX_VERHOGINGEN_PER_SESSIE, zoneOf } from '../../src/logic/opbouw'
+import { averageRunKm, longestRunKm, weekRunFacts } from '../../src/logic/runningLoad'
 import { sessionVolumeKg } from '../../src/logic/stats'
-import type { Feel, UserState } from '../../src/types'
+import { BY_ID } from '../../src/data/exercises'
+import type { Feel, MuscleZone, Tempo, UserState } from '../../src/types'
 
 /**
  * De feitelijke signalen: alles wat de app al weet, uitgerekend en op een rij.
  *
- * Dit is het hart van de afspraak met het model. De app rékent — plafond, rollend
- * gemiddelde, deloadtrigger, benen voor de duurloop, tilvolume per week — en het model
- * mag daar iets van vinden. Andersom niet: er gaat geen ruwe setjes-berg naartoe waar
- * het model zelf sommen op moet doen, want dan is elk getal in het advies een gok.
+ * Dit is het hart van de afspraak met het model. De app rékent — deloadtrigger, de
+ * opbouwteller per oefening, tilvolume per week, gelopen kilometers — en het model mag
+ * daar iets van vinden. Andersom niet: er gaat geen ruwe setjes-berg naartoe waar het
+ * model zelf sommen op moet doen, want dan is elk getal in het advies een gok.
  *
- * Alles hier komt uit `guardrails.ts`, `feel.ts`, `runningLoad.ts`, `deload.ts` en
- * `stats.ts` — dezelfde functies die in de app zelf de guardrails maken. Wijkt het
- * advies af van wat de app toont, dan komt dat door het oordeel, nooit door een tweede
- * berekening.
+ * Alles hier komt uit `guardrails.ts`, `feel.ts`, `opbouw.ts`, `runningLoad.ts`,
+ * `deload.ts` en `stats.ts` — dezelfde functies die in de app zelf de guardrails maken.
+ * Wijkt het advies af van wat de app toont, dan komt dat door het oordeel, nooit door een
+ * tweede berekening.
+ *
+ * **Hardlopen staat er als feit in, niet als onderwerp.** De app plant het hardlopen niet
+ * meer: geen weekplafond, geen opbouwlijn voor de duurloop, geen waarschuwing over benen
+ * vlak voor een loop. Wat er hieronder over lopen staat is geteld en niet bedacht, en de
+ * opdracht in `prompt.ts` zegt erbij dat het advies zelf uitsluitend over kracht gaat.
  */
 
 /** Hoeveel weken er in de samenvatting gaan. Acht is twee deloadcycli. */
@@ -38,8 +36,8 @@ export interface WeekSignaal {
   week: number
   /** werkelijk gelopen kilometers, losse rondjes meegerekend */
   gelopenKm: number
-  /** wat de app die week aanhield */
-  richtlijnKm: number
+  /** hoe vaak er die week gelopen is; fietsen telt niet mee */
+  lopen: number
   deloadweek: boolean
   langsteLoopKm: number
   krachtsessies: number
@@ -70,38 +68,42 @@ export interface Signalen {
     /** maandagen van bewust overgeslagen deloadweken */
     overgeslagenWeken: string[]
   }
-  loopvolume: {
-    referentieKm: number
-    referentieWeken: number
-    stapFactor: number
-    stapToon: string
-    stapGeblokkeerd: boolean
-    stapReden: string
-    plafondKm: number
-    richtlijnKm: number
-    gelopenKm: number
-    afgetopt: boolean
-    bovenPlafond: boolean
-    redenen: string[]
-    bovenPlafondReden: string | null
-    wekenAchtereenGestegen: number
-    prognoseKm: number
-    prognoseBoven: boolean
-    lopenNogTeGaan: number
-    duurloop: { km: number; lijn: number; onderhoud: boolean; reden: string }
+  /**
+   * Wat er gelopen is. Alleen tellingen: de app schrijft geen kilometers voor en heeft er
+   * geen mening over. Dit staat erbij als context bij de krachttraining — drie zware
+   * lopen in een week zeggen iets over hoeveel er nog in de benen zit.
+   */
+  hardlopen: {
+    dezeWeekLopen: number
+    dezeWeekKm: number
     langsteLoop4WkKm: number
     gemiddeldeDuurloopKm: number | null
     gemiddeldeKorteLoopKm: number | null
   }
+  /**
+   * Hoe de gewichtsprogressie voor dit profiel staat afgesteld, en hoe ver elke oefening
+   * van zijn volgende stap af is. Zonder dit zou het model adviseren alsof iedereen
+   * hetzelfde tempo heeft, en dat is precies het verschil tussen de twee gebruikers.
+   */
+  progressie: {
+    /** per spiergroep: 'opbouwen' of 'onderhoud' */
+    tempo: Record<MuscleZone, Tempo>
+    /** hoeveel sessies op rij er gehaald moet worden voor een stap, per spiergroep */
+    drempel: Record<MuscleZone, number>
+    /** hooguit zoveel oefeningen gaan er per sessie omhoog */
+    maxPerSessie: number
+    /** welke spiergroep voorgaat als er meer kandidaten zijn dan stappen */
+    voorrang: MuscleZone
+    /** per oefening met een streefgewicht: hoe ver de teller staat */
+    tellers: {
+      oefening: string
+      zone: MuscleZone
+      gehaaldOpRij: number
+      drempel: number
+      kg: number
+    }[]
+  }
   guardrails: { id: string; toon: string; tekst: string }[]
-  benenVoorDuurloop: {
-    beenDag: string
-    loopDag: string
-    uren: number
-    niveau: string
-    structureel: boolean
-    tekst: string
-  } | null
   beenStapeling: { eerste: string; tweede: string; tekst: string } | null
   herstel: {
     zwareSessies14Dagen: number
@@ -120,12 +122,8 @@ export interface Signalen {
  * en zodat een test er iets zinnigs over kan zeggen.
  */
 export function buildSignalen(state: UserState, iso: string, weken = WEKEN): Signalen {
-  const load = weekLoad(state, iso)
-  const vooruit = weekProjection(state, iso)
-  const duur = longRunTarget(state, iso)
-  const ref = rollingReference(state, iso)
+  const week = weekRunFacts(state, iso)
   const deload = deloadFor(state, iso)
-  const legs = legRunConflict(state, iso)
   const stapel = legStackAround(state, iso)
 
   return {
@@ -146,40 +144,15 @@ export function buildSignalen(state: UserState, iso: string, weken = WEKEN): Sig
       wekenTotVasteDeload: weeksUntilDeload(deload.week),
       overgeslagenWeken: Object.keys(state.deloadSkips ?? {}).sort(),
     },
-    loopvolume: {
-      referentieKm: load.reference,
-      referentieWeken: ref.weeks,
-      stapFactor: load.growth.factor,
-      stapToon: load.growth.tone,
-      stapGeblokkeerd: load.growth.blocking,
-      stapReden: load.growth.reason,
-      plafondKm: load.cap,
-      richtlijnKm: load.km,
-      gelopenKm: load.done,
-      afgetopt: load.capped,
-      bovenPlafond: load.overCap,
-      redenen: load.reasons,
-      bovenPlafondReden: load.overCapReason,
-      wekenAchtereenGestegen: risesInARow(state, iso),
-      prognoseKm: vooruit.planned,
-      prognoseBoven: vooruit.over,
-      lopenNogTeGaan: vooruit.remaining,
-      duurloop: { km: duur.km, lijn: duur.line, onderhoud: duur.maintenance, reden: duur.reason },
+    hardlopen: {
+      dezeWeekLopen: week.aantal,
+      dezeWeekKm: week.km,
       langsteLoop4WkKm: longestRunKm(state, iso),
       gemiddeldeDuurloopKm: averageRunKm(state, iso, 'long'),
       gemiddeldeKorteLoopKm: averageRunKm(state, iso, 'short'),
     },
+    progressie: progressieSignaal(state),
     guardrails: dayGuardrails(state, iso).map((g) => ({ id: g.id, toon: g.tone, tekst: g.text })),
-    benenVoorDuurloop: legs
-      ? {
-          beenDag: legs.legsDate,
-          loopDag: legs.runDate,
-          uren: legs.hours,
-          niveau: legs.load.level,
-          structureel: legs.structural,
-          tekst: legs.text,
-        }
-      : null,
     beenStapeling: stapel ? { eerste: stapel.first, tweede: stapel.second, tekst: stapel.text } : null,
     herstel: {
       zwareSessies14Dagen: heavyCountBefore(state, mondayOf(iso), 14),
@@ -204,7 +177,10 @@ export function buildSignalen(state: UserState, iso: string, weken = WEKEN): Sig
  * krachtwerk en de gevoelsregistratie ernaast.
  */
 function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[] {
-  return weeklyKm(state, iso, weken).map((w) => {
+  const maandagen = Array.from({ length: weken }, (_, i) =>
+    weekRunFacts(state, addDays(mondayOf(iso), -7 * (weken - 1 - i))),
+  )
+  return maandagen.map((w) => {
     const dagen = new Set(Array.from({ length: 7 }, (_, d) => addDays(w.weekStart, d)))
     const gevoel: Feel[] = []
     let krachtsessies = 0
@@ -243,7 +219,7 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
       weekVanaf: w.weekStart,
       week: w.week,
       gelopenKm: w.km,
-      richtlijnKm: w.planned,
+      lopen: w.aantal,
       deloadweek: w.deload,
       langsteLoopKm: rond(langste),
       krachtsessies,
@@ -259,6 +235,47 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
       overgeslagen,
     }
   })
+}
+
+/**
+ * De progressie-instelling van dit profiel, met per oefening hoe ver de teller staat.
+ *
+ * Dit is wat het advies nodig heeft om niet naast de app te praten: bij Anouc staat alles
+ * op onderhoud — zes sessies en dan de kleinste stap — en bij Rob op opbouwen met benen
+ * vooraan. Een advies dat "ga wat zwaarder tillen" zegt terwijl de app zelf pas over vier
+ * sessies verhoogt, is een advies dat de app tegenspreekt.
+ */
+function progressieSignaal(state: UserState): Signalen['progressie'] {
+  const tempo = state.settings.progressie
+  const drempel = Object.fromEntries(
+    (Object.keys(tempo) as MuscleZone[]).map((z) => [z, DREMPEL[tempo[z]]]),
+  ) as Record<MuscleZone, number>
+
+  const tellers = Object.entries(state.exerciseState ?? {})
+    .map(([oefening, es]) => {
+      const ex = BY_ID[oefening]
+      if (!ex || typeof es.targetWeight !== 'number' || es.targetWeight <= 0) return null
+      const zone = zoneOf(ex)
+      return {
+        oefening,
+        zone,
+        gehaaldOpRij: es.hitStreak ?? 0,
+        drempel: drempel[zone],
+        kg: es.targetWeight,
+      }
+    })
+    .filter((t): t is NonNullable<typeof t> => t !== null)
+    // dichtst bij een stap eerst: dat is wat er als eerste gaat gebeuren
+    .sort((a, b) => b.gehaaldOpRij - a.gehaaldOpRij || b.kg - a.kg)
+    .slice(0, 20)
+
+  return {
+    tempo,
+    drempel,
+    maxPerSessie: MAX_VERHOGINGEN_PER_SESSIE,
+    voorrang: 'benen',
+    tellers,
+  }
 }
 
 /** De twintig zwaarste streefgewichten; de rest zegt niets over het patroon. */

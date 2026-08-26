@@ -6,11 +6,20 @@ import { applyMove, buildDay, moveTargets, sessionKeyFor } from '../logic/day'
 import { moveKey } from '../logic/order'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, forceIncrease, stateFor } from '../logic/progression'
+import {
+  beoordeelSessie,
+  drempelFor,
+  kiesVerhogingen,
+  stapVoor,
+  tempoFor,
+  volgendeStreak,
+  zoneOf,
+  type Kandidaat,
+} from '../logic/opbouw'
 import { bumpTargets, extraSlotKey } from '../logic/extra'
 import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
 import { DELOAD_RISK, deloadFor } from '../logic/deload'
 import { round05 } from '../logic/running'
-import { plannedRunKm } from '../logic/runningLoad'
 import { mondayOf } from '../logic/dates'
 import type {
   Activity,
@@ -24,11 +33,13 @@ import type {
   DeviationKind,
   Feel,
   LoggedSet,
+  MuscleZone,
   ReviewCache,
   RunKind,
   SessionLog,
   Settings,
   SkipReason,
+  Tempo,
   UserState,
   Warmup,
   WarmupType,
@@ -285,24 +296,12 @@ export function setBike(iso: string, bike: boolean): void {
  * Zet de geplande afstand van één loop met de hand. Dit wint van alles wat de app
  * uitrekent — inclusief de +10%-bewaking — maar de afwijking wordt vastgelegd.
  */
-export function setPlannedRunKm(iso: string, kind: RunKind, km: number): void {
+export function setPlannedRunKm(iso: string, km: number): void {
   if (!Number.isFinite(km) || km <= 0) return
-  const gekozen = round05(km)
-  setState((s) => {
-    const voorstel = plannedRunKm(s, iso, kind)
-    const next = { ...s, runPlans: { ...s.runPlans, [iso]: gekozen } }
-    if (Math.abs(voorstel.km - gekozen) < 0.01) return next
-    return recordDeviation(next, {
-      date: iso,
-      kind: 'run_plan',
-      suggested: voorstel.km,
-      chosen: gekozen,
-      note: `Geplande afstand zelf op ${gekozen} km gezet; de app stelde ${voorstel.km} km voor.`,
-    })
-  })
+  setState((s) => ({ ...s, runPlans: { ...s.runPlans, [iso]: round05(km) } }))
 }
 
-/** Terug naar de afstand die de app voorstelt. */
+/** De zelfgezette afstand weer weghalen. */
 export function clearPlannedRunKm(iso: string): void {
   setState((s) => {
     const runPlans = { ...s.runPlans }
@@ -372,26 +371,6 @@ export function skipDeload(iso: string, acknowledged: boolean): { ok: boolean; r
     })
   })
   return { ok: true }
-}
-
-/* ---- meldingen wegklikken ---- */
-
-/**
- * Klikt een structurele melding weg. De sleutel ís het patroon, dus zodra de combinatie
- * verandert komt de melding vanzelf terug; verandert er niets, dan blijft hij vier weken
- * stil. Zie `isDismissed` in `guardrails.ts`.
- */
-export function dismissWarning(signature: string, iso: string): void {
-  if (!signature) return
-  setState((s) => ({ ...s, dismissedWarnings: { ...s.dismissedWarnings, [signature]: iso } }))
-}
-
-export function undismissWarning(signature: string): void {
-  setState((s) => {
-    const dismissedWarnings = { ...s.dismissedWarnings }
-    delete dismissedWarnings[signature]
-    return { ...s, dismissedWarnings }
-  })
 }
 
 /** Toch de deload doen. Kan altijd, zonder drempel. */
@@ -574,12 +553,24 @@ export function completeSession(
       eerder.exercises?.[slotKey] === slots.find((x) => x.slot.key === slotKey)?.exercise.id &&
       sameSets(eerder.entries?.[slotKey], sets)
 
-    for (const r of slots) {
+    /*
+      De opbouwregel verzamelt onderweg wie er aan de drempel komt; welke van die
+      kandidaten daadwerkelijk omhoog gaan wordt na de lus beslist, want daar geldt een
+      maximum van twee per sessie en gaan benen voor.
+    */
+    const kandidaten: Kandidaat[] = []
+
+    for (const [positie, r] of slots.entries()) {
       const sets = doneOnly[r.slot.key]
       if (sets.length === 0) continue
       if (alGeteld(r.slot.key, sets)) continue
       const ex = getExercise(r.exercise.id)
       const before = stateFor({ ...s, exerciseState }, ex.id)
+
+      // Eerst beoordelen, dán pas progressie draaien: `applyProgression` schrijft de
+      // gelogde waarden in de staat, en daarna valt er niets meer tegen af te meten.
+      const beoordeling = beoordeelSessie(ex, { sets: r.sets, repMin: r.repMin }, sets, before)
+
       const res = applyProgression(ex, { repMin: r.repMin, repMax: r.repMax }, sets, before, {
         allowIncrease,
         pace,
@@ -590,6 +581,34 @@ export function completeSession(
       })
       exerciseState[ex.id] = res.next
       if (res.message) messages.push(res.message)
+
+      /*
+        De oude regel — verhogen op een als 'makkelijk' beoordeelde sessie — mag blijven,
+        maar niet samen met deze. Ging het gewicht daar al omhoog, dan telt dat als de
+        stap van deze sessie: de teller gaat naar 0 en de opbouwregel slaat hem over.
+      */
+      const alVerhoogd =
+        (res.next.targetWeight ?? 0) > (before.targetWeight ?? 0) + 1e-9 && !!before.targetWeight
+
+      const streak = alVerhoogd ? 0 : volgendeStreak(before, beoordeling.gehaald)
+      exerciseState[ex.id] = { ...exerciseState[ex.id], hitStreak: streak }
+
+      if (!alVerhoogd && streak >= drempelFor(s.settings, ex)) {
+        const van = before.targetWeight ?? 0
+        const naar = stapVoor(ex, van, s.settings, tempoFor(s.settings, ex))
+        if (naar !== null && naar > van) {
+          kandidaten.push({
+            exerciseId: ex.id,
+            naam: ex.naam,
+            zone: zoneOf(ex),
+            positie,
+            streak,
+            van,
+            naar,
+            reps: Math.min(...sets.map((x) => x.reps)),
+          })
+        }
+      }
 
       // zwaarder getild dan voorgesteld: dat mag, maar het wordt onthouden
       const heaviest = Math.max(...sets.map((x) => x.weight))
@@ -602,6 +621,20 @@ export function completeSession(
           note: `${ex.naam}: ${heaviest} kg getild, voorstel was ${before.targetWeight} kg.`,
         })
       }
+    }
+
+    for (const v of kiesVerhogingen(kandidaten, deload)) {
+      const huidig = exerciseState[v.exerciseId]
+      exerciseState[v.exerciseId] = {
+        ...huidig,
+        targetWeight: v.naar,
+        // na een verhoging begint de teller opnieuw, op het nieuwe gewicht
+        hitStreak: 0,
+        raiseNote: v.note,
+        increaseWeek: mondayOf(iso),
+        increasedKg: Math.round((v.naar - v.van) * 1000) / 1000,
+      }
+      messages.push(`${v.naam}: ${v.note} kg.`)
     }
 
     const key = sessionKeyFor(iso, kind)
@@ -666,6 +699,22 @@ function patchSettings(s: UserState, patch: (current: Settings) => Partial<Setti
 
 export function setBodyweight(kg: number | null): void {
   setState((s) => patchSettings(s, () => ({ bodyweightKg: kg })))
+}
+
+/**
+ * Het tempo van de gewichtsprogressie voor één spiergroep.
+ *
+ * Dit raakt alleen hoe snel het gewicht omhoog gaat; het schema, de oefeningen en de
+ * reps veranderen er niet van.
+ */
+export function setTempo(zone: MuscleZone, tempo: Tempo): void {
+  setState((s) => ({
+    ...s,
+    settings: normalizeSettings(
+      { ...s.settings, progressie: { ...s.settings.progressie, [zone]: tempo } },
+      s.settings,
+    ),
+  }))
 }
 
 export function setSensitivity(area: keyof UserState['settings']['sensitive'], value: 'ok' | 'careful' | 'off'): void {

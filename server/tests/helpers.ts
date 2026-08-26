@@ -138,6 +138,12 @@ function krachtsessie(datum: string, benen: boolean, feel: Feel): UserState['ses
   }
 }
 
+/** Anouc met dezelfde historie: haar instellingen verschillen, niet haar logboek. */
+export function anoucState(opbouw: Opbouw = {}): UserState {
+  const basis = defaultRoot().users[ANOUC]
+  return { ...robState(opbouw), id: ANOUC, naam: basis.naam, programId: basis.programId, settings: basis.settings }
+}
+
 /** Een gebruiker zonder één gelogde regel; alleen een startdatum. */
 export function leegState(): UserState {
   return { ...defaultRoot().users[ROB], startDate: START }

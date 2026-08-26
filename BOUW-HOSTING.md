@@ -35,16 +35,19 @@ accepteert `minItems` alleen als 0 of 1. Een schema dat dat wel bevat wordt met 
 geweigerd, en dan komt er helemaal geen advies.
 
 **De signalen, niet de setjes.** `server/src/signalen.ts` roept precies de functies aan
-die de app zelf gebruikt: `dayGuardrails`, `legRunConflict` en `legStackAround` uit
-`guardrails.ts`, `deloadFor` en `weeksUntilDeload` uit `deload.ts`, `weekLoad`,
-`weekProjection`, `longRunTarget`, `rollingReference`, `risesInARow` en `weeklyKm` uit
-`runningLoad.ts`, en `heavyCountBefore`, `weekIsPoor`, `dayChecksInWeek` en `isPoorDay`
-uit `feel.ts`. Die getallen gaan als JSON mee. De systeemprompt zegt er hard bij dat er
-niets bijgerekend mag worden — de app toont dezelfde cijfers op het scherm ernaast, en
-twee versies van hetzelfde getal maken het advies waardeloos. In de praktijk is dat een
-prompt van zo'n 6 kB waar geen enkele gelogde set in zit; `signalen.test.ts` controleert
-dat de meegestuurde getallen letterlijk gelijk zijn aan wat `weekLoad` en `dayGuardrails`
-teruggeven.
+die de app zelf gebruikt: `dayGuardrails` en `legStackAround` uit `guardrails.ts`,
+`deloadFor` en `weeksUntilDeload` uit `deload.ts`, `weekRunFacts`, `longestRunKm` en
+`averageRunKm` uit `runningLoad.ts`, `DREMPEL` en `zoneOf` uit `opbouw.ts`, en
+`heavyCountBefore`, `weekIsPoor`, `dayChecksInWeek` en `isPoorDay` uit `feel.ts`. Die
+getallen gaan als JSON mee. De systeemprompt zegt er hard bij dat er niets bijgerekend mag
+worden — de app toont dezelfde cijfers op het scherm ernaast, en twee versies van hetzelfde
+getal maken het advies waardeloos. In de praktijk is dat een prompt van een paar kB waar
+geen enkele gelogde set in zit; `signalen.test.ts` controleert dat de meegestuurde getallen
+letterlijk gelijk zijn aan wat de app zelf uitrekent.
+
+> Bijgewerkt bij het samenvoegen met `progressie-per-profiel`: het hardloopblok in de
+> signalen was een plafond met een richtlijn, en is nu een telling. Zie
+> BOUW-SAMENVOEGEN.md.
 
 De opzet komt uit `~/trainingsreview/review.py`: dezelfde nuchtere toon, dezelfde drie
 vragen (wat valt op / waar bouw ik te snel op / wat mag omhoog), dezelfde regel dat

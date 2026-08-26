@@ -129,6 +129,15 @@ export interface Exercise {
   startFactor: number
   /** verhouding tot de best vergelijkbare oefening, gebruikt zodra daar data van is */
   relatedRatio?: RelatedRatio
+  /**
+   * De stap waarmee deze oefening omhoog gaat als hij gehaald wordt, in kg. Leeg is de
+   * kleinste stap die te laden is — twee keer de lichtste schijf bij stangwerk, de
+   * volgende maat bij dumbbells.
+   *
+   * Alleen invullen waar die kleinste stap te klein is voor de oefening: op de leg press
+   * til je zoveel dat 2,5 kg erbij geen verschil is dat je voelt of meet.
+   */
+  progressStepKg?: number
 }
 
 export type DayKind =
@@ -167,6 +176,21 @@ export type Sensitivity = 'ok' | 'careful' | 'off'
 /** Stangen met een eigen gewicht. De schijven komen daar bovenop. */
 export type BarId = 'smith' | 'trap_bar' | 'barbell' | 'deadlift_bar' | 'curl_bar'
 
+/** Spiergroep waarvoor het tempo apart in te stellen is. */
+export type MuscleZone = 'benen' | 'bovenlichaam' | 'romp'
+
+/**
+ * Hoe snel het gewicht van een oefening omhoog mag zodra hij gehaald wordt.
+ *
+ * - `opbouwen` — drie sessies op rij alles gehaald is genoeg voor een stap;
+ * - `onderhoud` — zes sessies op rij, en dan alleen de kleinste stap die te laden is.
+ *
+ * Dit staat per spiergroep en per profiel, want het antwoord verschilt per persoon en
+ * per lichaamsdeel: benen verdragen meer dan schouders, en wie onderhoudt hoeft niet
+ * elke maand zwaarder te tillen.
+ */
+export type Tempo = 'opbouwen' | 'onderhoud'
+
 export interface Settings {
   bodyweightKg: number | null
   sensitive: Record<LoadArea, Sensitivity>
@@ -180,6 +204,8 @@ export interface Settings {
    * voorstel.
    */
   plates: number[]
+  /** het tempo van de gewichtsprogressie, per spiergroep */
+  progressie: Record<MuscleZone, Tempo>
 }
 
 /** Waarmee je warm wordt: rustig op de loopband of losfietsen op de spinningfiets. */
@@ -323,6 +349,18 @@ export interface ExerciseState {
    */
   increaseWeek?: string | null
   increasedKg?: number
+  /**
+   * Aantal sessies op rij waarin alles gehaald is: alle geplande sets, alle geplande
+   * reps, en niets naar beneden bijgesteld. Dit is waar de progressie op loopt — niet
+   * op een knop die je moet indrukken. Een sessie die niet gehaald wordt zet hem op 0,
+   * en een verhoging ook: daarna begin je opnieuw op het nieuwe gewicht.
+   */
+  hitStreak?: number
+  /**
+   * Eén regel bij de laatste verhoging, om te laten zien waarom het gewicht omhoog ging.
+   * Hij staat er precies één sessie, want daarna is hij geen nieuws meer.
+   */
+  raiseNote?: string | null
 }
 
 /** Waarom een voorstel afweek van wat de gebruiker uiteindelijk deed. */
@@ -441,12 +479,6 @@ export interface UserState {
   runPlans: Record<string, number>
   /** maandag -> bewust overgeslagen deloadweek */
   deloadSkips: Record<string, DeloadSkip>
-  /**
-   * Weggeklikte structurele meldingen: patroonsleutel -> datum waarop dat gebeurde.
-   * De sleutel ís het patroon, dus zodra de combinatie verandert komt de melding vanzelf
-   * terug; verandert er niets, dan blijft hij vier weken stil.
-   */
-  dismissedWarnings: Record<string, string>
   /** afwijkingen van voorstellen, oudste eerst */
   deviations: Deviation[]
   /** losse, ongeplande activiteiten naast het schema */

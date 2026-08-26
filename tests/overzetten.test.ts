@@ -64,7 +64,11 @@ describe('een export van de Pages-versie inlezen', () => {
       const oud = OUD.users[id]
       const nieuw = getUser(id)!
 
-      expect(nieuw.exerciseState).toEqual(oud.exerciseState)
+      // de streefwaarden blijven, met de teller van de opbouwregel erbij (op 0)
+      for (const [oefening, es] of Object.entries<Record<string, unknown>>(oud.exerciseState)) {
+        expect(nieuw.exerciseState[oefening], oefening).toMatchObject(es)
+        expect(nieuw.exerciseState[oefening].hitStreak, oefening).toBe(0)
+      }
       expect(nieuw.checkins).toEqual(oud.checkins)
       expect(nieuw.dayChecks).toEqual(oud.dayChecks)
       expect(nieuw.runPlans).toEqual(oud.runPlans)
@@ -81,14 +85,18 @@ describe('een export van de Pages-versie inlezen', () => {
       expect(nieuw.startDate).toBe(oud.startDate)
       expect(nieuw.naam).toBe(oud.naam)
       expect(nieuw.programId).toBe(oud.programId)
-      expect(nieuw.settings).toEqual(oud.settings)
+      // de instellingen zijn erbij ingegroeid: `progressie` bestond in v14 nog niet en
+      // wordt door de migratie ingevuld. Alles wat er stond hoort er nog te staan.
+      expect(nieuw.settings).toMatchObject(oud.settings)
+      expect(nieuw.settings.progressie).toBeTruthy()
       expect(nieuw.permanentReplacements).toEqual(oud.permanentReplacements)
       expect(nieuw.skips).toEqual(oud.skips)
       expect(nieuw.moves).toEqual(oud.moves)
       expect(nieuw.runMoves).toEqual(oud.runMoves)
       expect(nieuw.overrides).toEqual(oud.overrides)
       expect(nieuw.deloadSkips).toEqual(oud.deloadSkips)
-      expect(nieuw.dismissedWarnings).toEqual(oud.dismissedWarnings)
+      // `dismissedWarnings` is er in v16 uit: de melding die erin stond bestaat niet meer
+      expect('dismissedWarnings' in nieuw).toBe(false)
     }
   })
 

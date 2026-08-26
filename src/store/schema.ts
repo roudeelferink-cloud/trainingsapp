@@ -25,7 +25,7 @@ export function isPin(code: unknown): code is string {
   return typeof code === 'string' && /^[0-9]{4}$/.test(code)
 }
 
-export const SCHEMA_VERSION = 15
+export const SCHEMA_VERSION = 16
 
 export const USER_SEEDS: { id: string; naam: string; programId: ProgramId }[] = [
   { id: ROB, naam: 'Rob', programId: 'kracht_hardlopen' },
@@ -46,7 +46,6 @@ export function defaultUser(id: string, naam: string, programId: ProgramId): Use
     runs: {},
     runPlans: {},
     deloadSkips: {},
-    dismissedWarnings: {},
     deviations: [],
     activities: [],
     skips: {},
@@ -101,7 +100,6 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     runs: s.runs ?? {},
     runPlans: s.runPlans ?? {},
     deloadSkips: s.deloadSkips ?? {},
-    dismissedWarnings: s.dismissedWarnings ?? {},
     deviations: Array.isArray(s.deviations) ? s.deviations : [],
     activities: Array.isArray(s.activities) ? s.activities : [],
     skips: s.skips ?? {},

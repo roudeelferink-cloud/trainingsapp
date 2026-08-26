@@ -54,6 +54,8 @@ export function emptyExerciseState(): ExerciseState {
     lastUpdated: null,
     increaseWeek: null,
     increasedKg: 0,
+    hitStreak: 0,
+    raiseNote: null,
   }
 }
 
@@ -120,7 +122,10 @@ export function targetFor(
     // 40% eraf, en dan naar beneden naar wat er echt te laden is
     w = roundToLoadable(w * DELOAD_WEIGHT_FACTOR, ex, state.settings)
   }
-  return { weight: w, reps, level: null, byFeel: false }
+  // ging het gewicht net omhoog, dan staat erbij waarom. Eén sessie lang: daarna is het
+  // geen nieuws meer, en `applyProgression` haalt hem weg.
+  const note = !opts.deload && es.raiseNote ? es.raiseNote : undefined
+  return { weight: w, reps, level: null, byFeel: false, note }
 }
 
 export interface ProgressionResult {
@@ -181,7 +186,19 @@ export function applyProgression(
   const minReps = Math.min(...done.map((s) => s.reps))
   const currentTargetReps = prev.targetReps ?? bounds.repMin
   const repCeiling = progression === 'reps' ? bounds.repMax + 2 : bounds.repMax
-  const feltGood = feelSaysGo(done, opts.feel)
+  /*
+    Het gewicht gaat langs deze weg alleen omhoog als je de sessie zelf beoordeeld hebt.
+    Vroeger viel dat zonder beoordeling terug op de gelogde RIR, en dan verhoogde deze
+    regel bij elke sessie op de bovengrens. Sinds `opbouw.ts` de progressie op de gelogde
+    sets doet, zouden dat twee regels zijn die naar dezelfde sets kijken en om de beurt
+    een stap nemen. Nu is dit de handmatige route — jij zegt dat het makkelijk ging — en
+    doet de andere regel het werk als je niets zegt.
+
+    Reps opbouwen gaat wél gewoon door zonder beoordeling: dat is geen stap omhoog maar
+    het volmaken van wat er al staat, en het is de enige weg die het rustige programma
+    van Anouc heeft.
+  */
+  const feelRaisesWeight = opts.feel !== undefined && allowsIncrease(opts.feel)
 
   const next: ExerciseState = {
     ...prev,
@@ -189,6 +206,8 @@ export function applyProgression(
     targetReps: currentTargetReps,
     lastUpdated: new Date().toISOString(),
     lastNote: null,
+    // de uitleg bij de vorige verhoging heeft zijn sessie gehad
+    raiseNote: null,
   }
 
   // basis: wat er daadwerkelijk gelift is, is het nieuwe uitgangspunt. In een deloadweek
@@ -216,8 +235,8 @@ export function applyProgression(
   next.belowMinStreak = 0
 
   const repsAtCeiling = minReps >= Math.min(repCeiling, Math.max(currentTargetReps, bounds.repMax))
-  const succeeded = repsAtCeiling && feltGood
-  const repsSucceeded = progression === 'reps' && minReps >= currentTargetReps && feltGood
+  const succeeded = repsAtCeiling && feelRaisesWeight
+  const repsSucceeded = progression === 'reps' && minReps >= currentTargetReps
 
   if (opts.feel === 'zwaar' && repsAtCeiling) {
     next.lastNote = `${ex.naam}: reps gehaald, maar de sessie viel zwaar — gewicht blijft staan.`
@@ -253,6 +272,11 @@ export function applyProgression(
   if (repsSucceeded) {
     if (currentTargetReps < repCeiling) {
       next.targetReps = currentTargetReps + 1
+      return { next, message: null }
+    }
+    // op het repsplafond kan alleen het gewicht nog omhoog, en dat is de handmatige route
+    if (!feelRaisesWeight) {
+      next.targetReps = repCeiling
       return { next, message: null }
     }
     const step = raise(ex, next.targetWeight, prev, opts)
@@ -375,6 +399,7 @@ function bandProgression(
   const prevLevel = clampBandLevel(prev.targetLevel ?? MIN_BAND_LEVEL)
   const next: ExerciseState = {
     ...prev,
+    raiseNote: null,
     // bandwerk kent geen kilo's: die blijven leeg, zodat volume en 1RM schoon blijven
     targetWeight: null,
     // in een deloadweek staat er met opzet een lichtere band om; dat is geen stap terug

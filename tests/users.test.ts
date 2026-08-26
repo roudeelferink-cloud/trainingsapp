@@ -221,11 +221,16 @@ describe('het schema van Anouc', () => {
     const sets = [{ weight: 40, reps: 12, rir: 1, done: true }]
     const start = emptyExerciseState()
 
-    const standaard = applyProgression(ex, bounds, sets, start, { allowIncrease: true, iso: WO })
+    const standaard = applyProgression(ex, bounds, sets, start, {
+      allowIncrease: true,
+      iso: WO,
+      feel: 'makkelijk',
+    })
     const rustig = applyProgression(ex, bounds, sets, start, {
       allowIncrease: true,
       pace: 'gentle',
       iso: WO,
+      feel: 'makkelijk',
     })
 
     // standaard: bovengrens gehaald, dus meteen een schijf erbij
@@ -294,7 +299,7 @@ describe('de guardrails werken voor allebei de profielen', () => {
 
       it('laat de geplande loopafstand zelf zetten', () => {
         const loopdag = [MON, DI, WO, DO, VR, ZA, ZO].find((iso) => buildDay(getState(), iso).run)!
-        A.setPlannedRunKm(loopdag, buildDay(getState(), loopdag).run!.kind, 9)
+        A.setPlannedRunKm(loopdag, 9)
         const run = buildDay(getState(), loopdag).run!
         expect(run.plannedKm).toBe(9)
         expect(run.manualPlan).toBe(true)

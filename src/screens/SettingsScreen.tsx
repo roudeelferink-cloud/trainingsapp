@@ -4,6 +4,7 @@ import { Card, ChoiceGrid, Chip, ConfirmCheck, DecimalField, SectionTitle, Sheet
 import { BY_ID, LOAD_LABEL } from '../data/exercises'
 import { BAR_IDS, BAR_LABEL, DEFAULT_BAR_WEIGHTS } from '../logic/barWeight'
 import { PLATE_OPTIONS, smallestPlate } from '../logic/plates'
+import { DREMPEL, MAX_VERHOGINGEN_PER_SESSIE } from '../logic/opbouw'
 import { TEMPLATES } from '../data/plan'
 import { programById } from '../data/programs'
 import { dataSummary, exportReminder, exportWarning } from '../logic/stats'
@@ -34,9 +35,9 @@ import {
   useStore,
   wipeUsers,
 } from '../store/store'
-import { normalizeSettings } from '../store/settings'
+import { ZONES, ZONE_LABEL, normalizeSettings } from '../store/settings'
 import { THEME_OPTIONS, readTheme, setTheme, type ThemeChoice } from '../theme'
-import type { LoadArea, Sensitivity, UserState } from '../types'
+import type { LoadArea, Sensitivity, Tempo, UserState } from '../types'
 
 const AREAS: LoadArea[] = [
   'knee_deep',
@@ -47,6 +48,11 @@ const AREAS: LoadArea[] = [
   'lower_back',
   'shoulder',
 ]
+
+const TEMPO_LABEL: Record<Tempo, string> = {
+  opbouwen: 'Opbouwen',
+  onderhoud: 'Onderhoud',
+}
 
 const SENS_LABEL: Record<Sensitivity, string> = {
   ok: 'ok',
@@ -158,6 +164,40 @@ export function SettingsScreen({ onClose }: { onClose?: () => void }) {
                     }`}
                   >
                     {SENS_LABEL[v]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle>Tempo van de opbouw</SectionTitle>
+        <p className="mb-block text-body text-muted">
+          Haal je een oefening een aantal sessies op rij helemaal — alle sets, alle reps, niets naar
+          beneden bijgesteld — dan gaat het gewicht vanzelf omhoog. Op <b>opbouwen</b> is dat na{' '}
+          {DREMPEL.opbouwen} sessies, op <b>onderhoud</b> na {DREMPEL.onderhoud} en dan met de kleinste
+          stap die er is. Er gaan er nooit meer dan {MAX_VERHOGINGEN_PER_SESSIE} per sessie omhoog, en
+          in een deloadweek geen enkele.
+        </p>
+        <div className="flex flex-col gap-in-block">
+          {ZONES.map((zone) => (
+            <div key={zone} className="flex items-center justify-between gap-2">
+              <span className="text-body text-ink">{ZONE_LABEL[zone]}</span>
+              <div className="flex shrink-0 gap-1">
+                {(['opbouwen', 'onderhoud'] as Tempo[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => A.setTempo(zone, t)}
+                    aria-pressed={settings.progressie?.[zone] === t}
+                    className={`min-h-tap border-hair px-3 text-meta transition-colors duration-color ${
+                      settings.progressie?.[zone] === t
+                        ? 'border-accent bg-accent font-semibold text-on-accent'
+                        : 'border-chip-border text-dim'
+                    }`}
+                  >
+                    {TEMPO_LABEL[t]}
                   </button>
                 ))}
               </div>
