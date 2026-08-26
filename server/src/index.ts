@@ -1,7 +1,8 @@
 import { bestandsCache } from './cache'
 import { maakClaudeClient, type ModelClient } from './claude'
 import { loadEnvFile, readConfig } from './config'
-import { log, maakServer } from './http'
+import { maakServer } from './http'
+import { log } from './log'
 
 /**
  * Het startpunt: instellingen lezen, de onderdelen aan elkaar knopen, luisteren.

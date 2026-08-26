@@ -78,3 +78,18 @@ function tekst(raw: unknown, veld: string, max: number): string {
   }
   return schoon
 }
+
+/**
+ * Hoeveel regels het model schreef, voor zover er iets te tellen valt.
+ *
+ * Alleen om te kunnen zien of het inkorten gevuurd heeft. Zonder dit is een advies van
+ * vijf signalen niet te onderscheiden van een advies van acht waar er drie af gingen, en
+ * dat verschil zegt precies of de opdracht aan het model aankomt.
+ */
+export function geschrevenRegels(raw: unknown): { signalen: number; advies: number } {
+  const v = (raw ?? {}) as Record<string, unknown>
+  return {
+    signalen: Array.isArray(v.signalen) ? v.signalen.length : 0,
+    advies: Array.isArray(v.advies) ? v.advies.length : 0,
+  }
+}

@@ -1,7 +1,8 @@
-import { parseAdvies } from './advies'
+import { geschrevenRegels, parseAdvies } from './advies'
 import { MAX_POGINGEN, type Cache } from './cache'
 import type { ModelClient } from './claude'
 import { ReviewFout } from './fouten'
+import { log } from './log'
 import { buildSignalen } from './signalen'
 import { parseVerzoek } from './verzoek'
 import type { ReviewAdvies } from '../../src/types'
@@ -69,6 +70,17 @@ export async function handleReview(raw: unknown, deps: Deps): Promise<Antwoord> 
   const signalen = buildSignalen(user, vandaag, deps.weken)
   const ruw = await deps.client().vraag(signalen)
   const review = parseAdvies(ruw)
+
+  // De aantallen kunnen niet in het schema (zie SCHEMA in prompt.ts), dus staan ze in de
+  // opdracht en worden ze hier afgedwongen. Of die opdracht aankomt is alleen te zien als
+  // het opvalt wanneer er wat af moest.
+  const geschreven = geschrevenRegels(ruw)
+  if (geschreven.signalen > review.signalen.length || geschreven.advies > review.advies.length) {
+    log(
+      `ingekort voor ${profiel}: ${geschreven.signalen} signalen -> ${review.signalen.length}, ` +
+        `${geschreven.advies} adviezen -> ${review.advies.length}`,
+    )
+  }
 
   const gegenereerdOp = deps.nu().toISOString()
   deps.cache.schrijf(profiel, {

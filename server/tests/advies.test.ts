@@ -4,6 +4,7 @@ import {
   MAX_REGEL_LENGTE,
   MAX_SIGNALEN,
   MAX_TOON_LENGTE,
+  geschrevenRegels,
   parseAdvies,
 } from '../src/advies'
 import { isReviewFout } from '../src/fouten'
@@ -112,5 +113,24 @@ describe('te veel regels', () => {
   it('laat een advies dat binnen de aantallen blijft ongemoeid', () => {
     const net = { signalen: ['een', 'twee'], advies: ['a'], toon: 'z' }
     expect(parseAdvies(net)).toEqual(net)
+  })
+})
+
+/**
+ * Alleen om te kunnen zien of het inkorten gevuurd heeft: vijf signalen kan betekenen
+ * dat het model er vijf schreef, of acht waarvan er drie af gingen. Dat verschil zegt of
+ * de opdracht aankomt, dus staat het in de log.
+ */
+describe('tellen wat het model schreef', () => {
+  it('telt de regels zoals ze binnenkwamen, vóór het inkorten', () => {
+    const veel = { signalen: ['a', 'b', 'c', 'd', 'e', 'f'], advies: ['x', 'y'], toon: 'z' }
+    expect(geschrevenRegels(veel)).toEqual({ signalen: 6, advies: 2 })
+    expect(parseAdvies(veel).signalen).toHaveLength(MAX_SIGNALEN)
+  })
+
+  it('valt op nul terug bij iets wat geen lijst is', () => {
+    expect(geschrevenRegels({ signalen: 'x', advies: null })).toEqual({ signalen: 0, advies: 0 })
+    expect(geschrevenRegels(null)).toEqual({ signalen: 0, advies: 0 })
+    expect(geschrevenRegels('hoi')).toEqual({ signalen: 0, advies: 0 })
   })
 })

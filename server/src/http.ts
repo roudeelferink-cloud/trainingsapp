@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { isReviewFout } from './fouten'
+import { log } from './log'
 import { handleReview, type Deps } from './review'
 
 /**
@@ -95,10 +96,4 @@ function stuur(res: ServerResponse, status: number, body: unknown): void {
     'Cache-Control': 'no-store',
   })
   res.end(tekst)
-}
-
-export function log(bericht: string, e?: unknown): void {
-  const stamp = new Date().toISOString()
-  if (e !== undefined) console.error(`[${stamp}] ${bericht}`, e)
-  else console.log(`[${stamp}] ${bericht}`)
 }
