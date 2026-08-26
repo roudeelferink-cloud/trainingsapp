@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { ActivityList, ActivitySheet } from '../components/Activities'
+import { Advies } from '../components/Advies'
 import { BarChart, LineChart } from '../components/Chart'
 import { Caps, Link, Screen, Stats } from '../components/logboek'
 import { Empty } from '../components/ui'
@@ -55,6 +56,8 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
           ]}
         />
       </div>
+
+      <Advies />
 
       <Blok label="Hardloopvolume per week">
         {volume.every((v) => v.km === 0) ? (

@@ -24,6 +24,7 @@ import type {
   DeviationKind,
   Feel,
   LoggedSet,
+  ReviewCache,
   RunKind,
   SessionLog,
   Settings,
@@ -33,7 +34,7 @@ import type {
   WarmupType,
 } from '../types'
 import { normalizeSettings } from './settings'
-import { getState, setState } from './store'
+import { currentUserId, getState, setState } from './store'
 
 export function setCheckin(iso: string, value: number): void {
   setState((s) => ({ ...s, checkins: { ...s.checkins, [iso]: value } }))
@@ -797,3 +798,16 @@ export function applyEasyBump(iso: string, kind: DayKind, slots: ResolvedSlot[])
  * geen aanbod meer over deze.
  */
 export const BUMP_MARKER = 'volume_omhoog'
+
+/**
+ * Bewaart het opgehaalde advies bij de gebruiker waar het over gaat.
+ *
+ * De controle op het profiel is geen formaliteit: het ophalen duurt even, en wie in die
+ * tussentijd van profiel wisselt zou anders het advies van de één bij de ander in de
+ * opslag krijgen. Klopt het profiel niet meer, dan gaat het advies weg — dan is het van
+ * iemand anders, en morgen is er een nieuw.
+ */
+export function saveReview(userId: string, cache: ReviewCache): void {
+  if (currentUserId() !== userId) return
+  setState((s) => ({ ...s, review: cache }))
+}
