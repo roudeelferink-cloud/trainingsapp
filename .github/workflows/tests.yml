@@ -1,0 +1,51 @@
+# Tests, en verder niets.
+#
+# Hier stond de deploy naar GitHub Pages. Die is weg: de app draait op de Pi thuis,
+# achter tailscale serve, omdat de Claude-sleutel niet in een browserbundel mag staan.
+# Zie README-HOSTING.md voor hoe hij nu gepubliceerd wordt.
+#
+# Wat blijft is de controle die aan die deploy vastzat: bij elke push draaien de tests
+# van de app én van het servertje, zodat een kapotte commit niet pas op de Pi opvalt.
+name: Tests
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # de app-dependencies staan erbij: het servertje gebruikt de logica uit src/
+      - run: npm ci
+      - run: npm ci
+        working-directory: server
+      - name: Tests
+        run: npm test
+        working-directory: server
+      - name: Build
+        run: npm run build
+        working-directory: server

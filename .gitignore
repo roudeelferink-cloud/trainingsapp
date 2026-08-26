@@ -14,6 +14,9 @@ coverage
 *.local
 .claude/settings.local.json
 
+# dagcache van de review-endpoint (advies per profiel; hoort niet in git)
+server/data
+
 # rommel
 .DS_Store
 *.log

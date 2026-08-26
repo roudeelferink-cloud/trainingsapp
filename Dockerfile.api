@@ -1,0 +1,30 @@
+# Het review-servertje.
+#
+# esbuild bundelt src/ en de gedeelde logica uit ../src tot één bestand; alleen de
+# Anthropic-SDK blijft er als pakket naast staan. In de draaiende container zit dus geen
+# TypeScript, geen testcode en geen bouwgereedschap.
+FROM node:20-alpine AS bouw
+WORKDIR /app
+
+COPY server/package.json server/package-lock.json* ./server/
+RUN cd server && npm install --no-audit --no-fund
+
+# de logica uit src/ gaat mee de bundel in: de server rekent met exact dezelfde functies
+# als de app, want twee versies van dezelfde guardrail lopen vroeg of laat uit elkaar
+COPY src ./src
+COPY server/src ./server/src
+COPY server/tsconfig.json ./server/
+RUN cd server && npm run bundle
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY server/package.json server/package-lock.json* ./
+RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
+COPY --from=bouw /app/server/dist ./dist
+
+# de dagcache staat op een volume; zie docker-compose.yml
+ENV REVIEW_CACHE_FILE=/data/reviews.json
+EXPOSE 8098
+CMD ["node", "dist/server.js"]

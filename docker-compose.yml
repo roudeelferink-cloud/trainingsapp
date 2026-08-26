@@ -1,0 +1,66 @@
+# De trainingsapp op de Pi.
+#
+# Eigen compose-project, eigen containers, eigen poort. Raakt jarvis, de edge-stack en
+# wat er verder draait niet aan: er is geen gedeeld netwerk, geen gedeeld volume en geen
+# gedeelde .env. De enige gedeelde laag is de Pi zelf.
+#
+# Opzet: `web` (nginx) serveert de bundel uit en zet /api/ door naar `api` (het
+# review-servertje). Alleen `web` publiceert een poort, en die staat op 127.0.0.1 —
+# `tailscale serve` zet daar vanaf het tailnet iets voor. Zie README-HOSTING.md.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: trainingsapp-web
+    container_name: trainingsapp-web
+    restart: unless-stopped
+    ports:
+      # Uitsluitend op de loopback. Zonder het 127.0.0.1-voorvoegsel zou docker de poort
+      # op alle interfaces openzetten — en daarmee ook op het lokale netwerk, buiten
+      # tailscale om.
+      - "127.0.0.1:${TRAININGSAPP_PORT:-8097}:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: trainingsapp-api
+    container_name: trainingsapp-api
+    restart: unless-stopped
+    # De sleutel komt uit server/.env en staat nergens anders. Dat bestand staat in
+    # .gitignore; server/.env.example laat zien wat erin hoort.
+    env_file:
+      - server/.env
+    environment:
+      # In de container luistert hij op alle interfaces, want nginx komt uit een andere
+      # container. Dat is geen versoepeling: deze service publiceert geen poort, dus het
+      # enige netwerk waar hij op zit is het compose-netwerk hieronder.
+      REVIEW_HOST: 0.0.0.0
+      REVIEW_PORT: 8098
+      REVIEW_CACHE_FILE: /data/reviews.json
+    volumes:
+      # De dagcache: het advies per profiel, plus hoe vaak er vandaag geprobeerd is.
+      # Op een volume, zodat een herstart geen nieuwe aanroep kost.
+      - trainingsapp-review:/data
+    # geen `ports`: van buiten de compose-stack is dit servertje niet te bereiken
+    expose:
+      - "8098"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8098/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  trainingsapp-review:

@@ -1,0 +1,20 @@
+# De app zelf: bouwen met Node, uitserveren met nginx.
+#
+# Twee fasen, zodat er in de draaiende container geen Node, geen node_modules en geen
+# broncode zit — alleen de statische bundel en nginx. Dit is dezelfde bundel die eerst
+# naar GitHub Pages ging; alleen het adres is anders.
+FROM node:20-alpine AS bouw
+WORKDIR /app
+
+# eerst de manifesten: zolang die niet wijzigen blijft de installatielaag in de cache
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+# `npm run build` doet tsc én vite build: een typefout hoort de image niet te halen
+RUN npm run build
+
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=bouw /app/dist /usr/share/nginx/html
+EXPOSE 80
