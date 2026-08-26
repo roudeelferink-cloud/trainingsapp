@@ -11,10 +11,27 @@ import type { ReviewAdvies } from '../../src/types'
  *
  * Het model krijgt al een schema mee. Dit is de tweede sluis: een schema is een verzoek,
  * geen garantie, en dit servertje geeft niets door dat het niet zelf gecontroleerd heeft.
+ *
+ * **Te weinig is stuk, te veel is niet stuk.** Die twee gaan hier bewust verschillend:
+ *
+ * - Een lege lijst betekent dat er iets ontbreekt wat er hoort te zijn. Dat is een fout,
+ *   want een blok zonder advies is geen advies.
+ * - Te veel regels betekent dat het model doorgeschreven is. Dat is geen fout maar
+ *   breedsprakigheid, en daar hoort het blok niet op te verdwijnen: de eerste regels zijn
+ *   de belangrijkste (dat staat ook zo in de opdracht), dus die houden we en de rest gaat
+ *   eraf. Een 502 hierop zou een bruikbaar advies weggooien om een vormkwestie.
+ *
+ * De bovengrenzen stonden eerder als `maxItems` in het schema. Dat kan niet: structured
+ * output kent `maxItems` niet en accepteert `minItems` alleen als 0 of 1 — zie de
+ * toelichting bij `SCHEMA` in `prompt.ts`. Ze staan nu in de opdracht aan het model, en
+ * hier als vangnet voor als het zich er niet aan houdt.
  */
 
+/** De bedoelde aantallen: twee tot vijf signalen, één tot vier adviezen. */
+export const MAX_SIGNALEN = 5
+export const MAX_ADVIEZEN = 4
+
 /** Grenzen die van een zin nog een zin maken. */
-export const MAX_REGELS = 8
 export const MAX_REGEL_LENGTE = 400
 export const MAX_TOON_LENGTE = 240
 
@@ -24,24 +41,28 @@ export function parseAdvies(raw: unknown): ReviewAdvies {
   }
   const v = raw as Record<string, unknown>
 
-  const signalen = lijst(v.signalen, 'signalen')
-  const advies = lijst(v.advies, 'advies')
+  const signalen = lijst(v.signalen, 'signalen', MAX_SIGNALEN)
+  const advies = lijst(v.advies, 'advies', MAX_ADVIEZEN)
   const toon = tekst(v.toon, 'toon', MAX_TOON_LENGTE)
 
   return { signalen, advies, toon }
 }
 
-function lijst(raw: unknown, veld: string): string[] {
+/**
+ * Een lijst regels. Leeg of geen lijst is een fout; te lang wordt ingekort.
+ *
+ * Het inkorten gaat vóór de keuring van de losse regels. Wat afvalt komt niet in beeld,
+ * dus of daar rommel tussen staat doet er niet toe — alleen wat er overblijft moet
+ * kloppen.
+ */
+function lijst(raw: unknown, veld: string, max: number): string[] {
   if (!Array.isArray(raw)) {
     throw new ReviewFout('kapot_antwoord', `Veld '${veld}' is geen lijst.`)
   }
   if (raw.length === 0) {
     throw new ReviewFout('kapot_antwoord', `Veld '${veld}' is leeg.`)
   }
-  if (raw.length > MAX_REGELS) {
-    throw new ReviewFout('kapot_antwoord', `Veld '${veld}' heeft meer dan ${MAX_REGELS} regels.`)
-  }
-  return raw.map((r, i) => tekst(r, `${veld}[${i}]`, MAX_REGEL_LENGTE))
+  return raw.slice(0, max).map((r, i) => tekst(r, `${veld}[${i}]`, MAX_REGEL_LENGTE))
 }
 
 function tekst(raw: unknown, veld: string, max: number): string {

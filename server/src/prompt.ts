@@ -36,27 +36,33 @@ export const SYSTEM =
  * De vorm die terugkomt. Bewust klein en volledig verplicht: drie velden, allemaal
  * gevuld, geen open uiteinden. `additionalProperties: false` houdt er een veld dat
  * niemand verwacht uit.
+ *
+ * **Wat hier niet in mag.** Structured output ondersteunt `maxItems` niet, en `minItems`
+ * alleen als 0 of 1; een schema met `minItems: 2` of met een `maxItems` erin wordt door
+ * de API geweigerd met een 400, en dan komt er helemaal geen advies. De bedoelde grenzen
+ * — twee tot vijf signalen, één tot vier adviezen — staan daarom op de twee plekken waar
+ * ze wél werken: in de opdracht aan het model (`buildPrompt` en de `description` per
+ * veld), en als inkorting achteraf in `advies.ts`. Zet ze hier niet terug;
+ * `tests/prompt.test.ts` houdt dat tegen.
  */
 export const SCHEMA = {
   type: 'object',
   properties: {
     signalen: {
       type: 'array',
-      minItems: 2,
-      maxItems: 5,
+      minItems: 1,
       items: { type: 'string' },
       description:
-        'Wat opvalt in de gegevens, per regel één ding, met het getal erbij waar de ' +
-        'uitspraak op rust. Eén zin per regel.',
+        'Twee tot vijf regels: wat opvalt in de gegevens, per regel één ding, met het ' +
+        'getal erbij waar de uitspraak op rust. Eén zin per regel.',
     },
     advies: {
       type: 'array',
       minItems: 1,
-      maxItems: 4,
       items: { type: 'string' },
       description:
-        'Wat je ermee zou doen. Concreet: welke oefening of welke loop, en welke stap. ' +
-        'Eén zin per regel.',
+        'Eén tot vier regels: wat je ermee zou doen. Concreet: welke oefening of welke ' +
+        'loop, en welke stap. Eén zin per regel.',
     },
     toon: {
       type: 'string',
@@ -75,12 +81,17 @@ ${JSON.stringify(signalen, null, 1)}
 
 Beantwoord deze drie vragen, in deze volgorde, met de velden van het antwoordformaat:
 
-- \`signalen\`: wat valt op in het patroon over de weken? Wat verandert er, en aan welk
-  getal zie je dat?
-- \`advies\`: waar bouwt de belasting sneller op dan het herstel bijhoudt, en waar is juist
-  ruimte? Kijk naar de combinatie van kilometers, tilvolume, sessies die als 'zwaar'
-  beoordeeld zijn, en slaap, energie en benen. Zeg per regel wat je zou doen.
+- \`signalen\`: **twee tot vijf regels.** Wat valt op in het patroon over de weken? Wat
+  verandert er, en aan welk getal zie je dat?
+- \`advies\`: **één tot vier regels.** Waar bouwt de belasting sneller op dan het herstel
+  bijhoudt, en waar is juist ruimte? Kijk naar de combinatie van kilometers, tilvolume,
+  sessies die als 'zwaar' beoordeeld zijn, en slaap, energie en benen. Zeg per regel wat
+  je zou doen.
 - \`toon\`: één zin die de stand samenvat.
+
+Houd je aan die aantallen. Wat je erboven schrijft wordt afgekapt en komt niet in beeld,
+dus zet het belangrijkste bovenaan: liever drie regels die ergens over gaan dan acht die
+elkaar aanvullen.
 
 De guardrails die de app vandaag zelf toont staan er al; herhaal ze niet woordelijk, maar
 gebruik ze wel als context. Is er weinig gelogd, zeg dat dan en houd het kort.`
