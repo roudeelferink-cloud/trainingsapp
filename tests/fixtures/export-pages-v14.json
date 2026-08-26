@@ -1,0 +1,2124 @@
+{
+  "schemaVersion": 14,
+  "currentUser": "rob",
+  "pin": "1234",
+  "users": {
+    "rob": {
+      "id": "rob",
+      "naam": "Rob",
+      "programId": "kracht_hardlopen",
+      "startDate": "2026-06-01",
+      "settings": {
+        "bodyweightKg": 84,
+        "sensitive": {
+          "knee_deep": "ok",
+          "hip_deep": "ok",
+          "achilles": "ok",
+          "calf": "ok",
+          "lateral_hip": "careful",
+          "lower_back": "ok",
+          "shoulder": "ok"
+        },
+        "travelMode": false,
+        "barWeights": {
+          "trap_bar": 20,
+          "smith": 15,
+          "barbell": 20,
+          "deadlift_bar": 20,
+          "curl_bar": 7.5
+        },
+        "plates": [
+          1.25,
+          2.5,
+          5,
+          10,
+          15,
+          20,
+          25
+        ]
+      },
+      "permanentReplacements": {
+        "push:2": "db_shoulder_press"
+      },
+      "checkins": {
+        "2026-06-01": 4,
+        "2026-06-04": 3,
+        "2026-06-08": 4,
+        "2026-06-11": 3,
+        "2026-06-15": 4,
+        "2026-06-18": 3,
+        "2026-06-22": 4,
+        "2026-06-25": 3,
+        "2026-06-29": 4,
+        "2026-07-02": 3,
+        "2026-07-06": 4,
+        "2026-07-09": 3,
+        "2026-07-13": 4,
+        "2026-07-16": 3,
+        "2026-07-20": 4,
+        "2026-07-23": 3,
+        "2026-07-27": 4,
+        "2026-07-30": 3
+      },
+      "dayChecks": {
+        "2026-06-01": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-03": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-08": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-10": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-15": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-17": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-22": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-24": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-29": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-01": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-06": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-08": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-13": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-15": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-20": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-22": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-27": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-29": {
+          "sleep": 2,
+          "energy": 2
+        }
+      },
+      "sessions": {
+        "2026-06-01:legs_a": {
+          "date": "2026-06-01",
+          "kind": "legs_a",
+          "completedAt": "2026-06-01T19:15:00.000Z",
+          "startedAt": "2026-06-01T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-04:push": {
+          "date": "2026-06-04",
+          "kind": "push",
+          "completedAt": "2026-06-04T19:15:00.000Z",
+          "startedAt": "2026-06-04T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-08:legs_a": {
+          "date": "2026-06-08",
+          "kind": "legs_a",
+          "completedAt": "2026-06-08T19:15:00.000Z",
+          "startedAt": "2026-06-08T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-11:push": {
+          "date": "2026-06-11",
+          "kind": "push",
+          "completedAt": "2026-06-11T19:15:00.000Z",
+          "startedAt": "2026-06-11T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-15:legs_a": {
+          "date": "2026-06-15",
+          "kind": "legs_a",
+          "completedAt": "2026-06-15T19:15:00.000Z",
+          "startedAt": "2026-06-15T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-18:push": {
+          "date": "2026-06-18",
+          "kind": "push",
+          "completedAt": "2026-06-18T19:15:00.000Z",
+          "startedAt": "2026-06-18T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-22:legs_a": {
+          "date": "2026-06-22",
+          "kind": "legs_a",
+          "completedAt": "2026-06-22T19:15:00.000Z",
+          "startedAt": "2026-06-22T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-25:push": {
+          "date": "2026-06-25",
+          "kind": "push",
+          "completedAt": "2026-06-25T19:15:00.000Z",
+          "startedAt": "2026-06-25T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-29:legs_a": {
+          "date": "2026-06-29",
+          "kind": "legs_a",
+          "completedAt": "2026-06-29T19:15:00.000Z",
+          "startedAt": "2026-06-29T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-02:push": {
+          "date": "2026-07-02",
+          "kind": "push",
+          "completedAt": "2026-07-02T19:15:00.000Z",
+          "startedAt": "2026-07-02T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-06:legs_a": {
+          "date": "2026-07-06",
+          "kind": "legs_a",
+          "completedAt": "2026-07-06T19:15:00.000Z",
+          "startedAt": "2026-07-06T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-09:push": {
+          "date": "2026-07-09",
+          "kind": "push",
+          "completedAt": "2026-07-09T19:15:00.000Z",
+          "startedAt": "2026-07-09T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-13:legs_a": {
+          "date": "2026-07-13",
+          "kind": "legs_a",
+          "completedAt": "2026-07-13T19:15:00.000Z",
+          "startedAt": "2026-07-13T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-16:push": {
+          "date": "2026-07-16",
+          "kind": "push",
+          "completedAt": "2026-07-16T19:15:00.000Z",
+          "startedAt": "2026-07-16T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-20:legs_a": {
+          "date": "2026-07-20",
+          "kind": "legs_a",
+          "completedAt": "2026-07-20T19:15:00.000Z",
+          "startedAt": "2026-07-20T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-23:push": {
+          "date": "2026-07-23",
+          "kind": "push",
+          "completedAt": "2026-07-23T19:15:00.000Z",
+          "startedAt": "2026-07-23T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-27:legs_a": {
+          "date": "2026-07-27",
+          "kind": "legs_a",
+          "completedAt": "2026-07-27T19:15:00.000Z",
+          "startedAt": "2026-07-27T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-30:push": {
+          "date": "2026-07-30",
+          "kind": "push",
+          "completedAt": "2026-07-30T19:15:00.000Z",
+          "startedAt": "2026-07-30T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        }
+      },
+      "runs": {
+        "2026-06-02": {
+          "date": "2026-06-02",
+          "kind": "short",
+          "plannedKm": 12,
+          "km": 12,
+          "minutes": 72,
+          "bike": false,
+          "completedAt": "2026-06-02T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-07": {
+          "date": "2026-06-07",
+          "kind": "long",
+          "plannedKm": 10,
+          "km": 10.5,
+          "minutes": 60,
+          "bike": false,
+          "completedAt": "2026-06-07T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-06-09": {
+          "date": "2026-06-09",
+          "kind": "short",
+          "plannedKm": 13,
+          "km": 13,
+          "minutes": 78,
+          "bike": false,
+          "completedAt": "2026-06-09T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-14": {
+          "date": "2026-06-14",
+          "kind": "long",
+          "plannedKm": 10.5,
+          "km": 11,
+          "minutes": 63,
+          "bike": false,
+          "completedAt": "2026-06-14T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-06-16": {
+          "date": "2026-06-16",
+          "kind": "short",
+          "plannedKm": 14,
+          "km": 14,
+          "minutes": 84,
+          "bike": false,
+          "completedAt": "2026-06-16T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-21": {
+          "date": "2026-06-21",
+          "kind": "long",
+          "plannedKm": 11,
+          "km": 11.5,
+          "minutes": 66,
+          "bike": false,
+          "completedAt": "2026-06-21T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-06-23": {
+          "date": "2026-06-23",
+          "kind": "short",
+          "plannedKm": 15,
+          "km": 15,
+          "minutes": 90,
+          "bike": false,
+          "completedAt": "2026-06-23T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-28": {
+          "date": "2026-06-28",
+          "kind": "long",
+          "plannedKm": 11.5,
+          "km": 12,
+          "minutes": 69,
+          "bike": false,
+          "completedAt": "2026-06-28T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-06-30": {
+          "date": "2026-06-30",
+          "kind": "short",
+          "plannedKm": 16,
+          "km": 16,
+          "minutes": 96,
+          "bike": false,
+          "completedAt": "2026-06-30T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-05": {
+          "date": "2026-07-05",
+          "kind": "long",
+          "plannedKm": 12,
+          "km": 12.5,
+          "minutes": 72,
+          "bike": false,
+          "completedAt": "2026-07-05T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-07-07": {
+          "date": "2026-07-07",
+          "kind": "short",
+          "plannedKm": 17,
+          "km": 17,
+          "minutes": 102,
+          "bike": false,
+          "completedAt": "2026-07-07T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-12": {
+          "date": "2026-07-12",
+          "kind": "long",
+          "plannedKm": 12.5,
+          "km": 13,
+          "minutes": 75,
+          "bike": false,
+          "completedAt": "2026-07-12T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-07-14": {
+          "date": "2026-07-14",
+          "kind": "short",
+          "plannedKm": 18,
+          "km": 18,
+          "minutes": 108,
+          "bike": false,
+          "completedAt": "2026-07-14T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-19": {
+          "date": "2026-07-19",
+          "kind": "long",
+          "plannedKm": 13,
+          "km": 13.5,
+          "minutes": 78,
+          "bike": false,
+          "completedAt": "2026-07-19T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-07-21": {
+          "date": "2026-07-21",
+          "kind": "short",
+          "plannedKm": 19,
+          "km": 19,
+          "minutes": 114,
+          "bike": false,
+          "completedAt": "2026-07-21T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-26": {
+          "date": "2026-07-26",
+          "kind": "long",
+          "plannedKm": 13.5,
+          "km": 14,
+          "minutes": 81,
+          "bike": false,
+          "completedAt": "2026-07-26T09:30:00.000Z",
+          "feel": "zwaar"
+        },
+        "2026-07-28": {
+          "date": "2026-07-28",
+          "kind": "short",
+          "plannedKm": 20,
+          "km": 20,
+          "minutes": 120,
+          "bike": false,
+          "completedAt": "2026-07-28T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-08-02": {
+          "date": "2026-08-02",
+          "kind": "long",
+          "plannedKm": 14,
+          "km": 14.5,
+          "minutes": 84,
+          "bike": false,
+          "completedAt": "2026-08-02T09:30:00.000Z",
+          "feel": "zwaar"
+        }
+      },
+      "runPlans": {
+        "2026-07-26": 13
+      },
+      "deloadSkips": {
+        "2026-07-20": {
+          "weekStart": "2026-07-20",
+          "confirmedAt": "2026-07-20T08:00:00.000Z",
+          "acknowledged": "Ik weet wat ik riskeer."
+        }
+      },
+      "dismissedWarnings": {
+        "benen-duurloop:5-7:legs_a:hoog": "2026-07-06"
+      },
+      "deviations": [
+        {
+          "id": "d1",
+          "date": "2026-07-19",
+          "kind": "run_distance",
+          "suggested": 12,
+          "chosen": 14,
+          "note": "Duurloop: 14 km gelopen in plaats van 12.",
+          "createdAt": "2026-07-19T10:00:00.000Z"
+        }
+      ],
+      "activities": [
+        {
+          "id": "a1",
+          "date": "2026-07-11",
+          "type": "fietsen",
+          "minutes": 65,
+          "distanceKm": 22,
+          "intensity": "rustig",
+          "note": "rondje Twente",
+          "createdAt": "2026-07-11T20:00:00.000Z"
+        },
+        {
+          "id": "a2",
+          "date": "2026-07-25",
+          "type": "hardlopen",
+          "minutes": 32,
+          "distanceKm": 5.5,
+          "intensity": "normaal",
+          "note": null,
+          "createdAt": "2026-07-25T19:00:00.000Z"
+        }
+      ],
+      "skips": {
+        "2026-07-08:strength": {
+          "reason": "druk",
+          "what": "strength"
+        }
+      },
+      "moves": {
+        "2026-07-15": "2026-07-16"
+      },
+      "runMoves": {},
+      "overrides": {
+        "2026-07-22": {
+          "short": true
+        }
+      },
+      "exerciseState": {
+        "leg_press": {
+          "targetWeight": 140,
+          "targetReps": 10,
+          "belowMinStreak": 0,
+          "lastNote": "omhoog naar 140",
+          "lastUpdated": "2026-07-20",
+          "increaseWeek": "2026-07-20",
+          "increasedKg": 5
+        },
+        "bench_smith": {
+          "targetWeight": 62.5,
+          "targetReps": 8,
+          "belowMinStreak": 1,
+          "lastNote": null,
+          "lastUpdated": "2026-07-27"
+        },
+        "band_lateral_walk": {
+          "targetWeight": null,
+          "targetReps": 20,
+          "targetLevel": 3,
+          "belowMinStreak": 0,
+          "lastNote": null,
+          "lastUpdated": "2026-07-13"
+        }
+      },
+      "notices": [
+        {
+          "date": "2026-07-20",
+          "text": "Leg press: streefgewicht naar 140 kg."
+        }
+      ],
+      "lastExportAt": "2026-08-26T12:15:16.828Z"
+    },
+    "anouc": {
+      "id": "anouc",
+      "naam": "Anouc",
+      "programId": "fullbody_hardlopen",
+      "startDate": "2026-06-01",
+      "settings": {
+        "bodyweightKg": 62,
+        "sensitive": {
+          "knee_deep": "ok",
+          "hip_deep": "ok",
+          "achilles": "ok",
+          "calf": "ok",
+          "lateral_hip": "ok",
+          "lower_back": "ok",
+          "shoulder": "ok"
+        },
+        "travelMode": false,
+        "barWeights": {
+          "trap_bar": 20,
+          "smith": 15,
+          "barbell": 20,
+          "deadlift_bar": 20,
+          "curl_bar": 7.5
+        },
+        "plates": [
+          1.25,
+          2.5,
+          5,
+          10,
+          15,
+          20,
+          25
+        ]
+      },
+      "permanentReplacements": {
+        "push:2": "db_shoulder_press"
+      },
+      "checkins": {
+        "2026-06-01": 4,
+        "2026-06-04": 3,
+        "2026-06-08": 4,
+        "2026-06-11": 3,
+        "2026-06-15": 4,
+        "2026-06-18": 3,
+        "2026-06-22": 4,
+        "2026-06-25": 3,
+        "2026-06-29": 4,
+        "2026-07-02": 3,
+        "2026-07-06": 4,
+        "2026-07-09": 3,
+        "2026-07-13": 4,
+        "2026-07-16": 3,
+        "2026-07-20": 4,
+        "2026-07-23": 3,
+        "2026-07-27": 4,
+        "2026-07-30": 3
+      },
+      "dayChecks": {
+        "2026-06-01": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-03": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-08": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-10": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-15": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-17": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-22": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-06-24": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-06-29": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-01": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-06": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-08": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-13": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-15": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-20": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-22": {
+          "sleep": 2,
+          "energy": 2
+        },
+        "2026-07-27": {
+          "sleep": 3,
+          "energy": 2
+        },
+        "2026-07-29": {
+          "sleep": 2,
+          "energy": 2
+        }
+      },
+      "sessions": {
+        "2026-06-01:legs_a": {
+          "date": "2026-06-01",
+          "kind": "legs_a",
+          "completedAt": "2026-06-01T19:15:00.000Z",
+          "startedAt": "2026-06-01T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-04:push": {
+          "date": "2026-06-04",
+          "kind": "push",
+          "completedAt": "2026-06-04T19:15:00.000Z",
+          "startedAt": "2026-06-04T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-08:legs_a": {
+          "date": "2026-06-08",
+          "kind": "legs_a",
+          "completedAt": "2026-06-08T19:15:00.000Z",
+          "startedAt": "2026-06-08T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-11:push": {
+          "date": "2026-06-11",
+          "kind": "push",
+          "completedAt": "2026-06-11T19:15:00.000Z",
+          "startedAt": "2026-06-11T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-15:legs_a": {
+          "date": "2026-06-15",
+          "kind": "legs_a",
+          "completedAt": "2026-06-15T19:15:00.000Z",
+          "startedAt": "2026-06-15T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-18:push": {
+          "date": "2026-06-18",
+          "kind": "push",
+          "completedAt": "2026-06-18T19:15:00.000Z",
+          "startedAt": "2026-06-18T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-22:legs_a": {
+          "date": "2026-06-22",
+          "kind": "legs_a",
+          "completedAt": "2026-06-22T19:15:00.000Z",
+          "startedAt": "2026-06-22T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-25:push": {
+          "date": "2026-06-25",
+          "kind": "push",
+          "completedAt": "2026-06-25T19:15:00.000Z",
+          "startedAt": "2026-06-25T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-06-29:legs_a": {
+          "date": "2026-06-29",
+          "kind": "legs_a",
+          "completedAt": "2026-06-29T19:15:00.000Z",
+          "startedAt": "2026-06-29T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-02:push": {
+          "date": "2026-07-02",
+          "kind": "push",
+          "completedAt": "2026-07-02T19:15:00.000Z",
+          "startedAt": "2026-07-02T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-06:legs_a": {
+          "date": "2026-07-06",
+          "kind": "legs_a",
+          "completedAt": "2026-07-06T19:15:00.000Z",
+          "startedAt": "2026-07-06T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-09:push": {
+          "date": "2026-07-09",
+          "kind": "push",
+          "completedAt": "2026-07-09T19:15:00.000Z",
+          "startedAt": "2026-07-09T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-13:legs_a": {
+          "date": "2026-07-13",
+          "kind": "legs_a",
+          "completedAt": "2026-07-13T19:15:00.000Z",
+          "startedAt": "2026-07-13T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-16:push": {
+          "date": "2026-07-16",
+          "kind": "push",
+          "completedAt": "2026-07-16T19:15:00.000Z",
+          "startedAt": "2026-07-16T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-20:legs_a": {
+          "date": "2026-07-20",
+          "kind": "legs_a",
+          "completedAt": "2026-07-20T19:15:00.000Z",
+          "startedAt": "2026-07-20T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-23:push": {
+          "date": "2026-07-23",
+          "kind": "push",
+          "completedAt": "2026-07-23T19:15:00.000Z",
+          "startedAt": "2026-07-23T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-27:legs_a": {
+          "date": "2026-07-27",
+          "kind": "legs_a",
+          "completedAt": "2026-07-27T19:15:00.000Z",
+          "startedAt": "2026-07-27T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 140,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 140,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        },
+        "2026-07-30:push": {
+          "date": "2026-07-30",
+          "kind": "push",
+          "completedAt": "2026-07-30T19:15:00.000Z",
+          "startedAt": "2026-07-30T18:20:00.000Z",
+          "short": false,
+          "entries": {
+            "push:0": [
+              {
+                "weight": 60,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 9,
+                "rir": 1,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "push:0": "bench_smith"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "push:0"
+          ],
+          "feel": "goed",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 8,
+            "done": true
+          }
+        }
+      },
+      "runs": {
+        "2026-06-02": {
+          "date": "2026-06-02",
+          "kind": "short",
+          "plannedKm": 12,
+          "km": 12,
+          "minutes": 72,
+          "bike": false,
+          "completedAt": "2026-06-02T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-07": {
+          "date": "2026-06-07",
+          "kind": "long",
+          "plannedKm": 10,
+          "km": 10.5,
+          "minutes": 60,
+          "bike": false,
+          "completedAt": "2026-06-07T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-09": {
+          "date": "2026-06-09",
+          "kind": "short",
+          "plannedKm": 13,
+          "km": 13,
+          "minutes": 78,
+          "bike": false,
+          "completedAt": "2026-06-09T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-14": {
+          "date": "2026-06-14",
+          "kind": "long",
+          "plannedKm": 10.5,
+          "km": 11,
+          "minutes": 63,
+          "bike": false,
+          "completedAt": "2026-06-14T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-16": {
+          "date": "2026-06-16",
+          "kind": "short",
+          "plannedKm": 14,
+          "km": 14,
+          "minutes": 84,
+          "bike": false,
+          "completedAt": "2026-06-16T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-21": {
+          "date": "2026-06-21",
+          "kind": "long",
+          "plannedKm": 11,
+          "km": 11.5,
+          "minutes": 66,
+          "bike": false,
+          "completedAt": "2026-06-21T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-23": {
+          "date": "2026-06-23",
+          "kind": "short",
+          "plannedKm": 15,
+          "km": 15,
+          "minutes": 90,
+          "bike": false,
+          "completedAt": "2026-06-23T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-28": {
+          "date": "2026-06-28",
+          "kind": "long",
+          "plannedKm": 11.5,
+          "km": 12,
+          "minutes": 69,
+          "bike": false,
+          "completedAt": "2026-06-28T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-06-30": {
+          "date": "2026-06-30",
+          "kind": "short",
+          "plannedKm": 16,
+          "km": 16,
+          "minutes": 96,
+          "bike": false,
+          "completedAt": "2026-06-30T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-05": {
+          "date": "2026-07-05",
+          "kind": "long",
+          "plannedKm": 12,
+          "km": 12.5,
+          "minutes": 72,
+          "bike": false,
+          "completedAt": "2026-07-05T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-07": {
+          "date": "2026-07-07",
+          "kind": "short",
+          "plannedKm": 17,
+          "km": 17,
+          "minutes": 102,
+          "bike": false,
+          "completedAt": "2026-07-07T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-12": {
+          "date": "2026-07-12",
+          "kind": "long",
+          "plannedKm": 12.5,
+          "km": 13,
+          "minutes": 75,
+          "bike": false,
+          "completedAt": "2026-07-12T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-14": {
+          "date": "2026-07-14",
+          "kind": "short",
+          "plannedKm": 18,
+          "km": 18,
+          "minutes": 108,
+          "bike": false,
+          "completedAt": "2026-07-14T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-19": {
+          "date": "2026-07-19",
+          "kind": "long",
+          "plannedKm": 13,
+          "km": 13.5,
+          "minutes": 78,
+          "bike": false,
+          "completedAt": "2026-07-19T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-21": {
+          "date": "2026-07-21",
+          "kind": "short",
+          "plannedKm": 19,
+          "km": 19,
+          "minutes": 114,
+          "bike": false,
+          "completedAt": "2026-07-21T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-26": {
+          "date": "2026-07-26",
+          "kind": "long",
+          "plannedKm": 13.5,
+          "km": 14,
+          "minutes": 81,
+          "bike": false,
+          "completedAt": "2026-07-26T09:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-07-28": {
+          "date": "2026-07-28",
+          "kind": "short",
+          "plannedKm": 20,
+          "km": 20,
+          "minutes": 120,
+          "bike": false,
+          "completedAt": "2026-07-28T18:30:00.000Z",
+          "feel": "goed"
+        },
+        "2026-08-02": {
+          "date": "2026-08-02",
+          "kind": "long",
+          "plannedKm": 14,
+          "km": 14.5,
+          "minutes": 84,
+          "bike": false,
+          "completedAt": "2026-08-02T09:30:00.000Z",
+          "feel": "goed"
+        }
+      },
+      "runPlans": {
+        "2026-07-26": 13
+      },
+      "deloadSkips": {
+        "2026-07-20": {
+          "weekStart": "2026-07-20",
+          "confirmedAt": "2026-07-20T08:00:00.000Z",
+          "acknowledged": "Ik weet wat ik riskeer."
+        }
+      },
+      "dismissedWarnings": {
+        "benen-duurloop:5-7:legs_a:hoog": "2026-07-06"
+      },
+      "deviations": [
+        {
+          "id": "d1",
+          "date": "2026-07-19",
+          "kind": "run_distance",
+          "suggested": 12,
+          "chosen": 14,
+          "note": "Duurloop: 14 km gelopen in plaats van 12.",
+          "createdAt": "2026-07-19T10:00:00.000Z"
+        }
+      ],
+      "activities": [
+        {
+          "id": "a1",
+          "date": "2026-07-11",
+          "type": "fietsen",
+          "minutes": 65,
+          "distanceKm": 22,
+          "intensity": "rustig",
+          "note": "rondje Twente",
+          "createdAt": "2026-07-11T20:00:00.000Z"
+        },
+        {
+          "id": "a2",
+          "date": "2026-07-25",
+          "type": "hardlopen",
+          "minutes": 32,
+          "distanceKm": 5.5,
+          "intensity": "normaal",
+          "note": null,
+          "createdAt": "2026-07-25T19:00:00.000Z"
+        }
+      ],
+      "skips": {
+        "2026-07-08:strength": {
+          "reason": "druk",
+          "what": "strength"
+        }
+      },
+      "moves": {
+        "2026-07-15": "2026-07-16"
+      },
+      "runMoves": {},
+      "overrides": {
+        "2026-07-22": {
+          "short": true
+        }
+      },
+      "exerciseState": {
+        "leg_press": {
+          "targetWeight": 140,
+          "targetReps": 10,
+          "belowMinStreak": 0,
+          "lastNote": "omhoog naar 140",
+          "lastUpdated": "2026-07-20",
+          "increaseWeek": "2026-07-20",
+          "increasedKg": 5
+        },
+        "bench_smith": {
+          "targetWeight": 62.5,
+          "targetReps": 8,
+          "belowMinStreak": 1,
+          "lastNote": null,
+          "lastUpdated": "2026-07-27"
+        },
+        "band_lateral_walk": {
+          "targetWeight": null,
+          "targetReps": 20,
+          "targetLevel": 3,
+          "belowMinStreak": 0,
+          "lastNote": null,
+          "lastUpdated": "2026-07-13"
+        }
+      },
+      "notices": [
+        {
+          "date": "2026-07-20",
+          "text": "Leg press: streefgewicht naar 140 kg."
+        }
+      ],
+      "lastExportAt": null
+    }
+  },
+  "exportedAt": "2026-08-26T12:15:16.828Z"
+}
