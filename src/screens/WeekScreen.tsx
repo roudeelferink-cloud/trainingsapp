@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Actions,
   Caps,
+  Link,
   Primary,
   Screen,
   Secondary,
@@ -11,12 +12,13 @@ import {
 import { formatThousands, Sheet } from '../components/ui'
 import { programFor } from '../data/programs'
 import { activitiesOn, activityKm, activityTypeLabel, paceMinPerKm } from '../logic/activities'
-import { runName } from '../logic/backfill'
+import { missedInWeek, runName } from '../logic/backfill'
 import { buildDay, type DayPlan } from '../logic/day'
 import { addDays, dayNumber, formatRange, formatShort, mondayOf, today, weekdayShort } from '../logic/dates'
 import { fmt, weekRunFacts } from '../logic/runningLoad'
 import { sessionVolumeKg } from '../logic/stats'
 import { weeksUntilDeload } from '../logic/deload'
+import { PlanScreen } from './PlanScreen'
 import { useStore } from '../store/store'
 import type { DayKind, UserState } from '../types'
 
@@ -37,6 +39,8 @@ export function WeekScreen({
   const [offset, setOffset] = useState(0)
   /** dag waarvan er meer dan één ding te doen is */
   const [keuze, setKeuze] = useState<string | null>(null)
+  /** het planscherm van deze week staat open */
+  const [plannen, setPlannen] = useState(false)
 
   const monday = addDays(mondayOf(today()), offset * 7)
   const dag = buildDay(state, monday)
@@ -45,7 +49,8 @@ export function WeekScreen({
   const program = programFor(state)
   const week = weekRunFacts(state, monday)
   const dagen = program.week.map((_, i) => addDays(monday, i))
-  const plannen = dagen.map((iso) => buildDay(state, iso))
+  const dagplannen = dagen.map((iso) => buildDay(state, iso))
+  const gemist = missedInWeek(state, monday)
 
   return (
     <Screen
@@ -74,15 +79,20 @@ export function WeekScreen({
       </div>
 
       <div className="mt-block">
-        <Stats variant="week" items={weekStats(plannen, week)} />
+        <Stats variant="week" items={weekStats(dagplannen, week)} />
       </div>
 
-      <div className="mt-block flex flex-col">
+      <div className="mt-block flex items-baseline justify-between gap-column">
+        <Caps>{gemist.length > 0 ? `${gemist.length} nog in te vullen` : 'Dagen'}</Caps>
+        <Link onClick={() => setPlannen(true)}>Plannen</Link>
+      </div>
+
+      <div className="mt-in-block flex flex-col">
         {dagen.map((iso, i) => (
           <DagRij
             key={iso}
             iso={iso}
-            plan={plannen[i]}
+            plan={dagplannen[i]}
             laatste={i === dagen.length - 1}
             onOpenSession={onOpenSession}
             onOpenRun={onOpenRun}
@@ -95,7 +105,7 @@ export function WeekScreen({
       {keuze !== null && (
         <DagKeuze
           iso={keuze}
-          plan={plannen[dagen.indexOf(keuze)]}
+          plan={dagplannen[dagen.indexOf(keuze)]}
           onClose={() => setKeuze(null)}
           onOpenSession={(date, kind) => {
             setKeuze(null)
@@ -103,6 +113,21 @@ export function WeekScreen({
           }}
           onOpenRun={(date) => {
             setKeuze(null)
+            onOpenRun(date)
+          }}
+        />
+      )}
+
+      {plannen && (
+        <PlanScreen
+          monday={monday}
+          onClose={() => setPlannen(false)}
+          onOpenSession={(date, kind) => {
+            setPlannen(false)
+            onOpenSession(date, kind)
+          }}
+          onOpenRun={(date) => {
+            setPlannen(false)
             onOpenRun(date)
           }}
         />
