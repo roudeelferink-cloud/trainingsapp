@@ -16,13 +16,13 @@ import {
 import { MoveSheet } from '../components/MoveSheet'
 import { ChoiceGrid, ConfirmCheck, Empty, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
-import { activitiesOn, paceMinPerKm } from '../logic/activities'
+import { activitiesOn } from '../logic/activities'
 import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
 import { formatLong, formatShort, addDays, today } from '../logic/dates'
 import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
 import { fmt, runContext, weekRunFacts } from '../logic/runningLoad'
-import { DAY_SCORES, FEELS, feelLabel } from '../logic/feel'
+import { DAY_SCORES, feelLabel } from '../logic/feel'
 import { DELOAD_RISK } from '../logic/deload'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
@@ -40,7 +40,13 @@ const REASONS: { id: SkipReason; label: string }[] = [
  * programma staat, daaronder waarom het is wat het is, dan de check-in, en onderin
  * — binnen duimbereik — de knop waar je op drukt.
  */
-export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: DayKind) => void }) {
+export function Today({
+  onOpenSession,
+  onOpenRun,
+}: {
+  onOpenSession: (date: string, kind: DayKind) => void
+  onOpenRun: (date: string) => void
+}) {
   const state = useStore()
   const iso = today()
   const plan = buildDay(state, iso)
@@ -48,7 +54,11 @@ export function Today({ onOpenSession }: { onOpenSession: (date: string, kind: D
   const leeg = !plan.isRest && !plan.run && !plan.strength && !plan.movedTo && !plan.runMovedTo
 
   return (
-    <Screen action={<TodayActions iso={iso} plan={plan} onOpenSession={onOpenSession} />}>
+    <Screen
+      action={
+        <TodayActions iso={iso} plan={plan} onOpenSession={onOpenSession} onOpenRun={onOpenRun} />
+      }
+    >
       <TopLine left={formatLong(plan.date)} right={<Markeringen plan={plan} />} />
       <Rule className="my-block" />
 
@@ -541,10 +551,12 @@ function TodayActions({
   iso,
   plan,
   onOpenSession,
+  onOpenRun,
 }: {
   iso: string
   plan: DayPlan
   onOpenSession: (date: string, kind: DayKind) => void
+  onOpenRun: (date: string) => void
 }) {
   const run = plan.run
   const s = plan.strength
@@ -556,7 +568,7 @@ function TodayActions({
       </Actions>
     )
   }
-  if (run && !run.done) return <RunActions iso={iso} plan={plan} />
+  if (run && !run.done) return <RunActions iso={iso} plan={plan} onOpenRun={onOpenRun} />
   if (s?.skipped) {
     return (
       <Actions>
@@ -565,6 +577,8 @@ function TodayActions({
     )
   }
   if (s) return <StrengthActions iso={iso} plan={plan} onOpenSession={onOpenSession} />
+  // de loop is af en er staat verder niets: hem terugzien en bijstellen kan nog steeds
+  if (run?.done) return <RunActions iso={iso} plan={plan} onOpenRun={onOpenRun} />
 
   if (plan.movedTo || plan.runMovedTo) {
     const wat = plan.movedTo ? 'strength' : 'run'
@@ -580,15 +594,20 @@ function TodayActions({
   return null
 }
 
-function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
+function RunActions({
+  iso,
+  plan,
+  onOpenRun,
+}: {
+  iso: string
+  plan: DayPlan
+  onOpenRun: (date: string) => void
+}) {
   const state = useStore()
   const run = plan.run!
   const [meer, setMeer] = useState(false)
-  const [logOpen, setLogOpen] = useState(false)
   const [skipOpen, setSkipOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
-  const [km, setKm] = useState(run.km)
-  const [min, setMin] = useState(Math.round(run.km * 6))
   // de doellijst rekent per dag door wat een verplaatsing zou betekenen; dat gebeurt pas
   // als de lijst open gaat, niet bij elke render van dit scherm
   const targets = useMemo(() => (moveOpen ? moveTargets(state, iso, 'run') : []), [moveOpen, state, iso])
@@ -597,14 +616,8 @@ function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
   return (
     <>
       <Actions>
-        <Primary
-          onClick={() => {
-            setKm(run.bike ? 0 : run.km)
-            setMin(run.bike ? BIKE_MINUTES : Math.round(run.km * 6))
-            setLogOpen(true)
-          }}
-        >
-          {run.bike ? 'Fietsen afvinken' : 'Loop afvinken'}
+        <Primary onClick={() => onOpenRun(iso)}>
+          {run.done ? 'Loop bekijken' : run.bike ? 'Start fietsen' : 'Start loop'}
         </Primary>
         <Secondary onClick={() => setMeer(true)}>Meer</Secondary>
       </Actions>
@@ -632,78 +645,6 @@ function RunActions({ iso, plan }: { iso: string; plan: DayPlan }) {
             }}
           >
             Overslaan
-          </button>
-        </div>
-      </Sheet>
-
-      <Sheet
-        open={logOpen}
-        onClose={() => setLogOpen(false)}
-        title={run.bike ? 'Fietsen loggen' : 'Loop loggen'}
-      >
-        <div className="flex flex-col gap-block">
-          {!run.bike && (
-            <div className="flex flex-col gap-in-block">
-              <Caps>Werkelijk gelopen</Caps>
-              <Stepper
-                value={km}
-                onChange={setKm}
-                step={0.5}
-                decimals={1}
-                suffix="km"
-                max={60}
-                ariaLabel="Gelopen kilometers"
-              />
-              <p className="text-meta text-dim">
-                Gepland was {fmt(run.km)} km. Dit getal — wat je écht gelopen hebt — is
-                waar de opbouw van de komende weken op rekent.
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col gap-in-block">
-            <Caps>Duur — optioneel</Caps>
-            <Stepper
-              value={min}
-              onChange={setMin}
-              step={5}
-              max={300}
-              suffix="min"
-              ariaLabel="Duur in minuten"
-            />
-            {!run.bike && km > 0 && min > 0 && (
-              <p className="text-meta text-dim">Tempo {paceMinPerKm(km, min)}</p>
-            )}
-          </div>
-          {/* dezelfde afsluitende beoordeling als bij kracht: één tik, en het staat erin */}
-          <div className="flex flex-col gap-in-block">
-            <Caps>Hoe ging het?</Caps>
-            <ChoiceGrid
-              options={FEELS}
-              onChange={(feel) => {
-                A.completeRun(iso, run.kind, {
-                  plannedKm: run.km,
-                  km: run.bike ? 0 : km,
-                  minutes: min,
-                  bike: run.bike,
-                  feel,
-                })
-                setLogOpen(false)
-              }}
-            />
-          </div>
-          <button
-            className="btn-quiet w-full"
-            onClick={() => {
-              A.completeRun(iso, run.kind, {
-                plannedKm: run.km,
-                km: run.bike ? 0 : km,
-                minutes: min,
-                bike: run.bike,
-              })
-              setLogOpen(false)
-            }}
-          >
-            Opslaan zonder beoordeling
           </button>
         </div>
       </Sheet>

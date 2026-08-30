@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('schermen renderen', () => {
   it('rendert Vandaag', () => {
-    const html = render(createElement(Today, { onOpenSession: noop }))
+    const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
     expect(html.length).toBeGreaterThan(500)
     expect(html).toContain('Hoe ligt de dag?')
   })
@@ -55,7 +55,7 @@ describe('schermen renderen', () => {
   })
 
   it('rendert Week', () => {
-    const html = render(createElement(WeekScreen, { onOpenSession: noop }))
+    const html = render(createElement(WeekScreen, { onOpenSession: noop, onOpenRun: noop }))
     expect(html).toContain('Rustdag')
   })
 
@@ -82,7 +82,7 @@ describe('schermen renderen', () => {
   })
 
   it('zet slaap, energie en benen in één check-inblok op Vandaag', () => {
-    const html = render(createElement(Today, { onOpenSession: noop }))
+    const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
     expect(html).toContain('Hoe ligt de dag?')
     // slaap en energie op een schaal van 3, met de labels uit DAY_SCORES
     expect(html).toContain('Slaap')
@@ -96,7 +96,7 @@ describe('schermen renderen', () => {
 
   it('toont de deloadweek met de mogelijkheid om hem over te slaan', () => {
     setState((s) => ({ ...s, startDate: addDays(mondayOf(today()), -49) })) // week 8
-    const html = render(createElement(Today, { onOpenSession: noop }))
+    const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
     expect(html).toContain('Deloadweek')
     // overslaan zit achter een dialoog met het risico erin; de knop opent die, hij slaat niets over
     expect(html).toContain('Deload overslaan')
@@ -124,15 +124,16 @@ describe('schermen renderen', () => {
     vi.setSystemTime(fromISO(zondag))
     try {
       // zonder zelfgezette afstand staat er alleen dát er een duurloop is
-      expect(render(createElement(Today, { onOpenSession: noop }))).toContain('Duurloop')
+      expect(render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))).toContain('Duurloop')
 
       // met een eigen afstand staat het getal er wel
       A.setPlannedRunKm(zondag, 12)
-      const html = render(createElement(Today, { onOpenSession: noop }))
+      const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
       expect(html).toContain('>12<')
       expect(html).toContain('km')
-      // afvinken is de primaire actie; de rest zit achter de knop ernaast
-      expect(html).toContain('Loop afvinken')
+      // de loop openen is de primaire actie — afvinken gebeurt op het loopscherm zelf,
+      // net als bij een krachtsessie; de rest zit achter de knop ernaast
+      expect(html).toContain('Start loop')
       expect(html).toContain('Meer')
     } finally {
       vi.useRealTimers()
@@ -147,7 +148,7 @@ describe('schermen renderen', () => {
     vi.useFakeTimers()
     vi.setSystemTime(fromISO(donderdag))
     try {
-      const html = render(createElement(Today, { onOpenSession: noop }))
+      const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
       expect(html).toContain('Geen sessie ingepland vandaag.')
       expect(html).toContain('Volgende sessie:')
       expect(html).toContain('hardlopen')
@@ -206,11 +207,11 @@ describe('schermen renderen', () => {
         sensitive: { ...s.settings.sensitive, knee_deep: 'off' },
       },
     }))
-    const html = render(createElement(Today, { onOpenSession: noop }))
+    const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
     // de markeringen rechtsboven staan in kleine letters in de DOM; het kapitaal komt uit de CSS
     expect(html).toContain('reismodus')
     expect(html).toContain('deloadweek')
-    expect(render(createElement(WeekScreen, { onOpenSession: noop }))).toContain('deloadweek')
+    expect(render(createElement(WeekScreen, { onOpenSession: noop, onOpenRun: noop }))).toContain('deloadweek')
   })
 
   it('houdt de uitleg standaard dicht, ook bij een oefening zonder eerdere logs', () => {
@@ -339,7 +340,7 @@ describe('schermen renderen', () => {
     const plan = buildDay(getState(), today())
     if (!plan.strength) return
 
-    const html = render(createElement(Today, { onOpenSession: noop }))
+    const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
 
     // de sessie staat er met naam en de weg erheen
     expect(html).toContain(plan.strength.naam)
@@ -438,7 +439,7 @@ describe('schermen renderen', () => {
     const plan = buildDay(getState(), woensdag)
     expect(plan.strength?.kind).toBe('full_body_a')
 
-    const html = render(createElement(WeekScreen, { onOpenSession: noop }))
+    const html = render(createElement(WeekScreen, { onOpenSession: noop, onOpenRun: noop }))
     expect(html).toContain('Full body A')
     expect(html).toContain('Full body B')
   })

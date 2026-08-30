@@ -8,16 +8,15 @@ import {
   Stats,
   type Stat,
 } from '../components/logboek'
-import { MoveSheet } from '../components/MoveSheet'
 import { formatThousands, Sheet } from '../components/ui'
-import { programFor, restDayHint } from '../data/programs'
+import { programFor } from '../data/programs'
 import { activitiesOn, activityKm, activityTypeLabel, paceMinPerKm } from '../logic/activities'
-import { buildDay, moveTargets, type DayPlan } from '../logic/day'
+import { runName } from '../logic/backfill'
+import { buildDay, type DayPlan } from '../logic/day'
 import { addDays, dayNumber, formatRange, formatShort, mondayOf, today, weekdayShort } from '../logic/dates'
 import { fmt, weekRunFacts } from '../logic/runningLoad'
 import { sessionVolumeKg } from '../logic/stats'
 import { weeksUntilDeload } from '../logic/deload'
-import * as A from '../store/actions'
 import { useStore } from '../store/store'
 import type { DayKind, UserState } from '../types'
 
@@ -27,11 +26,15 @@ import type { DayKind, UserState } from '../types'
  * De pijlen wisselen van week; "Naar vandaag" springt terug en is de enige okerknop
  * op dit scherm — oker zegt hier "hier ben je", en dat mag maar op één plek tegelijk.
  */
-export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, kind: DayKind) => void }) {
+export function WeekScreen({
+  onOpenSession,
+  onOpenRun,
+}: {
+  onOpenSession: (date: string, kind: DayKind) => void
+  onOpenRun: (date: string) => void
+}) {
   const state = useStore()
   const [offset, setOffset] = useState(0)
-  /** datum waarvan de loop verplaatst wordt; null = geen keuzelijst open */
-  const [runMoveFrom, setRunMoveFrom] = useState<string | null>(null)
   /** dag waarvan er meer dan één ding te doen is */
   const [keuze, setKeuze] = useState<string | null>(null)
 
@@ -82,7 +85,7 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
             plan={plannen[i]}
             laatste={i === dagen.length - 1}
             onOpenSession={onOpenSession}
-            onMoveRun={setRunMoveFrom}
+            onOpenRun={onOpenRun}
             onKeuze={setKeuze}
           />
         ))}
@@ -98,23 +101,9 @@ export function WeekScreen({ onOpenSession }: { onOpenSession: (date: string, ki
             setKeuze(null)
             onOpenSession(date, kind)
           }}
-          onMoveRun={(date) => {
+          onOpenRun={(date) => {
             setKeuze(null)
-            setRunMoveFrom(date)
-          }}
-        />
-      )}
-
-      {/* de doellijst hangt aan de gekozen dag, dus hij wordt pas berekend als hij nodig is */}
-      {runMoveFrom !== null && (
-        <MoveSheet
-          open
-          onClose={() => setRunMoveFrom(null)}
-          targets={moveTargets(state, runMoveFrom, 'run')}
-          hint={`De krachtsessie van die dag blijft staan.${restDayHint(program)}`}
-          onPick={(target) => {
-            A.moveRun(runMoveFrom, target)
-            setRunMoveFrom(null)
+            onOpenRun(date)
           }}
         />
       )}
@@ -162,19 +151,24 @@ function weekStats(plannen: DayPlan[], week: ReturnType<typeof weekRunFacts>): S
  * ---------------------------------------------------------------------- */
 
 /**
- * Wat er op een dag te doen valt, in de volgorde waarin het gebeurt.
+ * Wat er op een dag te openen valt, in de volgorde waarin het gebeurt.
  *
  * Het ontwerp geeft een dagregel geen knoppen, dus is de regel zelf de knop. Is er
  * één ding te doen, dan gebeurt dat meteen; zijn het er twee, dan vraagt de app eerst
  * welke — anders is niet te zien of je de loop of de sessie aantikt.
+ *
+ * Sinds een loop een echt sessiescherm heeft, opent de dagregel hem net zo goed als een
+ * krachtsessie: verplaatsen, overslaan en afvinken zitten dáár, en op de planpagina.
+ * Een afgeronde sessie blijft te openen — terugkijken en bijstellen hoort erbij; een
+ * overgeslagen sessie niet, die heeft zijn eigen weg terug op Vandaag.
  */
-export function dayActions(plan: DayPlan): { id: 'open' | 'move'; label: string }[] {
-  const out: { id: 'open' | 'move'; label: string }[] = []
-  if (plan.run && !plan.run.done && !plan.run.skipped) {
-    out.push({ id: 'move', label: 'Loop verplaatsen' })
+export function dayActions(plan: DayPlan): { id: 'run' | 'strength'; label: string }[] {
+  const out: { id: 'run' | 'strength'; label: string }[] = []
+  if (plan.run && !plan.run.skipped) {
+    out.push({ id: 'run', label: `${runName(plan.run.kind, plan.run.bike)} openen` })
   }
   if (plan.strength && !plan.strength.skipped) {
-    out.push({ id: 'open', label: `${plan.strength.naam} openen` })
+    out.push({ id: 'strength', label: `${plan.strength.naam} openen` })
   }
   return out
 }
@@ -184,14 +178,14 @@ function DagRij({
   plan,
   laatste,
   onOpenSession,
-  onMoveRun,
+  onOpenRun,
   onKeuze,
 }: {
   iso: string
   plan: DayPlan
   laatste: boolean
   onOpenSession: (date: string, kind: DayKind) => void
-  onMoveRun: (date: string) => void
+  onOpenRun: (date: string) => void
   onKeuze: (date: string) => void
 }) {
   const state = useStore()
@@ -204,8 +198,8 @@ function DagRij({
   const doen = () => {
     if (keuzes.length === 0) return
     if (keuzes.length > 1) return onKeuze(iso)
-    if (keuzes[0].id === 'open') return onOpenSession(iso, plan.strength!.kind)
-    onMoveRun(iso)
+    if (keuzes[0].id === 'strength') return onOpenSession(iso, plan.strength!.kind)
+    onOpenRun(iso)
   }
 
   // afgerond en voorbij: alles een toon zachter, het vinkje zegt de rest
@@ -320,13 +314,13 @@ function DagKeuze({
   plan,
   onClose,
   onOpenSession,
-  onMoveRun,
+  onOpenRun,
 }: {
   iso: string
   plan: DayPlan
   onClose: () => void
   onOpenSession: (date: string, kind: DayKind) => void
-  onMoveRun: (date: string) => void
+  onOpenRun: (date: string) => void
 }) {
   return (
     <Sheet open onClose={onClose} title={formatShort(iso)}>
@@ -335,7 +329,7 @@ function DagKeuze({
           <button
             key={a.id}
             className="btn-ghost w-full"
-            onClick={() => (a.id === 'open' ? onOpenSession(iso, plan.strength!.kind) : onMoveRun(iso))}
+            onClick={() => (a.id === 'strength' ? onOpenSession(iso, plan.strength!.kind) : onOpenRun(iso))}
           >
             {a.label}
           </button>

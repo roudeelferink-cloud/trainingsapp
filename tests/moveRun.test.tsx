@@ -194,29 +194,30 @@ describe('in de schermen', () => {
     const do_ = dezeWeek(3)
     setState((s) => ({ ...s, startDate: mondayOf(today()), runMoves: { [di]: do_ } }))
 
-    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {}, onOpenRun: () => {} }))
     expect(html).toContain('loop verplaatst naar')
     // de krachtsessie van die dinsdag staat er nog gewoon
     expect(buildDay(getState(), di).strength?.kind).toBe('push')
   })
 
-  it('laat elke loop van de week vanaf de weekpagina verplaatsen', () => {
+  it('laat elke loop van de week vanaf de weekpagina openen', () => {
     setState((s) => ({ ...s, startDate: mondayOf(today()) }))
     const loopdagen = [1, 3, 6].map((d) => dezeWeek(d))
 
-    // de dagregel ís de knop; wat je ermee kunt staat in dayActions
+    // de dagregel ís de knop; wat je ermee kunt staat in dayActions. Sinds een loop een
+    // eigen sessiescherm heeft, opent die regel de loop — verplaatsen zit daarbinnen.
     for (const iso of loopdagen) {
       const plan = buildDay(getState(), iso)
       expect(plan.run, iso).not.toBeNull()
-      expect(dayActions(plan).map((a) => a.id), iso).toContain('move')
+      expect(dayActions(plan).map((a) => a.id), iso).toContain('run')
     }
     // en op een dag met loop én kracht kun je allebei bereiken
     const dinsdag = buildDay(getState(), dezeWeek(1))
     expect(dinsdag.strength).not.toBeNull()
-    expect(dayActions(dinsdag).map((a) => a.id)).toEqual(['move', 'open'])
+    expect(dayActions(dinsdag).map((a) => a.id)).toEqual(['run', 'strength'])
 
     // de regels staan ook echt als knop op het scherm
-    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {}, onOpenRun: () => {} }))
     expect(html).toContain('kies wat je doet')
   })
 
@@ -228,13 +229,13 @@ describe('in de schermen', () => {
     // dit is precies wat de knop op de weekpagina doet
     expect(A.moveRun(zondag, addDays(zondag, 1)).ok).toBe(true)
 
-    const html = render(createElement(WeekScreen, { onOpenSession: () => {} }))
+    const html = render(createElement(WeekScreen, { onOpenSession: () => {}, onOpenRun: () => {} }))
     expect(html).toContain('loop verplaatst naar')
     expect(buildDay(getState(), maandag).run).toBeNull() // maandag van dezelfde week, niet de volgende
     expect(buildDay(getState(), addDays(zondag, 1)).run?.movedFrom).toBe(zondag)
   })
 
-  it('toont geen verplaatsknop bij een afgevinkte of overgeslagen loop', () => {
+  it('laat een afgevinkte loop nog openen en een overgeslagen niet', () => {
     const dinsdag = dezeWeek(1)
     setState((s) => ({ ...s, startDate: mondayOf(today()) }))
     const run = buildDay(getState(), dinsdag).run!
@@ -242,20 +243,21 @@ describe('in de schermen', () => {
     A.completeRun(dinsdag, run.kind, { plannedKm: run.km, km: run.km, minutes: 30, bike: false })
     A.skipSession(dezeWeek(3), 'run', 'druk')
 
-    // alleen de zondagloop is nog te verplaatsen
-    const teVerplaatsen = [0, 1, 2, 3, 4, 5, 6]
+    const teOpenen = [0, 1, 2, 3, 4, 5, 6]
       .map((d) => dezeWeek(d))
-      .filter((iso) => dayActions(buildDay(getState(), iso)).some((a) => a.id === 'move'))
-    expect(teVerplaatsen).toEqual([dezeWeek(6)])
+      .filter((iso) => dayActions(buildDay(getState(), iso)).some((a) => a.id === 'run'))
+    // de afgevinkte dinsdag blijft te openen om terug te kijken; de overgeslagen
+    // donderdag niet — die heeft zijn eigen weg terug op Vandaag
+    expect(teOpenen).toEqual([dinsdag, dezeWeek(6)])
 
     // het scherm rendert die stand zonder te struikelen
-    expect(render(createElement(WeekScreen, { onOpenSession: () => {} })).length).toBeGreaterThan(500)
+    expect(render(createElement(WeekScreen, { onOpenSession: () => {}, onOpenRun: () => {} })).length).toBeGreaterThan(500)
   })
 
   it('geeft de loop van vandaag een verplaatsknop en een terugknop', () => {
     setState((s) => ({ ...s, startDate: mondayOf(today()) }))
     const iso = today()
-    const html = render(createElement(Today, { onOpenSession: () => {} }))
+    const html = render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} }))
 
     // staat er vandaag geen loop (rustdag of een dag zonder loop), dan valt er ook
     // niets te verplaatsen en hoort er geen melding te staan
@@ -267,7 +269,7 @@ describe('in de schermen', () => {
     expect(html).toContain('Verplaatsen')
 
     setState((s) => ({ ...s, runMoves: { [iso]: addDays(iso, 1) } }))
-    const na = render(createElement(Today, { onOpenSession: () => {} }))
+    const na = render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} }))
     expect(buildDay(getState(), iso).run).toBeNull()
     expect(na).toContain('Loop verplaatst naar')
     expect(na).toContain('Verplaatsing ongedaan maken')

@@ -121,7 +121,7 @@ describe('instellingenscherm met oude of halve data', () => {
     expect(html).toContain('startgewichtadvies')
 
     // en de weg terug werkt: Vandaag rendert op dezelfde staat
-    expect(render(createElement(Today, { onOpenSession: () => {} })).length).toBeGreaterThan(500)
+    expect(render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} })).length).toBeGreaterThan(500)
   })
 
   it('overleeft de import van een oude export zonder gevoelige gebieden of stanggewichten', async () => {
@@ -149,7 +149,7 @@ describe('instellingenscherm met oude of halve data', () => {
     expect(settings.bodyweightKg).toBe(80)
 
     verwachtEenHeelScherm(render(createElement(SettingsScreen)))
-    expect(render(createElement(Today, { onOpenSession: () => {} })).length).toBeGreaterThan(500)
+    expect(render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} })).length).toBeGreaterThan(500)
   })
 
   it('rendert met onleesbare instellingen zonder de rest mee te slepen', async () => {

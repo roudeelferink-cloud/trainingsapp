@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
 import { HistoryScreen } from './screens/HistoryScreen'
+import { RunScreen } from './screens/RunScreen'
 import { SessionScreen } from './screens/SessionScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { Today } from './screens/Today'
@@ -36,10 +37,13 @@ export default function App() {
   const root = useRoot()
   const [tab, setTab] = useState<Tab>('vandaag')
   const [session, setSession] = useState<{ date: string; kind: DayKind } | null>(null)
+  /** datum van de loop die open staat; loopt los van de krachtsessie */
+  const [runDate, setRunDate] = useState<string | null>(null)
   const [instellingen, setInstellingen] = useState(false)
   const klaar = !!root.currentUser
 
   const open = (date: string, kind: DayKind) => setSession({ date, kind })
+  const openRun = (date: string) => setRunDate(date)
 
   if (!klaar) {
     return (
@@ -64,8 +68,8 @@ export default function App() {
           scherm={TABS.find((t) => t.id === tab)?.label}
           onReset={() => setTab('vandaag')}
         >
-          {tab === 'vandaag' && <Today onOpenSession={open} />}
-          {tab === 'week' && <WeekScreen onOpenSession={open} />}
+          {tab === 'vandaag' && <Today onOpenSession={open} onOpenRun={openRun} />}
+          {tab === 'week' && <WeekScreen onOpenSession={open} onOpenRun={openRun} />}
           {tab === 'historie' && <HistoryScreen onOpenSettings={() => setInstellingen(true)} />}
         </ErrorBoundary>
       </div>
@@ -95,6 +99,19 @@ export default function App() {
           <Overlay>
             <SettingsScreen onClose={() => setInstellingen(false)} />
           </Overlay>
+        </ErrorBoundary>
+      )}
+
+      {runDate && (
+        <ErrorBoundary
+          key={`run:${runDate}`}
+          scherm="Loop"
+          onReset={() => {
+            setRunDate(null)
+            setTab('vandaag')
+          }}
+        >
+          <RunScreen date={runDate} onClose={() => setRunDate(null)} />
         </ErrorBoundary>
       )}
 

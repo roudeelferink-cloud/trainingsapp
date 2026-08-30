@@ -191,7 +191,7 @@ describe('afstand bij afstandsactiviteiten', () => {
       intensity: 'normaal',
       distanceKm: 5,
     })
-    const html = render(createElement(Today, { onOpenSession: () => {} }))
+    const html = render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} }))
 
     expect(html).toContain('Hardlopen 30 min · 5 km')
     expect(html).toContain('6:00 min/km')
@@ -451,7 +451,7 @@ describe('schermen tonen losse activiteiten apart', () => {
   })
 
   it('toont de knop op het dagoverzicht, ook zonder gelogde activiteit', () => {
-    const html = render(createElement(Today, { onOpenSession: () => {} }))
+    const html = render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} }))
     expect(html).toContain('Extra activiteiten')
     expect(html).toContain('Toevoegen')
     expect(html).toContain('Nog niets extra gelogd vandaag.')
@@ -459,7 +459,7 @@ describe('schermen tonen losse activiteiten apart', () => {
 
   it('zet een gelogde activiteit met eigen label naast het schema', () => {
     A.addActivity(today(), { type: 'fietsen', minutes: 40, intensity: 'rustig', note: 'avondrondje' })
-    const html = render(createElement(Today, { onOpenSession: () => {} }))
+    const html = render(createElement(Today, { onOpenSession: () => {}, onOpenRun: () => {} }))
 
     expect(html).toContain('Extra')
     expect(html).toContain('Fietsen 40 min')
