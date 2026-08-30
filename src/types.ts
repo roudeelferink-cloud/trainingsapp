@@ -284,6 +284,16 @@ export interface SessionLog {
    * aanbod, zodat er niet elke keer iets bij komt.
    */
   extra?: string
+  /**
+   * De kalenderdag waarop deze sessie is ingevuld, als dat een andere dag was dan de
+   * dag waarover hij gaat. Afwezig betekent: gelogd op de dag zelf — en dat is wat elk
+   * log van voor deze mogelijkheid per definitie is.
+   *
+   * De sessie landt op `date` en niet op de dag van invullen; dit veld is er zodat de
+   * app weet dat er achteraf gewerkt is, en dat is wat de nabeschouwing en de
+   * progressievolgorde nodig hebben.
+   */
+  backfilledOn?: string
 }
 
 export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek'
@@ -303,6 +313,8 @@ export interface RunLog {
   completedAt: string | null
   /** afsluitende beoordeling; ontbreekt bij oude logs en bij overslaan */
   feel?: Feel
+  /** de kalenderdag waarop deze loop achteraf is ingevuld; afwezig = op de dag zelf */
+  backfilledOn?: string
 }
 
 /* ---------- losse activiteiten ---------- */

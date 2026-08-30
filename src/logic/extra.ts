@@ -1,5 +1,6 @@
 import { alternatives } from '../data/exercises'
 import type { DayKind, Exercise, SessionLog, UserState } from '../types'
+import { isBackfilled, sortByDate } from './backfill'
 import { addDays } from './dates'
 import { deloadFor } from './deload'
 import { actualSessionMinutes } from './duration'
@@ -35,6 +36,8 @@ export function extraSlotKey(kind: DayKind): string {
 
 export type EasyBlock =
   | 'niet_afgerond'
+  /** achteraf ingevuld: de nabeschouwing gaat over een sessie die je net gedaan hebt */
+  | 'achteraf'
   | 'niet_makkelijk'
   | 'geen_starttijd'
   | 'niet_korter'
@@ -78,6 +81,12 @@ export function afterEasySession(
 ): EasyOutcome {
   const log = state.sessions?.[`${iso}:${kind}`]
   if (!log?.completedAt) return geen('niet_afgerond')
+  /*
+    Een achteraf ingevulde sessie krijgt geen nabeschouwing. Beide aanbiedingen gaan over
+    wat je nú nog doet — een oefening erbij kan niet meer op een dag die voorbij is, en de
+    gemeten duur is de tijd die het invullen kostte, niet de tijd die de sessie duurde.
+  */
+  if (isBackfilled(log)) return geen('achteraf')
   if (log.feel !== 'makkelijk') return geen('niet_makkelijk')
 
   const geduurd = actualSessionMinutes(log)
@@ -136,7 +145,12 @@ function namen(lijst: string[]): string {
   return `${lijst.slice(0, -1).join(', ')} en ${lijst[lijst.length - 1]}`
 }
 
-/** De laatste afgeronde krachtsessie vóór deze, binnen een redelijke terugblik. */
+/**
+ * De laatste afgeronde krachtsessie vóór deze, binnen een redelijke terugblik.
+ *
+ * Op datum en niet op invoermoment: sinds er achteraf ingevuld kan worden, is de sessie
+ * met het jongste invoermoment niet meer per se de laatste sessie.
+ */
 export function previousStrengthLog(
   state: UserState,
   iso: string,
@@ -146,8 +160,7 @@ export function previousStrengthLog(
   const eerder = Object.values(state.sessions ?? {})
     .filter((log) => log.completedAt && (log.date < iso || (log.date === iso && log.kind !== kind)))
     .filter((log) => log.date >= addDays(iso, -days))
-    .sort((a, b) => (a.completedAt! < b.completedAt! ? 1 : -1))
-  return eerder[0] ?? null
+  return sortByDate(eerder)[0] ?? null
 }
 
 /**

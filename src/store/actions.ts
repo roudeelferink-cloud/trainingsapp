@@ -19,8 +19,9 @@ import {
 import { BUMP_MARKER, bumpTargets, extraSlotKey } from '../logic/extra'
 import { clampWarmupMinutes, warmupOf } from '../logic/warmup'
 import { DELOAD_RISK, deloadFor } from '../logic/deload'
+import { hasLaterLogFor, staleProgressionNote } from '../logic/backfill'
 import { round05 } from '../logic/running'
-import { mondayOf } from '../logic/dates'
+import { mondayOf, today } from '../logic/dates'
 import type {
   Activity,
   ActivityIntensity,
@@ -323,12 +324,20 @@ export function completeRun(
   kind: RunKind,
   data: { plannedKm: number; km: number; minutes: number | null; bike: boolean; feel?: Feel },
 ): void {
+  const vandaag = today()
   setState((s) => {
     const next: UserState = {
       ...s,
       runs: {
         ...s.runs,
-        [iso]: { date: iso, kind, ...data, completedAt: new Date().toISOString() },
+        [iso]: {
+          date: iso,
+          kind,
+          ...data,
+          completedAt: new Date().toISOString(),
+          // de loop landt op zijn eigen datum; dit onthoudt alleen dát het later gebeurde
+          backfilledOn: iso === vandaag ? undefined : vandaag,
+        },
       },
     }
     if (data.bike || Math.abs(data.km - data.plannedKm) < 0.5) return next
@@ -499,6 +508,7 @@ export function saveSessionDraft(
         warmup: s.sessions[key]?.warmup,
         startedAt: startedAt(s.sessions[key]),
         extra: s.sessions[key]?.extra,
+        backfilledOn: s.sessions[key]?.backfilledOn,
       },
     },
   }))
@@ -532,6 +542,15 @@ export function completeSession(
   feel?: Feel,
 ): string[] {
   const messages: string[] = []
+  const vandaag = today()
+  /*
+    Een sessie van een eerdere dag. Hij landt op zijn eigen datum — historie, tilvolume,
+    kilometers en de deloadtelling hangen allemaal aan `date` en komen dus vanzelf goed
+    terecht. Wat níét vanzelf goed komt is de progressie: die loopt op de tijd, en een
+    oudere sessie mag niet over een nieuwere heen schrijven. Zie `backfill.ts`.
+  */
+  const achteraf = iso !== vandaag
+  const overgeslagen: string[] = []
   const doneOnly = Object.fromEntries(
     slots.map((r) => [r.slot.key, (entries[r.slot.key] ?? []).filter((x) => x.done && x.reps > 0)]),
   )
@@ -572,6 +591,11 @@ export function completeSession(
       if (sets.length === 0) continue
       if (alGeteld(r.slot.key, sets)) continue
       const ex = getExercise(r.exercise.id)
+      // van deze oefening staat er al een nieuwere sessie: die weet meer dan deze
+      if (achteraf && hasLaterLogFor(s, iso, ex.id)) {
+        overgeslagen.push(ex.naam)
+        continue
+      }
       const before = stateFor({ ...s, exerciseState }, ex.id)
 
       // Eerst beoordelen, dán pas progressie draaien: `applyProgression` schrijft de
@@ -644,6 +668,8 @@ export function completeSession(
       messages.push(`${v.naam}: ${v.note} kg.`)
     }
 
+    if (overgeslagen.length > 0) messages.push(staleProgressionNote(overgeslagen))
+
     const key = sessionKeyFor(iso, kind)
     const notices = [...s.notices, ...messages.map((text) => ({ date: iso, text }))].slice(-50)
 
@@ -666,6 +692,7 @@ export function completeSession(
           startedAt: startedAt(s.sessions[key]),
           extra: s.sessions[key]?.extra,
           feel,
+          backfilledOn: achteraf ? vandaag : undefined,
         },
       },
     }
