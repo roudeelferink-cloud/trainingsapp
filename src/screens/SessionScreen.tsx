@@ -10,13 +10,15 @@ import {
   Segments,
   TopLine,
 } from '../components/logboek'
+import { MoveSheet } from '../components/MoveSheet'
 import { RestTimer } from '../components/RestTimer'
 import { ChoiceGrid, Chip, Sheet, Stepper, formatDecimal } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
 import { MAX_BAND_LEVEL, MIN_BAND_LEVEL, bandLabel, isBandExercise, levelOf } from '../logic/band'
 import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '../logic/barWeight'
-import { buildDay } from '../logic/day'
+import { TOO_OLD_TEXT, backfillNotice, isTooOld } from '../logic/backfill'
+import { buildDay, canMove, moveTargets } from '../logic/day'
 import { formatShort } from '../logic/dates'
 import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
 import { loadHint, repsHint, repsInputLabel, weightInputLabel } from '../logic/load'
@@ -37,7 +39,7 @@ import {
   stepMark,
   uncheckSet,
 } from '../logic/sessionFlow'
-import { programFor } from '../data/programs'
+import { programFor, restDayHint } from '../data/programs'
 import { ADVICE_HINT, startWeightAdvice } from '../logic/startWeight'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
@@ -84,6 +86,7 @@ export function SessionScreen({
   const [optionsFor, setOptionsFor] = useState<ResolvedSlot | null>(null)
   const [lijstOpen, setLijstOpen] = useState(false)
   const [doneOpen, setDoneOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
   const [orderHelp, setOrderHelp] = useState(false)
   const [messages, setMessages] = useState<string[] | null>(null)
   const [completed, setCompleted] = useState<string[]>(() => strength?.log?.completedSlots ?? [])
@@ -141,7 +144,7 @@ export function SessionScreen({
     if (step !== WARMUP_STEP && !slots.some((r) => r.slot.key === step)) setStep(eersteKey)
   }, [eersteKey, slots, step])
 
-  if (!strength || slots.length === 0) {
+  if (!strength || slots.length === 0 || isTooOld(date)) {
     return (
       <Full>
         <Screen
@@ -152,8 +155,12 @@ export function SessionScreen({
             </Actions>
           }
         >
-          <TopLine left="Sessie" />
-          <p className="quote mt-block">Er staat geen sessie meer open op {formatShort(date)}.</p>
+          <TopLine left="Sessie" right={formatShort(date)} />
+          <p className="quote mt-block">
+            {isTooOld(date)
+              ? TOO_OLD_TEXT
+              : `Er staat geen sessie meer open op ${formatShort(date)}.`}
+          </p>
         </Screen>
       </Full>
     )
@@ -240,6 +247,16 @@ export function SessionScreen({
   const totalSets = slots.reduce((n, x) => n + (entries[x.slot.key]?.length ?? x.sets), 0)
   const doneSets = slots.reduce((n, x) => n + (entries[x.slot.key] ?? []).filter((s) => s.done).length, 0)
 
+  /*
+    Verplaatsen kan zolang er nog niets van deze sessie vastligt. Daarna niet meer: het
+    sessielog hangt aan de datum, dus een sessie met halve invoer verplaatsen zou de
+    ingevulde sets op de oude dag achterlaten. Wie al bezig is en toch wil schuiven, rondt
+    af of laat de dag staan — dat is eerlijker dan een verplaatsing die stilletjes data
+    achterlaat.
+  */
+  const nogNietsGelogd = !strength.done && doneSets === 0 && completed.length === 0
+  const kanVerplaatsen = nogNietsGelogd && canMove(state, date, 'strength')
+
   /**
    * De voortgangssegmenten: de warming-up telt als eerste stap. Elk segment is een knop —
    * vanaf de balk spring je direct naar een oefening, ook naar eentje die je al gedaan hebt.
@@ -299,6 +316,8 @@ export function SessionScreen({
           orderHelp={orderHelp}
           onOrderHelp={() => setOrderHelp((x) => !x)}
           onDone={() => gaNaar(eersteKey)}
+          kanVerplaatsen={kanVerplaatsen}
+          onMove={() => setMoveOpen(true)}
         />
         <SessieBladen
           date={date}
@@ -323,6 +342,9 @@ export function SessionScreen({
           optionsFor={optionsFor}
           setOptionsFor={setOptionsFor}
           step={step}
+          kanVerplaatsen={kanVerplaatsen}
+          moveOpen={moveOpen}
+          setMoveOpen={setMoveOpen}
         />
       </Full>
     )
@@ -576,6 +598,9 @@ export function SessionScreen({
         optionsFor={optionsFor}
         setOptionsFor={setOptionsFor}
         step={step}
+        kanVerplaatsen={kanVerplaatsen}
+        moveOpen={moveOpen}
+        setMoveOpen={setMoveOpen}
       />
     </Full>
   )
@@ -594,6 +619,8 @@ function WarmupStep({
   orderHelp,
   onOrderHelp,
   onDone,
+  kanVerplaatsen,
+  onMove,
 }: {
   date: string
   kind: DayKind
@@ -603,9 +630,12 @@ function WarmupStep({
   orderHelp: boolean
   onOrderHelp: () => void
   onDone: () => void
+  kanVerplaatsen: boolean
+  onMove: () => void
 }) {
   const [help, setHelp] = useState(false)
   const warmup: Warmup = strength.warmup
+  const achteraf = backfillNotice(date)
 
   /*
     Alles wat de app aan deze sessie bijstuurt staat hier, vóór de eerste oefening.
@@ -647,6 +677,24 @@ function WarmupStep({
         <span>
           {strength.slots.length} oefeningen · ~{strength.estimatedMin} min
         </span>
+      </div>
+
+      {achteraf && (
+        <div className="mt-block flex flex-col gap-in-block">
+          <Caps>Eerdere dag</Caps>
+          <p className="quote">{achteraf}</p>
+        </div>
+      )}
+
+      {/*
+        Verplaatsen hoort hier, aan het begin van de sessie: dit is het moment waarop je
+        merkt dat het vandaag niet gaat worden. Het zat alleen op Vandaag, achter "Meer".
+      */}
+      <div className="mt-block flex items-baseline justify-between gap-column">
+        <Caps>Deze sessie</Caps>
+        <Link disabled={!kanVerplaatsen} onClick={onMove}>
+          Verplaatsen
+        </Link>
       </div>
 
       {regels.length > 0 && (
@@ -898,7 +946,11 @@ function SessieBladen(props: {
   optionsFor: ResolvedSlot | null
   setOptionsFor: (r: ResolvedSlot | null) => void
   step: string
+  kanVerplaatsen: boolean
+  moveOpen: boolean
+  setMoveOpen: (v: boolean) => void
 }) {
+  const state = useStore()
   const {
     date,
     kind,
@@ -922,6 +974,9 @@ function SessieBladen(props: {
     optionsFor,
     setOptionsFor,
     step,
+    kanVerplaatsen,
+    moveOpen,
+    setMoveOpen,
   } = props
 
   return (
@@ -964,7 +1019,7 @@ function SessieBladen(props: {
             )
           })}
         </div>
-        <div className="mt-block">
+        <div className="mt-block flex flex-col gap-in-block">
           <button
             className="btn-primary w-full"
             onClick={() => {
@@ -974,8 +1029,31 @@ function SessieBladen(props: {
           >
             Sessie afronden
           </button>
+          <button
+            className="btn-ghost w-full disabled:opacity-40"
+            disabled={!kanVerplaatsen}
+            onClick={() => {
+              setLijstOpen(false)
+              setMoveOpen(true)
+            }}
+          >
+            Sessie verplaatsen
+          </button>
         </div>
       </Sheet>
+
+      {/* dezelfde lijst als op Vandaag en op de planpagina; er is er maar één */}
+      <MoveSheet
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        targets={moveOpen ? moveTargets(state, date, 'strength') : []}
+        hint={`De loop van die dag blijft staan; die verplaats je apart.${restDayHint(programFor(state))}`}
+        onPick={(target) => {
+          A.moveSession(date, target)
+          setMoveOpen(false)
+          onClose()
+        }}
+      />
 
       {helpFor && (
         <Sheet open onClose={() => setHelpFor(null)} title={`Uitleg ${helpFor.naam}`}>

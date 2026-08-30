@@ -76,6 +76,8 @@ export function Today({
       </div>
 
       <Loopafstand iso={iso} plan={plan} />
+      <NietVandaag iso={iso} plan={plan} />
+      <Verplaatst plan={plan} />
       <Bijsturing plan={plan} />
       <DeloadBlok iso={iso} plan={plan} />
       <Dagcheck iso={iso} checkin={plan.checkin} />
@@ -301,6 +303,88 @@ function Loopafstand({ iso, plan }: { iso: string; plan: DayPlan }) {
           )}
         </div>
       </Sheet>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------
+ * Niet vandaag: verplaatsen
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Verplaatsen, op de plek waar je het zoekt.
+ *
+ * Het zat er al — in het blad achter "Meer" onderin, en als knop bij een bijsturing die
+ * zelden vuurt. Daarmee was het er wel en vond niemand het: wie op donderdag ziet dat het
+ * niet gaat lukken, kijkt naar de sessie die op het scherm staat en niet naar een knop
+ * die "Meer" heet. Dus staat het nu ook gewoon in de pagina, per ding dat er die dag
+ * staat, met dezelfde MoveSheet eronder.
+ */
+function NietVandaag({ iso, plan }: { iso: string; plan: DayPlan }) {
+  const state = useStore()
+  const [moveFrom, setMoveFrom] = useState<MoveWhat | null>(null)
+  const targets = useMemo(
+    () => (moveFrom ? moveTargets(state, iso, moveFrom) : []),
+    [moveFrom, state, iso],
+  )
+
+  const run = plan.run
+  const s = plan.strength
+  const regels: { what: MoveWhat; naam: string }[] = []
+  if (run && !run.done && !run.skipped) {
+    regels.push({ what: 'run', naam: run.bike ? 'Fietsen' : run.kind === 'long' ? 'Duurloop' : 'Korte loop' })
+  }
+  if (s && !s.done && !s.skipped) regels.push({ what: 'strength', naam: s.naam })
+  if (regels.length === 0) return null
+
+  return (
+    <div className="mt-block flex flex-col gap-in-block">
+      <Caps>Niet vandaag?</Caps>
+      {regels.map((r) => (
+        <div key={r.what} className="flex items-baseline justify-between gap-column">
+          <p className="min-w-0 truncate text-body text-muted">{r.naam}</p>
+          <Link
+            disabled={!canMove(state, iso, r.what)}
+            onClick={() => setMoveFrom(r.what)}
+          >
+            Verplaatsen
+          </Link>
+        </div>
+      ))}
+
+      {moveFrom && (
+        <MoveSheet
+          open
+          onClose={() => setMoveFrom(null)}
+          targets={targets}
+          hint={`${
+            moveFrom === 'run'
+              ? 'De krachtsessie van vandaag blijft staan.'
+              : 'De loop van vandaag blijft staan; die verplaats je apart.'
+          }${restDayHint(programFor(state))}`}
+          onPick={(target) => {
+            if (moveFrom === 'run') A.moveRun(iso, target)
+            else A.moveSession(iso, target)
+            setMoveFrom(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Wat er van vandaag ergens anders is gaan staan, met de datum erbij. */
+function Verplaatst({ plan }: { plan: DayPlan }) {
+  if (!plan.movedTo && !plan.runMovedTo) return null
+  return (
+    <div className="mt-block flex flex-col gap-in-block">
+      <Caps>Verplaatst</Caps>
+      {plan.runMovedTo && (
+        <p className="quote">Loop verplaatst naar {formatShort(plan.runMovedTo)}.</p>
+      )}
+      {plan.movedTo && (
+        <p className="quote">Krachtsessie verplaatst naar {formatShort(plan.movedTo)}.</p>
+      )}
     </div>
   )
 }
@@ -582,11 +666,10 @@ function TodayActions({
 
   if (plan.movedTo || plan.runMovedTo) {
     const wat = plan.movedTo ? 'strength' : 'run'
-    const datum = plan.movedTo ?? plan.runMovedTo!
     return (
       <Actions>
         <Primary onClick={() => (wat === 'run' ? A.undoRunMove(iso) : A.undoMove(iso))}>
-          Terughalen van {formatShort(datum)}
+          Verplaatsing ongedaan maken
         </Primary>
       </Actions>
     )
