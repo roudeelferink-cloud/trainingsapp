@@ -2,7 +2,8 @@ import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
 import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
 import { cycleInfo, type CycleInfo } from './cycle'
-import { addDays, mondayOf, weekday } from './dates'
+import { isBackfillDate, TOO_OLD_TEXT } from './backfill'
+import { addDays, mondayOf, today, weekday } from './dates'
 import { deloadFor, type DeloadPlan } from './deload'
 import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
 import { dayGuardrails, legStackAround, type Guardrail } from './guardrails'
@@ -10,6 +11,7 @@ import { CALIBRATION_TEXT } from './progression'
 import { round05 } from './running'
 import { runContext } from './runningLoad'
 import { scheduledRun, scheduledStrength } from './schedule'
+import { PICKED_UP_REASON } from './skips'
 import { type ResolvedSlot } from './select'
 import { resolveSession } from './sessionSlots'
 import { warmupOf } from './warmup'
@@ -83,6 +85,12 @@ export interface DayPlan {
   notes: string[]
   /** alles wat de app vandaag bijstuurt, met per bijsturing één regel waarom */
   guardrails: Guardrail[]
+}
+
+/** Hoe een loop op het scherm heet. Fietsen is geen loop, en dat hoort er te staan. */
+export function runName(kind: RunKind, bike: boolean): string {
+  if (bike) return 'Fietsen'
+  return kind === 'long' ? 'Duurloop' : 'Korte loop'
 }
 
 export function sessionKeyFor(date: string, kind: DayKind): string {
@@ -298,9 +306,8 @@ function moveCandidates(
   state: UserState,
   iso: string,
   what: MoveWhat,
+  vandaag: string = today(),
 ): Omit<MoveTarget, 'warnings'>[] {
-  const rest = programFor(state).restWeekday
-  const moves = (what === 'run' ? state.runMoves : state.moves) ?? {}
   const monday = mondayOf(iso)
   const out: Omit<MoveTarget, 'warnings'>[] = []
 
@@ -308,27 +315,51 @@ function moveCandidates(
   for (let d = -1; d <= 7; d++) {
     const target = addDays(monday, d)
     if (target === iso) continue
-    if (moves[target]) continue // al verplaatst, geen ketens
+    const kandidaat = candidateFor(state, iso, target, what)
+    if (kandidaat) out.push(kandidaat)
+  }
 
-    if (weekday(target) === rest) {
-      out.push({ date: target, swapWith: null, blocked: REST_DAY_REASON, earlier: target < iso })
-      continue
-    }
-
-    // bewust niet via `buildDay`: die bouwt de hele dag inclusief guardrails, en dat maal
-    // negen kandidaten maakt het openen van de lijst traag. Wie er staat is genoeg.
-    const bezet = what === 'run' ? scheduledRun(state, target) : scheduledStrength(state, target)
-    if (bezet.movedFrom) continue
-
-    out.push({
-      date: target,
-      swapWith: bezet.kind ? blockName(bezet.kind, what) : null,
-      blocked: null,
-      earlier: target < iso,
-    })
+  /*
+    Een sessie die je gemist hebt staat in het verleden, en dan is de dag waar je hem
+    naartoe wilt hebben bijna altijd vandaag. Die valt buiten de week van de bron zodra
+    het om vorige week gaat, en stond dus precies niet in de lijst op het moment dat je
+    hem nodig had. Hij komt er nu bij, en vooraan: bovenaan de dagen die nog komen.
+  */
+  if (isBackfillDate(iso, vandaag)) {
+    const eerder = out.filter((t) => t.date < iso)
+    const later = out.filter((t) => t.date > iso && t.date !== vandaag)
+    const nu = out.find((t) => t.date === vandaag) ?? candidateFor(state, iso, vandaag, what)
+    if (nu) return [...eerder, nu, ...later]
   }
 
   return out
+}
+
+/** Eén kandidaatdag, of null als hij helemaal niet in de lijst hoort. */
+function candidateFor(
+  state: UserState,
+  iso: string,
+  target: string,
+  what: MoveWhat,
+): Omit<MoveTarget, 'warnings'> | null {
+  const moves = (what === 'run' ? state.runMoves : state.moves) ?? {}
+  if (moves[target]) return null // al verplaatst, geen ketens
+
+  if (weekday(target) === programFor(state).restWeekday) {
+    return { date: target, swapWith: null, blocked: REST_DAY_REASON, earlier: target < iso }
+  }
+
+  // bewust niet via `buildDay`: die bouwt de hele dag inclusief guardrails, en dat maal
+  // negen kandidaten maakt het openen van de lijst traag. Wie er staat is genoeg.
+  const bezet = what === 'run' ? scheduledRun(state, target) : scheduledStrength(state, target)
+  if (bezet.movedFrom) return null
+
+  return {
+    date: target,
+    swapWith: bezet.kind ? blockName(bezet.kind, what) : null,
+    blocked: null,
+    earlier: target < iso,
+  }
 }
 
 /**
@@ -351,6 +382,185 @@ export function moveWarnings(
   // twee zware beensessies achter elkaar
   const stapel = legStackAround(next, target)
   if (stapel && !legStackAround(state, target)) out.push(stapel.text)
+
+  return out
+}
+
+/* -------------------------------------------------------------------------
+ * Een gemiste sessie vandaag oppakken
+ * ---------------------------------------------------------------------- */
+
+/** Wat er met de sessie van vandaag gebeurt als er al een staat. */
+export type PickUpResolve = 'shift' | 'skip'
+
+export interface PickUpConflict {
+  /** de sessie die vandaag al staat, zoals hij op het scherm heet */
+  naam: string
+  /** de eerstvolgende dag waar hij naartoe kan; null = alleen overslaan */
+  shiftTo: string | null
+}
+
+export type PickUpResult =
+  | { kind: 'ok'; next: UserState; warnings: string[] }
+  | { kind: 'blocked'; reason: string }
+  | { kind: 'conflict'; conflict: PickUpConflict }
+
+export const PICK_UP_NOTHING = 'Op die dag staat niets meer open.'
+export const PICK_UP_FUTURE = 'Alleen een sessie van een eerdere dag is vandaag op te pakken.'
+
+/**
+ * Een gemiste sessie van een eerdere dag vandaag alsnog doen.
+ *
+ * Dit is bewust geen verplaatsing. Verplaatsen ruilt met de doeldag, en dat is precies
+ * wat hier niet mag: de sessie van vandaag zou dan naar gisteren gaan, en gisteren is
+ * voorbij. En het venster van verplaatsen loopt van de dag vóór de week van de bron tot
+ * de dag erna — vanuit vorige week kom je daarmee hooguit op maandag, terwijl het juist
+ * om vandaag gaat.
+ *
+ * Dus: de brondag wijst naar vandaag, en verder niets. Staat er vandaag al zo'n sessie,
+ * dan wijkt die niet vanzelf — dat is een keuze, en deze functie geeft hem terug als
+ * `conflict` in plaats van hem zelf te maken. Met `resolve` erbij wordt hij uitgevoerd:
+ *
+ * - `shift` — de sessie van vandaag schuift door naar de eerstvolgende vrije dag;
+ * - `skip`  — hij ruilt van plek met de opgepakte sessie en staat daar overgeslagen. Dat
+ *   is de enige plek waar ruilen met het verleden wél mag: een sessie die niet meer
+ *   gebeurt kun je op een dag zetten die al voorbij is, een sessie die je nog moet doen
+ *   niet.
+ *
+ * De sessie landt op vandaag en wordt dus op vandaag gelogd — geen `backfilledOn`, en hij
+ * telt gewoon mee voor de progressie. Dat is het verschil met achteraf invullen: daar zeg
+ * je "dit deed ik toen", hier zeg je "dit doe ik nu".
+ */
+export function pickUpToday(
+  state: UserState,
+  iso: string,
+  what: MoveWhat,
+  vandaag: string = today(),
+  resolve?: PickUpResolve,
+): PickUpResult {
+  if (iso >= vandaag) return { kind: 'blocked', reason: PICK_UP_FUTURE }
+  if (!isBackfillDate(iso, vandaag)) return { kind: 'blocked', reason: TOO_OLD_TEXT }
+
+  const bron = buildDay(state, iso)
+  const blok = what === 'run' ? bron.run : bron.strength
+  if (!blok || blok.done || blok.skipped) return { kind: 'blocked', reason: PICK_UP_NOTHING }
+
+  const hier = buildDay(state, vandaag)
+  if (hier.isRest) return { kind: 'blocked', reason: REST_DAY_REASON }
+
+  /*
+    De brondag is niet altijd de dag waar de sessie oorspronkelijk hoort: hij kan daar zelf
+    naartoe verplaatst zijn. Die verplaatsing wordt eerst teruggedraaid — anders komt er
+    een tweede schakel aan de ketting en verdwijnt de sessie die op de brondag hoorde. Wat
+    daardoor terugvalt op zijn eigen dag staat daar gewoon weer open.
+  */
+  const oorsprong = blok.movedFrom ?? iso
+  let basis = blok.movedFrom ? undoMoveIn(state, oorsprong, iso, what) : state
+
+  const staat = what === 'run' ? hier.run : hier.strength
+  if (staat && !staat.skipped) {
+    // geen ketens: een sessie die hier zelf al een verplaatsing is, schuift niet verder
+    const shiftTo = staat.movedFrom ? null : nextFreeDay(basis, vandaag, what)
+    const naam = what === 'run' ? runName(hier.run!.kind, hier.run!.bike) : hier.strength!.naam
+    if (!resolve) return { kind: 'conflict', conflict: { naam, shiftTo } }
+
+    basis =
+      resolve === 'shift' && shiftTo
+        ? applyMove(basis, vandaag, shiftTo, what)
+        : vacateToday(basis, vandaag, oorsprong, what)
+  }
+
+  const key = what === 'run' ? 'runMoves' : 'moves'
+  const next: UserState = {
+    ...basis,
+    [key]: { ...(basis[key] ?? {}), [oorsprong]: vandaag },
+  }
+
+  return { kind: 'ok', next, warnings: pickUpWarnings(state, next, vandaag, what) }
+}
+
+/** Draait één verplaatsing terug, inclusief de ruil die er de andere kant op bij hoort. */
+function undoMoveIn(state: UserState, from: string, to: string, what: MoveWhat): UserState {
+  const key = what === 'run' ? 'runMoves' : 'moves'
+  const moves = { ...(state[key] ?? {}) }
+  delete moves[from]
+  if (moves[to] === from) delete moves[to]
+  return { ...state, [key]: moves }
+}
+
+/**
+ * Maakt de dag van vandaag vrij voor de sessie die opgepakt wordt, en legt vast dat wat
+ * er weg moest niet gebeurd is.
+ *
+ * Twee lagen kunnen in de weg staan. Een sessie die hier naartoe verplaatst is gaat terug
+ * naar zijn eigen dag en staat daar overgeslagen — hij stond vandaag, en vandaag gebeurt
+ * iets anders. Wat er daarna nog van deze dag zelf overblijft ruilt van plek met de
+ * opgepakte sessie: die dag is voorbij, dus daar staat hij als overgeslagen.
+ *
+ * Beide krijgen "ingehaald" als reden. Niet "geen zin": er kwam iets anders voor in de
+ * plaats, en dat hoort er over een maand nog te staan.
+ */
+function vacateToday(
+  state: UserState,
+  vandaag: string,
+  oorsprong: string,
+  what: MoveWhat,
+): UserState {
+  const key = what === 'run' ? 'runMoves' : 'moves'
+  const moves = { ...(state[key] ?? {}) }
+  const skips = { ...state.skips }
+
+  const inkomend = Object.keys(moves).find((from) => moves[from] === vandaag)
+  if (inkomend) {
+    delete moves[inkomend]
+    if (moves[vandaag] === inkomend) delete moves[vandaag]
+    skips[`${inkomend}:${what}`] = { reason: PICKED_UP_REASON, what }
+  }
+
+  const tussen: UserState = { ...state, [key]: moves, skips }
+  const eigen = what === 'run' ? scheduledRun(tussen, vandaag) : scheduledStrength(tussen, vandaag)
+  if (!eigen.kind) return tussen
+
+  moves[vandaag] = oorsprong
+  skips[`${oorsprong}:${what}`] = { reason: PICKED_UP_REASON, what }
+  return { ...state, [key]: moves, skips }
+}
+
+/**
+ * De eerstvolgende dag waar de sessie van vandaag naartoe kan: geen rustdag, nog geen
+ * sessie van deze soort, en niet al aan een verplaatsing bezig. Tot en met de dag na deze
+ * week — verder vooruit schuiven maakt van één gemiste sessie een gemiste week.
+ */
+export function nextFreeDay(state: UserState, vandaag: string, what: MoveWhat): string | null {
+  const laatste = addDays(mondayOf(vandaag), 7)
+  for (let d = addDays(vandaag, 1); d <= laatste; d = addDays(d, 1)) {
+    const kandidaat = candidateFor(state, vandaag, d, what)
+    if (kandidaat && !kandidaat.blocked && !kandidaat.swapWith) return d
+  }
+  return null
+}
+
+/**
+ * Wat er misgaat als deze sessie vandaag gedaan wordt. Dezelfde beoordeling als bij
+ * verplaatsen — de guardrails gelden op de nieuwe datum — plus de geschatte duur, want
+ * twee sessies op één dag is precies het geval waarin die uit de hand loopt. Niets
+ * hiervan houdt iets tegen; je hoort het alleen te weten.
+ */
+function pickUpWarnings(
+  state: UserState,
+  next: UserState,
+  vandaag: string,
+  what: MoveWhat,
+): string[] {
+  const out: string[] = []
+
+  const stapel = legStackAround(next, vandaag)
+  if (stapel && !legStackAround(state, vandaag)) out.push(stapel.text)
+
+  if (what === 'strength') {
+    const tooLong = buildDay(next, vandaag).strength?.tooLong
+    if (tooLong && !buildDay(state, vandaag).strength?.tooLong) out.push(tooLong.text)
+  }
 
   return out
 }

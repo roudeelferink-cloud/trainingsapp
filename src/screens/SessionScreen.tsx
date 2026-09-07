@@ -20,7 +20,7 @@ import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '.
 import { TOO_OLD_TEXT, backfillNotice, isTooOld } from '../logic/backfill'
 import { buildDay, canMove, moveTargets } from '../logic/day'
 import { formatShort } from '../logic/dates'
-import { lastSessionFor } from '../logic/history'
+import { lastSessionFor, weightLabel } from '../logic/history'
 import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
 import { loadHint, repsHint, repsInputLabel, weightInputLabel } from '../logic/load'
 import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
@@ -856,7 +856,7 @@ function VorigeKeer({
         exercise={exercise}
         sets={vorige.sets}
         lead={formatShort(vorige.date)}
-        extra={anders ? `nu ${band ? bandLabel(nu) : fmt(nu)}` : undefined}
+        extra={anders ? `nu ${band ? bandLabel(nu) : weightLabel(nu)}` : undefined}
       />
     </div>
   )

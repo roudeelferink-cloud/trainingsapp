@@ -1,6 +1,5 @@
-import type { DayKind, RunKind, SessionLog, UserState } from '../types'
+import type { SessionLog, UserState } from '../types'
 import { addDays, formatLong, mondayOf, today } from './dates'
-import { buildDay } from './day'
 
 /**
  * Achteraf invullen: een sessie van een eerdere dag alsnog openen en loggen.
@@ -20,6 +19,12 @@ import { buildDay } from './day'
  * zolang er van díé oefening nog geen nieuwere sessie staat — zie `hasLaterLogFor`.
  * Alles wat de sessie verder is (tilvolume, historie, beoordeling, deloadtelling,
  * kilometers) telt gewoon mee, want dat hangt aan de datum en niet aan de volgorde.
+ *
+ * **Wat hier bewust niet staat.** Welke sessies er in dat venster nog open staan: dat is
+ * `gemist.ts`. Die vraag heeft de hele dagopbouw nodig, en dus `day.ts` — en `day.ts`
+ * heeft het venster hieronder nodig om een gemiste sessie vandaag te kunnen oppakken.
+ * Twee modules die elkaar aanroepen zijn twee modules die je niet los kunt lezen; dit
+ * bestand blijft daarom aan de onderkant, met alleen datums en logs.
  */
 
 /** Hoeveel hele weken terug er nog in te vullen is, naast de lopende week. */
@@ -53,57 +58,6 @@ export const TOO_OLD_TEXT =
 /** Is deze log achteraf ingevuld, op een andere dag dan waar hij over gaat? */
 export function isBackfilled(log: { backfilledOn?: string } | null | undefined): boolean {
   return !!log?.backfilledOn
-}
-
-/* -------------------------------------------------------------------------
- * Wat er open staat
- * ---------------------------------------------------------------------- */
-
-export type MissedWhat = 'strength' | 'run'
-
-export interface Missed {
-  date: string
-  what: MissedWhat
-  /** de soort krachtsessie; null bij een loop */
-  kind: DayKind | null
-  /** zoals het op het scherm heet */
-  naam: string
-}
-
-export function runName(kind: RunKind, bike: boolean): string {
-  if (bike) return 'Fietsen'
-  return kind === 'long' ? 'Duurloop' : 'Korte loop'
-}
-
-/**
- * Wat er in het terugwerkende venster nog open staat: gepland, niet gedaan en niet
- * overgeslagen. Oudste eerst, en per dag eerst de loop en dan de krachtsessie —
- * dezelfde volgorde als waarin je ze op een dag doet.
- */
-export function missedSessions(state: UserState, vandaag: string = today()): Missed[] {
-  const start = backfillStart(vandaag)
-  const out: Missed[] = []
-
-  for (let iso = start; iso < vandaag; iso = addDays(iso, 1)) {
-    const plan = buildDay(state, iso)
-    if (plan.isRest) continue
-    const run = plan.run
-    if (run && !run.done && !run.skipped) {
-      out.push({ date: iso, what: 'run', kind: null, naam: runName(run.kind, run.bike) })
-    }
-    const strength = plan.strength
-    if (strength && !strength.done && !strength.skipped) {
-      out.push({ date: iso, what: 'strength', kind: strength.kind, naam: strength.naam })
-    }
-  }
-
-  return out
-}
-
-/** Wat er van de week van `monday` nog open staat en binnen het venster valt. */
-export function missedInWeek(state: UserState, monday: string, vandaag: string = today()): Missed[] {
-  const eind = addDays(mondayOf(monday), 7)
-  return missedSessions(state, vandaag).filter((m) => m.date >= mondayOf(monday) && m.date < eind)
 }
 
 /* -------------------------------------------------------------------------

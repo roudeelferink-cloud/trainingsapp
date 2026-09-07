@@ -274,17 +274,26 @@ export function Link({
   children,
   onClick,
   disabled,
+  tone = 'accent',
 }: {
   children: ReactNode
   onClick: () => void
   disabled?: boolean
+  /**
+   * `quiet` haalt de oker eraf. Bedoeld voor de tweede en derde knop op één regel: oker
+   * mag maar één ding tegelijk aanwijzen, dus als er drie keuzes naast elkaar staan
+   * krijgt alleen de eerste hem.
+   */
+  tone?: 'accent' | 'quiet'
 }) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="shrink-0 text-label text-accent transition-colors duration-color disabled:opacity-40"
+      className={`shrink-0 text-label transition-colors duration-color disabled:opacity-40 ${
+        tone === 'quiet' ? 'text-dim' : 'text-accent'
+      }`}
     >
       {children}
     </button>

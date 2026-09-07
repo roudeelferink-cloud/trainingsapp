@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { missedInWeek } from '../src/logic/backfill'
+import { missedInWeek, openForWeek } from '../src/logic/gemist'
 import { REST_DAY_REASON, buildDay, moveTargets } from '../src/logic/day'
 import { addDays, formatShort, mondayOf, today, weekday } from '../src/logic/dates'
 import { PlanScreen } from '../src/screens/PlanScreen'
@@ -123,18 +123,32 @@ describe('verschuiven en overslaan', () => {
 })
 
 describe('wat er gemist is', () => {
-  it('zet de gemiste sessies van deze week bovenaan, met een knop om ze in te vullen', () => {
-    const gemist = missedInWeek(getState(), MAANDAG())
+  it('zet de gemiste sessies bovenaan, met een knop om ze in te vullen', () => {
+    const gemist = openForWeek(getState(), MAANDAG())
     const html = plan()
 
     if (gemist.length === 0) {
-      // vandaag is maandag: er is deze week nog niets te missen
       expect(html).not.toContain('Nog in te vullen')
       return
     }
     expect(html).toContain('Nog in te vullen')
     expect(html).toContain('Invullen')
     expect(html).toContain(formatShort(gemist[0].date))
+  })
+
+  it('telt op de huidige weekpagina ook mee wat er van vorige week open staat', () => {
+    // de weekgrens is geen grens voor wat je nog kunt inhalen: het venster is dat wel
+    const vorige = missedInWeek(getState(), addDays(MAANDAG(), -7))
+    expect(vorige.length).toBeGreaterThan(0)
+
+    const open = openForWeek(getState(), MAANDAG())
+    expect(open.length).toBeGreaterThanOrEqual(vorige.length)
+    for (const m of vorige) {
+      expect(open.some((o) => o.date === m.date && o.what === m.what), m.date).toBe(true)
+    }
+
+    // en een week die niet de huidige is blijft precies die week
+    expect(openForWeek(getState(), addDays(MAANDAG(), -7))).toEqual(vorige)
   })
 
   it('doet hetzelfde voor de week ervoor, want die valt nog binnen het venster', () => {

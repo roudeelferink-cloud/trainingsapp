@@ -169,13 +169,22 @@ export interface SetLabel {
   down: boolean
 }
 
+/**
+ * Een gewicht zoals het in een regel tekst hoort: Nederlands, met een komma. `fmt` doet
+ * het afronden; de komma hoort erbij zodra het getal in een zin staat in plaats van in
+ * een invoerveld.
+ */
+export function weightLabel(kg: number): string {
+  return fmt(kg).replace('.', ',')
+}
+
 /** De sets van één sessie, compact: gewicht × reps, met de conventie van de oefening. */
 export function setLabels(ex: Exercise, sets: LoggedSet[]): SetLabel[] {
   const top = topOf(ex, sets)
   return sets.map((s) => ({
     text: isBandExercise(ex)
       ? `${bandLabel(levelOf(s))} × ${s.reps}`
-      : `${fmt(s.weight)} × ${s.reps}`,
+      : `${weightLabel(s.weight)} × ${s.reps}`,
     down: loadOf(ex, s) < top - 1e-9,
   }))
 }

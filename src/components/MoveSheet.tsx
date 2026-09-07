@@ -1,4 +1,4 @@
-import { formatShort } from '../logic/dates'
+import { formatShort, today } from '../logic/dates'
 import type { MoveTarget } from '../logic/day'
 import { Sheet } from './ui'
 
@@ -26,6 +26,11 @@ export function MoveSheet({
 }) {
   const eerder = targets.filter((t) => t.earlier)
   const later = targets.filter((t) => !t.earlier)
+  /*
+    Zit vandaag bij de dagen die nog komen, dan is de bron een dag in het verleden en is
+    vandaag het eerste antwoord — niet "later deze week", maar nu.
+  */
+  const vandaagErbij = later.some((t) => t.date === today())
 
   return (
     <Sheet open={open} onClose={onClose} title="Verplaats naar">
@@ -35,7 +40,7 @@ export function MoveSheet({
         {eerder.map((t) => (
           <Rij key={t.date} target={t} onPick={onPick} />
         ))}
-        {later.length > 0 && <Kop>Later deze week</Kop>}
+        {later.length > 0 && <Kop>{vandaagErbij ? 'Vandaag of later' : 'Later deze week'}</Kop>}
         {later.map((t) => (
           <Rij key={t.date} target={t} onPick={onPick} />
         ))}

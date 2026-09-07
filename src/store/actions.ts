@@ -2,7 +2,16 @@ import { BY_ID, getExercise } from '../data/exercises'
 import { supportsDistance } from '../logic/activities'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
-import { applyMove, buildDay, moveTargets, sessionKeyFor } from '../logic/day'
+import {
+  applyMove,
+  buildDay,
+  moveTargets,
+  pickUpToday as planPickUp,
+  sessionKeyFor,
+  type MoveWhat,
+  type PickUpConflict,
+  type PickUpResolve,
+} from '../logic/day'
 import { moveKey } from '../logic/order'
 import type { ResolvedSlot } from '../logic/select'
 import { applyProgression, forceIncrease, stateFor } from '../logic/progression'
@@ -277,6 +286,29 @@ export function undoRunMove(iso: string): void {
     if (target && runMoves[target] === iso) delete runMoves[target]
     return { ...s, runMoves }
   })
+}
+
+/**
+ * Een gemiste sessie van een eerdere dag vandaag alsnog doen; zie `pickUpToday` in
+ * `day.ts` voor wat er dan precies gebeurt.
+ *
+ * Zonder `resolve` doet dit één ding: kijken of het kan. Kan het niet omdat er vandaag al
+ * zo'n sessie staat, dan komt dat conflict terug in plaats van dat de app kiest — er
+ * wijkt hier iets, en dat is niet aan haar. Met `resolve` erbij wordt de keuze uitgevoerd
+ * en de sessie opgepakt.
+ */
+export function pickUpToday(
+  date: string,
+  what: MoveWhat,
+  resolve?: PickUpResolve,
+): { ok: true; warnings: string[] } | { ok: false; reason?: string; conflict?: PickUpConflict } {
+  const res = planPickUp(getState(), date, what, today(), resolve)
+  if (res.kind === 'blocked') return { ok: false, reason: res.reason }
+  if (res.kind === 'conflict') return { ok: false, conflict: res.conflict }
+
+  const next = res.next
+  setState(() => next)
+  return { ok: true, warnings: res.warnings }
 }
 
 export function skipSession(iso: string, what: 'strength' | 'run', reason: SkipReason): void {

@@ -7,9 +7,8 @@ import {
   isBackfillDate,
   isBackfilled,
   isTooOld,
-  missedInWeek,
-  missedSessions,
 } from '../src/logic/backfill'
+import { missedInWeek, missedSessions } from '../src/logic/gemist'
 import { addDays, weekday } from '../src/logic/dates'
 import { buildDay } from '../src/logic/day'
 import { afterEasySession, previousStrengthLog } from '../src/logic/extra'

@@ -4,8 +4,18 @@ import { MoveSheet } from '../components/MoveSheet'
 import { ChoiceGrid, Sheet } from '../components/ui'
 import { DAY_LABEL } from '../data/plan'
 import { programFor, restDayHint, restDayLabel } from '../data/programs'
-import { isBackfillDate, missedInWeek, runName } from '../logic/backfill'
-import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
+import { isBackfillDate } from '../logic/backfill'
+import { openForWeek, type Missed } from '../logic/gemist'
+import {
+  buildDay,
+  canMove,
+  moveTargets,
+  runName,
+  type DayPlan,
+  type MoveWhat,
+  type PickUpConflict,
+  type PickUpResolve,
+} from '../logic/day'
 import {
   addDays,
   dayNumber,
@@ -16,8 +26,9 @@ import {
   weekdayShort,
 } from '../logic/dates'
 import * as A from '../store/actions'
+import { SKIP_CHOICES } from '../logic/skips'
 import { useStore } from '../store/store'
-import type { DayKind, SkipReason } from '../types'
+import type { DayKind } from '../types'
 
 /**
  * Plannen: de week in één overzicht, met per dag wat je ermee kunt.
@@ -50,12 +61,24 @@ export function PlanScreen({
   const start = mondayOf(monday)
   const dagen = Array.from({ length: 7 }, (_, i) => addDays(start, i))
   const plannen = dagen.map((iso) => buildDay(state, iso))
-  const gemist = missedInWeek(state, start)
+  const gemist = openForWeek(state, start)
 
   /** de sessie waarvan de verplaatslijst open staat */
   const [moveFrom, setMoveFrom] = useState<{ date: string; what: MoveWhat } | null>(null)
   /** de sessie die overgeslagen wordt */
   const [skipFor, setSkipFor] = useState<{ date: string; what: MoveWhat } | null>(null)
+  /** het conflict dat opkwam bij het oppakken van een gemiste sessie */
+  const [conflict, setConflict] = useState<{ m: Missed; met: PickUpConflict } | null>(null)
+
+  /**
+   * Een gemiste sessie vandaag oppakken. Lukt dat niet omdat er vandaag al zo'n sessie
+   * staat, dan komt die keuze terug op het scherm: doorschuiven of overslaan.
+   */
+  function setPickUp(m: Missed, resolve?: PickUpResolve) {
+    const res = A.pickUpToday(m.date, m.what, resolve)
+    if (res.ok) return setConflict(null)
+    if (res.conflict) setConflict({ m, met: res.conflict })
+  }
 
   return (
     <div className="safe-top fixed inset-0 z-40 flex flex-col bg-bg">
@@ -86,17 +109,25 @@ export function PlanScreen({
           <div className="mt-block flex flex-col gap-in-block">
             <Caps tone="accent">Nog in te vullen</Caps>
             {gemist.map((m) => (
-              <div key={`${m.date}:${m.what}`} className="flex items-baseline justify-between gap-column">
+              <div key={`${m.date}:${m.what}`} className="flex flex-col gap-tight">
                 <p className="min-w-0 truncate text-body text-muted">
                   {formatShort(m.date)} · {m.naam}
                 </p>
-                <Link
-                  onClick={() =>
-                    m.what === 'run' ? onOpenRun(m.date) : onOpenSession(m.date, m.kind!)
-                  }
-                >
-                  Invullen
-                </Link>
+                <div className="flex flex-wrap gap-column">
+                  {/* dezelfde drie keuzes als op Vandaag; er is er maar één plek waar ze anders zouden luiden */}
+                  <Link onClick={() => setPickUp(m)}>Vandaag doen</Link>
+                  <Link
+                    tone="quiet"
+                    onClick={() =>
+                      m.what === 'run' ? onOpenRun(m.date) : onOpenSession(m.date, m.kind!)
+                    }
+                  >
+                    Invullen
+                  </Link>
+                  <Link tone="quiet" onClick={() => setSkipFor({ date: m.date, what: m.what })}>
+                    Overslaan
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -136,11 +167,35 @@ export function PlanScreen({
         />
       )}
 
+      {conflict && (
+        <Sheet open onClose={() => setConflict(null)} title="Er staat vandaag al iets">
+          <p className="mb-block text-body text-muted">
+            Vandaag staat al {conflict.met.naam}. Er kan er maar één staan, dus die van vandaag
+            wijkt — doorschuiven of overslaan.
+          </p>
+          <div className="flex flex-col gap-in-block">
+            {conflict.met.shiftTo ? (
+              <button className="btn-ghost w-full" onClick={() => setPickUp(conflict.m, 'shift')}>
+                Doorschuiven naar {formatShort(conflict.met.shiftTo)}
+              </button>
+            ) : (
+              <p className="quote">
+                Doorschuiven kan niet: er is deze week geen dag meer vrij, of {conflict.met.naam}{' '}
+                staat vandaag zelf al als verplaatsing.
+              </p>
+            )}
+            <button className="btn-quiet w-full" onClick={() => setPickUp(conflict.m, 'skip')}>
+              {conflict.met.naam} overslaan
+            </button>
+          </div>
+        </Sheet>
+      )}
+
       <Sheet open={skipFor !== null} onClose={() => setSkipFor(null)} title="Overslaan — waarom?">
         <p className="mb-block text-body text-muted">Wordt gelogd, verder geen gevolgen.</p>
         <ChoiceGrid
           columns={2}
-          options={SKIP_REASONS}
+          options={SKIP_CHOICES}
           onChange={(reden) => {
             if (skipFor) A.skipSession(skipFor.date, skipFor.what, reden)
             setSkipFor(null)
@@ -150,13 +205,6 @@ export function PlanScreen({
     </div>
   )
 }
-
-const SKIP_REASONS: { id: SkipReason; label: string }[] = [
-  { id: 'druk', label: 'Druk' },
-  { id: 'etentje', label: 'Etentje' },
-  { id: 'geen_zin', label: 'Geen zin' },
-  { id: 'ziek', label: 'Ziek' },
-]
 
 /* -------------------------------------------------------------------------
  * Eén dag

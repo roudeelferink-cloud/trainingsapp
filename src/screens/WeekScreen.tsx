@@ -12,8 +12,8 @@ import {
 import { formatThousands, Sheet } from '../components/ui'
 import { programFor } from '../data/programs'
 import { activitiesOn, activityKm, activityTypeLabel, paceMinPerKm } from '../logic/activities'
-import { missedInWeek, runName } from '../logic/backfill'
-import { buildDay, type DayPlan } from '../logic/day'
+import { openForWeek } from '../logic/gemist'
+import { buildDay, runName, type DayPlan } from '../logic/day'
 import { addDays, dayNumber, formatRange, formatShort, mondayOf, today, weekdayShort } from '../logic/dates'
 import { fmt, weekRunFacts } from '../logic/runningLoad'
 import { sessionVolumeKg } from '../logic/stats'
@@ -50,7 +50,7 @@ export function WeekScreen({
   const week = weekRunFacts(state, monday)
   const dagen = program.week.map((_, i) => addDays(monday, i))
   const dagplannen = dagen.map((iso) => buildDay(state, iso))
-  const gemist = missedInWeek(state, monday)
+  const gemist = openForWeek(state, monday)
 
   return (
     <Screen

@@ -5,7 +5,8 @@ import { BarChart, LineChart } from '../components/Chart'
 import { Caps, Link, Screen, Stats } from '../components/logboek'
 import { Empty } from '../components/ui'
 import { activityCount, recentActivities } from '../logic/activities'
-import { today } from '../logic/dates'
+import { formatShort, today } from '../logic/dates'
+import { loggedExercises } from '../logic/history'
 import { fmt, stateFor } from '../logic/progression'
 import {
   completedRuns,
@@ -17,6 +18,7 @@ import {
 } from '../logic/stats'
 import { useStore } from '../store/store'
 import type { Activity } from '../types'
+import { ExerciseScreen } from './ExerciseScreen'
 
 /**
  * Historie: wat er achter je ligt.
@@ -36,6 +38,8 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
   const volume = weeklyRunVolume(state, 12)
   const tonnage = weeklyStrengthVolume(state, 12)
   const [open, setOpen] = useState<string | null>(series[0]?.exerciseId ?? null)
+  /** de oefening waarvan de eigen pagina open staat */
+  const [oefening, setOefening] = useState<string | null>(null)
   const streak = trainingStreak(state)
 
   return (
@@ -91,6 +95,8 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
         )}
       </Blok>
 
+      <PerOefening onOpen={setOefening} />
+
       <Blok label="Geschat 1RM per oefening">
         {series.length === 0 ? (
           <Empty>Log een sessie om je verloop te zien.</Empty>
@@ -143,6 +149,8 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
       <ExtraActivityHistory />
       <Deviations />
 
+      {oefening && <ExerciseScreen exerciseId={oefening} onClose={() => setOefening(null)} />}
+
       {state.notices.length > 0 && (
         <Blok label="Meldingen">
           <ul className="flex flex-col">
@@ -158,6 +166,49 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
         </Blok>
       )}
     </Screen>
+  )
+}
+
+/**
+ * Elke oefening die je ooit gelogd hebt, laatst gedaan bovenaan.
+ *
+ * Tikken opent de pagina van die oefening. Die hangt hier onder Historie, net zoals
+ * Instellingen dat doet: een vierde tab zou de andere drie smaller maken voor iets wat je
+ * hooguit een paar keer per week opzoekt.
+ */
+function PerOefening({ onOpen }: { onOpen: (id: string) => void }) {
+  const state = useStore()
+  const items = loggedExercises(state)
+
+  return (
+    <Blok
+      label="Per oefening"
+      right={items.length > 0 ? <span className="text-meta text-faint">{items.length}</span> : undefined}
+    >
+      {items.length === 0 ? (
+        <Empty>Nog geen oefening gelogd.</Empty>
+      ) : (
+        <div className="flex flex-col">
+          {items.map((x, i) => (
+            <button
+              key={x.exerciseId}
+              onClick={() => onOpen(x.exerciseId)}
+              className={`flex w-full items-center justify-between gap-column border-t-hair border-rule py-row text-left ${
+                i === items.length - 1 ? 'border-b-hair' : ''
+              }`}
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-list text-ink">{x.naam}</span>
+                <span className="block text-meta text-dim">
+                  {x.sessions} {x.sessions === 1 ? 'sessie' : 'sessies'}
+                </span>
+              </span>
+              <span className="shrink-0 text-meta text-faint">{formatShort(x.last)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Blok>
   )
 }
 

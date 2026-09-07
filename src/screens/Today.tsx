@@ -17,8 +17,18 @@ import { MoveSheet } from '../components/MoveSheet'
 import { ChoiceGrid, ConfirmCheck, Empty, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn } from '../logic/activities'
-import { buildDay, canMove, moveTargets, type DayPlan, type MoveWhat } from '../logic/day'
+import {
+  buildDay,
+  canMove,
+  moveTargets,
+  type DayPlan,
+  type MoveWhat,
+  type PickUpConflict,
+  type PickUpResolve,
+} from '../logic/day'
 import { formatLong, formatShort, addDays, today } from '../logic/dates'
+import { missedSessions, type Missed } from '../logic/gemist'
+import { SKIP_CHOICES, SKIP_LABEL } from '../logic/skips'
 import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
 import { fmt, runContext, weekRunFacts } from '../logic/runningLoad'
@@ -27,13 +37,6 @@ import { DELOAD_RISK } from '../logic/deload'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
 import type { Activity, DayKind, DayScore, SkipReason } from '../types'
-
-const REASONS: { id: SkipReason; label: string }[] = [
-  { id: 'druk', label: 'Druk' },
-  { id: 'etentje', label: 'Etentje' },
-  { id: 'geen_zin', label: 'Geen zin' },
-  { id: 'ziek', label: 'Ziek' },
-]
 
 /**
  * Vandaag: één pagina, van boven naar beneden te lezen. Bovenaan wat er op het
@@ -61,6 +64,8 @@ export function Today({
     >
       <TopLine left={formatLong(plan.date)} right={<Markeringen plan={plan} />} />
       <Rule className="my-block" />
+
+      <NogOpen iso={iso} onOpenSession={onOpenSession} onOpenRun={onOpenRun} />
 
       <Headline plan={plan} />
 
@@ -129,24 +134,30 @@ function Headline({ plan }: { plan: DayPlan }) {
   if (plan.isRest) return <Titel>Rustdag</Titel>
 
   if (run && !run.skipped) {
-    if (run.bike) return <Getal lead="Fietsen" value={String(BIKE_MINUTES)} unit="min" />
-    if (run.free) return <Titel>{run.kind === 'long' ? 'Duurloop' : 'Hardlopen'}</Titel>
+    if (run.bike) return <Getal lead={van('Fietsen', run.movedFrom)} value={String(BIKE_MINUTES)} unit="min" />
+    if (run.free) {
+      return (
+        <Titel lead={run.movedFrom ? van('', run.movedFrom) : undefined}>
+          {run.kind === 'long' ? 'Duurloop' : 'Hardlopen'}
+        </Titel>
+      )
+    }
     return (
       <Getal
-        lead={run.kind === 'long' ? 'Duurloop' : 'Korte loop'}
+        lead={van(run.kind === 'long' ? 'Duurloop' : 'Korte loop', run.movedFrom)}
         value={fmt(run.km)}
         unit="km"
       />
     )
   }
 
-  if (s && !s.skipped) return <Titel lead="Krachtsessie">{s.naam}</Titel>
+  if (s && !s.skipped) return <Titel lead={van('Krachtsessie', s.movedFrom)}>{s.naam}</Titel>
 
   if (run?.skipped) {
-    return <Titel lead={REASONS.find((r) => r.id === run.skipped)?.label}>Loop overgeslagen</Titel>
+    return <Titel lead={SKIP_LABEL[run.skipped]}>Loop overgeslagen</Titel>
   }
   if (s?.skipped) {
-    return <Titel lead={REASONS.find((r) => r.id === s.skipped)?.label}>{s.naam} overgeslagen</Titel>
+    return <Titel lead={SKIP_LABEL[s.skipped]}>{s.naam} overgeslagen</Titel>
   }
 
   // niets meer te doen omdat het al ergens anders staat
@@ -158,6 +169,17 @@ function Headline({ plan }: { plan: DayPlan }) {
   }
 
   return <Titel>Niets ingepland</Titel>
+}
+
+/**
+ * De regel boven de kop, met erbij waar de sessie vandaan komt als hij niet van vandaag
+ * is. Verplaatst of vandaag opgepakt maakt geen verschil: in beide gevallen doe je hier
+ * iets dat oorspronkelijk op een andere dag stond, en dat hoor je te zien.
+ */
+function van(basis: string, movedFrom: string | null): string {
+  if (!movedFrom) return basis
+  const herkomst = `van ${formatShort(movedFrom)}`
+  return basis ? `${basis} · ${herkomst}` : herkomst
 }
 
 /** Een kop op naam: de sessie, de rustdag. */
@@ -221,6 +243,123 @@ function useStats(plan: DayPlan): Stat[] {
     suffix: streak === 1 ? ' dag' : ' dagen',
   })
   return items
+}
+
+/* -------------------------------------------------------------------------
+ * Nog open: een gemiste sessie vandaag oppakken
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Wat er van eerdere dagen nog open staat, boven de sessie van vandaag.
+ *
+ * Het stond er wel — op de planpagina, als "Nog in te vullen" — maar dat is een andere
+ * vraag. Invullen zegt "dit deed ik toen"; hier staat de vraag die je op dinsdag stelt
+ * als je zondag hebt laten lopen: kan ik hem alsnog dóén? Dat is een verplaatsing naar
+ * vandaag, en dus logt hij op vandaag en telt hij gewoon mee.
+ *
+ * Drie keuzes per regel, in de volgorde waarin ze waarschijnlijk zijn. Alleen de eerste
+ * is oker: er staat er maar één voorop.
+ */
+function NogOpen({
+  iso,
+  onOpenSession,
+  onOpenRun,
+}: {
+  iso: string
+  onOpenSession: (date: string, kind: DayKind) => void
+  onOpenRun: (date: string) => void
+}) {
+  const state = useStore()
+  const gemist = missedSessions(state, iso)
+  const [conflict, setConflict] = useState<{ m: Missed; met: PickUpConflict } | null>(null)
+  const [skipFor, setSkipFor] = useState<Missed | null>(null)
+  const [melding, setMelding] = useState<string[] | null>(null)
+
+  if (gemist.length === 0) return null
+
+  const oppakken = (m: Missed, resolve?: PickUpResolve) => {
+    const res = A.pickUpToday(m.date, m.what, resolve)
+    if (res.ok) {
+      setConflict(null)
+      // de guardrails houden niets tegen, maar je hoort ze wel te lezen
+      if (res.warnings.length > 0) setMelding(res.warnings)
+      return
+    }
+    if (res.conflict) setConflict({ m, met: res.conflict })
+  }
+
+  return (
+    <div className="mb-block flex flex-col gap-in-block">
+      <Caps tone="accent">Nog open</Caps>
+      {gemist.map((m) => (
+        <div key={`${m.date}:${m.what}`} className="flex flex-col gap-tight">
+          <p className="min-w-0 truncate text-body text-muted">
+            {formatShort(m.date)} · {m.naam}
+          </p>
+          <div className="flex flex-wrap gap-column">
+            <Link onClick={() => oppakken(m)}>Vandaag doen</Link>
+            <Link
+              tone="quiet"
+              onClick={() => (m.what === 'run' ? onOpenRun(m.date) : onOpenSession(m.date, m.kind!))}
+            >
+              Achteraf invullen
+            </Link>
+            <Link tone="quiet" onClick={() => setSkipFor(m)}>
+              Overslaan
+            </Link>
+          </div>
+        </div>
+      ))}
+
+      {conflict && (
+        <Sheet open onClose={() => setConflict(null)} title="Er staat vandaag al iets">
+          <p className="mb-block text-body text-muted">
+            Vandaag staat al {conflict.met.naam}. Er kan er maar één staan, dus die van vandaag
+            wijkt — doorschuiven of overslaan.
+          </p>
+          <div className="flex flex-col gap-in-block">
+            {conflict.met.shiftTo ? (
+              <button className="btn-ghost w-full" onClick={() => oppakken(conflict.m, 'shift')}>
+                Doorschuiven naar {formatShort(conflict.met.shiftTo)}
+              </button>
+            ) : (
+              <p className="quote">
+                Doorschuiven kan niet: er is deze week geen dag meer vrij, of {conflict.met.naam}{' '}
+                staat hier zelf al als verplaatsing.
+              </p>
+            )}
+            <button className="btn-quiet w-full" onClick={() => oppakken(conflict.m, 'skip')}>
+              {conflict.met.naam} overslaan
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {melding && (
+        <Sheet open onClose={() => setMelding(null)} title="Opgepakt">
+          <div className="flex flex-col gap-in-block">
+            {melding.map((w, i) => (
+              <p key={i} className="quote">
+                {w}
+              </p>
+            ))}
+            <p className="text-meta text-dim">
+              Dit houdt je niet tegen; het staat er zodat je weet wat je vandaag op je bord hebt.
+            </p>
+          </div>
+        </Sheet>
+      )}
+
+      <SkipSheet
+        open={skipFor !== null}
+        onClose={() => setSkipFor(null)}
+        onPick={(r) => {
+          if (skipFor) A.skipSession(skipFor.date, skipFor.what, r)
+          setSkipFor(null)
+        }}
+      />
+    </div>
+  )
 }
 
 /* -------------------------------------------------------------------------
@@ -373,17 +512,23 @@ function NietVandaag({ iso, plan }: { iso: string; plan: DayPlan }) {
   )
 }
 
-/** Wat er van vandaag ergens anders is gaan staan, met de datum erbij. */
+/**
+ * Wat er van vandaag ergens anders is gaan staan, met de datum erbij.
+ *
+ * Alleen als er van die soort vandaag ook echt niets meer staat. Bij een ruil — en een
+ * gemiste sessie die je vandaag oppakt is er een — klopt "verplaatst naar" wel, maar het
+ * leest als "hier is niets meer", terwijl er juist iets anders voor in de plaats staat.
+ */
 function Verplaatst({ plan }: { plan: DayPlan }) {
-  if (!plan.movedTo && !plan.runMovedTo) return null
+  const loop = plan.runMovedTo && !plan.run
+  const kracht = plan.movedTo && !plan.strength
+  if (!loop && !kracht) return null
   return (
     <div className="mt-block flex flex-col gap-in-block">
       <Caps>Verplaatst</Caps>
-      {plan.runMovedTo && (
-        <p className="quote">Loop verplaatst naar {formatShort(plan.runMovedTo)}.</p>
-      )}
-      {plan.movedTo && (
-        <p className="quote">Krachtsessie verplaatst naar {formatShort(plan.movedTo)}.</p>
+      {loop && <p className="quote">Loop verplaatst naar {formatShort(plan.runMovedTo!)}.</p>}
+      {kracht && (
+        <p className="quote">Krachtsessie verplaatst naar {formatShort(plan.movedTo!)}.</p>
       )}
     </div>
   )
@@ -567,6 +712,7 @@ function TweedeSessie({
   if (!s || !plan.run || plan.run.skipped) return null
 
   const meta = [
+    s.movedFrom ? `van ${formatShort(s.movedFrom)}` : null,
     s.optional ? 'optioneel' : null,
     `${s.slots.length} oefeningen`,
     `~${s.estimatedMin} min`,
@@ -848,7 +994,7 @@ function SkipSheet({
   return (
     <Sheet open={open} onClose={onClose} title="Overslaan — waarom?">
       <p className="mb-block text-body text-muted">Wordt gelogd, verder geen gevolgen.</p>
-      <ChoiceGrid columns={2} options={REASONS} onChange={onPick} />
+      <ChoiceGrid columns={2} options={SKIP_CHOICES} onChange={onPick} />
     </Sheet>
   )
 }
