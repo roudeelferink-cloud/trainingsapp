@@ -10,7 +10,7 @@ import {
 import { addDays, fromISO } from '../src/logic/dates'
 import { missedSessions } from '../src/logic/gemist'
 import * as A from '../src/store/actions'
-import { ROB, getState, resetState, setCurrentUser, setState } from '../src/store/store'
+import { ROB, getRoot, getState, migrate, resetState, setCurrentUser, setState } from '../src/store/store'
 
 /**
  * Een gemiste sessie vandaag alsnog doen.
@@ -218,6 +218,18 @@ describe('geen ketens', () => {
     // en de sessie die op donderdag hoorde is niet zoekgeraakt
     expect(buildDay(s, vorigeZa).strength?.kind).toBe('optional_upper')
   })
+
+  it('draait de verplaatsing terug als de sessie van vandaag zelf was', () => {
+    // duwen van vandaag naar afgelopen zondag gehaald, en daar laten liggen
+    expect(A.moveSession(DI, VORIGE_ZO).ok).toBe(true)
+    expect(buildDay(getState(), VORIGE_ZO).strength?.movedFrom).toBe(DI)
+
+    expect(A.pickUpToday(VORIGE_ZO, 'strength').ok).toBe(true)
+    const s = getState()
+    expect(s.moves).toEqual({})
+    expect(buildDay(s, DI).strength?.kind).toBe('push')
+    expect(buildDay(s, DI).strength?.movedFrom).toBeNull()
+  })
 })
 
 describe('loop en kracht op dezelfde dag', () => {
@@ -315,5 +327,29 @@ describe('het venster van de weekpagina', () => {
     const gemist = missedSessions(getState())
     expect(gemist.some((m) => m.date === VORIGE_ZO && m.what === 'run')).toBe(true)
     expect(gemist.some((m) => m.date === VOLGENDE_MA)).toBe(false)
+  })
+})
+
+describe('de opgeslagen redenen', () => {
+  it('houdt "ingehaald" heel door de migratie heen', () => {
+    A.pickUpToday(VORIGE_VR, 'strength', 'skip')
+    const bewaard = JSON.parse(JSON.stringify(getRoot()))
+    expect(migrate(bewaard).users[ROB].skips[`${VORIGE_VR}:strength`]).toEqual({
+      reason: 'ingehaald',
+      what: 'strength',
+    })
+  })
+
+  it('gooit een reden weg die de app niet kent', () => {
+    setState((s) => ({
+      ...s,
+      skips: {
+        [`${VORIGE_VR}:strength`]: { reason: 'onzin', what: 'strength' } as never,
+        [`${VORIGE_ZO}:run`]: { reason: 'ziek', what: 'run' },
+      },
+    }))
+    const na = migrate(JSON.parse(JSON.stringify(getRoot()))).users[ROB].skips
+    expect(na[`${VORIGE_VR}:strength`]).toBeUndefined()
+    expect(na[`${VORIGE_ZO}:run`]).toEqual({ reason: 'ziek', what: 'run' })
   })
 })

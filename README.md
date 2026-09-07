@@ -197,7 +197,8 @@ Zaterdag overslaan telt niet als gemiste training en breekt de streak niet.
   [Guardrails](#guardrails-de-app-remt-af). Een deloadweek houdt de structuur intact en
   haalt er 1 set per oefening, 40% van het gewicht en 30% van de kilometers af; de
   optionele zaterdag staat dan uit.
-- **Kalibratie:** week 1 en 2 tonen geen streefgewicht maar "op gevoel, stop bij RIR 2-3".
+- **Kalibratie:** week 1 en 2 tonen geen streefgewicht maar "train op gevoel, stop met 2-3
+  herhalingen in de tank".
   Vanaf week 3 neemt de progressielogica het over op basis van wat je gelogd hebt.
 - **Rotatie:** na elke 3 volledige cycli (12 weken) schuift de oefeningselectie per
   bewegingspatroon door naar de volgende variant. Permanent vervangen oefeningen blijven staan.
@@ -518,6 +519,9 @@ alle sets), berekend met dezelfde conventie.
 
   De lijst loopt **beide kanten op**: van de dag vóór deze week tot en met de dag erna, dus
   een sessie is net zo goed naar voren te halen en over een weekgrens heen te verzetten.
+  Ligt de sessie in het verleden en nog binnen het terugwerkende venster, dan staat
+  **vandaag** er altijd bij, als eerste doel — ook als die buiten die negen dagen valt. De
+  kop heet dan "Vandaag of later" in plaats van "Later deze week".
   Is de doeldag bezet met hetzelfde soort sessie, dan ruilen de twee van plek (ma ↔ vr
   bijvoorbeeld); dagen die al aan een verplaatsing meedoen vallen af, want ketens maken het
   onnavolgbaar. Woensdag staat in de lijst maar is geblokkeerd (bij Anouc maandag): de vaste
@@ -527,6 +531,23 @@ alle sets), berekend met dezelfde conventie.
   twee zware beendagen achter elkaar. Dat houdt je niet tegen — je ziet het vooraf en
   kiest zelf. Alleen conflicten die er zónder deze verplaatsing ook al waren blijven
   ongenoemd; die horen niet bij deze keuze.
+- **Inhalen:** een sessie die je gemist hebt kun je vandaag alsnog dóén. Op Vandaag staat
+  **Nog open** boven de sessie van de dag, met per regel de datum, de naam en drie keuzes:
+  *Vandaag doen*, *Achteraf invullen* en *Overslaan*. De planpagina heeft dezelfde drie.
+
+  *Vandaag doen* is geen verplaatsing en geen achteraf invullen. Verplaatsen ruilt met de
+  doeldag — dan zou de sessie van vandaag naar gisteren gaan — en achteraf invullen logt op
+  de oude datum. Een opgepakte sessie landt op vandaag, logt op vandaag en telt gewoon mee
+  voor de progressie; hij toont "van zo 6 sep", net als een verplaatsing.
+
+  Staat er vandaag al zo'n sessie, dan vraagt de app wat er met díé moet gebeuren:
+  doorschuiven naar de eerstvolgende vrije dag (t/m de dag na deze week), of overslaan met
+  "ingehaald" als reden. Is doorschuiven er niet, dan blijft overslaan over. Is de sessie
+  van vandaag zelf al een verplaatsing, dan óók alleen overslaan — ketens maken het
+  onnavolgbaar. Een rustdag blokkeert het hele ding: daar plant de app nooit iets.
+
+  Het venster is dat van achteraf invullen: deze week plus de week ervoor. Verder terug is
+  het geen inhalen meer.
 - **Per oefening:** eenmalig wisselen, permanent vervangen (rouleert dan niet meer mee),
   een plek naar voren of naar achteren schuiven, of overslaan.
 - **Gevoelige gebieden** (Instellingen): per belast gebied ok / let op / gevoelig. Op
@@ -534,6 +555,27 @@ alle sets), berekend met dezelfde conventie.
   uit hetzelfde patroon. `lateral_hip` staat standaard op *let op*.
 - **Reismodus:** alles naar lichaamsgewicht + band, max 30 min. Loopdagen ongewijzigd,
   de cyclus loopt door.
+
+## Wat je van een oefening al deed
+
+Twee vragen, één bron (`src/logic/history.ts`), allebei op de **datum** van een sessie en
+niet op het moment waarop je hem invulde. Een sessie van vorige week die je vandaag
+achteraf invulde heeft het jongste invoermoment van allemaal, maar hij is niet de vorige
+keer van vandaag.
+
+- **"De vorige keer"** staat tijdens een sessie onder de oefeningkop: één regel met de
+  datum en de sets van de laatste afgeronde sessie waarin deze oefening zat, ongeacht het
+  sessietype — `vr 4 sep · 100 × 12 · 100 × 12 · 100 × 10`. Wijkt het streefgewicht van
+  vandaag daarvan af, dan staat dat erachter (`· nu 102,5`). Geen knop, alleen tonen.
+- **De pagina per oefening** hangt onder Historie, net zoals Instellingen dat doet — geen
+  vierde tab in de onderbalk. *Per oefening* lijst alles op wat je ooit gelogd hebt, laatst
+  gedaan bovenaan; tikken opent een kleine lijn van het zwaarste setgewicht per sessie over
+  12 weken, met daaronder dezelfde setregels. Alleen kijken: hier valt niets te bewerken.
+
+Bij dumbbells staat er "per dumbbell" achter — dat is het gewicht van één dumbbell, zoals
+overal in de app. Bandwerk toont het niveau in plaats van kilo's. Een set die **naar
+beneden bijgesteld** is staat een toon zachter: hij telde niet mee voor de opbouw, en dat
+hoor je te kunnen zien zonder dat er een uitroepteken bij hoeft.
 
 ## Losse activiteiten
 
@@ -602,7 +644,7 @@ huishoudcode en de synctijdstempels op uit bestaande data. Het Firebase-project
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **12**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **17**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -652,6 +694,17 @@ Bestaande stappen:
 - **v9 → v10** — één veld erbij: `pin`, de viercijferige code voor het wissen van
   gegevens. Bestaande data krijgt `null`, en dan is wissen simpelweg niet mogelijk tot er
   in de instellingen een code is ingesteld. Verder verandert er niets.
+- **v13 → v14** — de werkelijk gelopen afstand is de maat geworden. Elke looplog krijgt een
+  expliciete `km`: een afgeronde loop zonder afstand valt terug op wat er gepland stond, een
+  niet-afgeronde loop en een fietssessie komen op 0.
+- **v14 → v15** — het advies van de review-endpoint krijgt een plek per gebruiker (`review`),
+  leeg te beginnen. Het is een kopie van wat de server zei, geen bron voor een berekening.
+- **v15 → v16** — progressie op data: `settings.progressie` (het tempo per spiergroep) en
+  `hitStreak` per oefening komen erbij, allebei op een schoon startpunt; `dismissedWarnings`
+  gaat eruit, want die meldingen bestaan niet meer.
+- **v16 → v17** — de RIR per set is uit de app en wordt uit elke opgeslagen set gestript.
+  Een export van vóór deze versie blijft importeerbaar en komt er schoon uit; gewichten,
+  reps, bandniveaus en vinkjes blijven precies zoals ze waren.
 - **v11 → v12** — één veld erbij per gebruiker: `dismissedWarnings`, een sleutel per
   weggeklikt patroon met de datum erbij. Bestaande data krijgt een lege lijst; er is dan
   simpelweg nog niets weggeklikt.
@@ -661,7 +714,8 @@ Bestaande stappen:
   voorstellen). De instellingen krijgen er `plates` bij, de schijven die er liggen. De
   beoordeling van een sessie (`feel`, op het sessielog én op het looplog) heeft geen stap
   nodig: hij is optioneel en ontbreekt gewoon bij alles wat er al stond — precies zoals de
-  progressie hem leest, want zonder beoordeling telt de gelogde RIR.
+  progressie hem leest. (Destijds viel die zonder beoordeling terug op de RIR per set;
+  sinds v17 bestaat die niet meer en doet de opbouwregel op de gelogde sets dat werk.)
 
 Niet elke toevoeging heeft een stap nodig. Het warming-upblok (`warmup` op het sessielog)
 en de eigen oefeningvolgorde (`order` op de dagoverride) zijn allebei optioneel: ontbreken
@@ -697,6 +751,10 @@ src/
   logic/legLoad.ts    hoe zwaar een sessie op je benen is, geteld uit de oefeningen
   logic/sessionSlots.ts welke oefeningen er in de sessie van een dag zitten
   logic/schedule.ts   wat er volgens het schema op een dag staat, verplaatsingen meegerekend
+  logic/backfill.ts   het terugwerkende venster en de volgorde van de progressie
+  logic/gemist.ts     wat er in dat venster nog open staat, per week en in totaal
+  logic/history.ts    wat je van een oefening al deed: de vorige keer en het verloop
+  logic/skips.ts      de redenen om over te slaan, en welke je zelf kunt kiezen
   logic/feel.ts       beoordeling per sessie en de dagcheck
   logic/startWeight.ts geschat startgewicht zonder historie
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
@@ -718,8 +776,10 @@ src/
   components/Figure.tsx  poppetje uit gewrichtshoeken, met materiaal en vloer
   components/Activities.tsx  invoer en weergave van losse activiteiten
   components/MoveSheet.tsx   dagkeuze bij verplaatsen, gedeeld door Vandaag en Week
-  screens/            Welkom, Vandaag, Sessie, Week, Voortgang, Meekijken, Instellingen
-                      (Meekijken zit onder Instellingen → Profiel, niet in de onderbalk)
+  components/Sets.tsx        één regel gelogde sets, gedeeld door Sessie en Historie
+  screens/            Welkom, Vandaag, Sessie, Week, Plannen, Historie, Oefening,
+                      Meekijken, Instellingen (Meekijken zit onder Instellingen → Profiel,
+                      Oefening en Instellingen onder Historie — niet in de onderbalk)
 tests/                vitest-suite, draait zonder browser
   fixtures/           een echte export van de Pages-versie, voor de overzet-test
 server/               het review-servertje (eigen package.json en tests)

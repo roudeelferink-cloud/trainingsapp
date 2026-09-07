@@ -1,6 +1,7 @@
 import type { AppState, ProgramId, ReviewCache, SessionLog, UserState } from '../types'
 import { mondayOf, today } from '../logic/dates'
 import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
+import { isSkipReason } from '../logic/skips'
 import { runMigrations, stripRir, type RawState } from './migrations'
 
 /**
@@ -102,7 +103,7 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     deloadSkips: s.deloadSkips ?? {},
     deviations: Array.isArray(s.deviations) ? s.deviations : [],
     activities: Array.isArray(s.activities) ? s.activities : [],
-    skips: s.skips ?? {},
+    skips: normalizeSkips(s.skips),
     moves: s.moves ?? {},
     runMoves: s.runMoves ?? {},
     overrides: s.overrides ?? {},
@@ -111,6 +112,24 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     lastExportAt: typeof s.lastExportAt === 'string' ? s.lastExportAt : null,
     review: isReviewCache(s.review) ? s.review : null,
   }
+}
+
+/**
+ * De overgeslagen sessies, ontdaan van wat de app niet kan lezen.
+ *
+ * Een reden die niet bestaat zou als leeg label op het scherm belanden, en een `what` die
+ * geen 'strength' of 'run' is hoort bij geen enkel blok. Zulke regels zijn geen historie
+ * maar ruis: ze verdwijnen, en de sessie staat daarmee gewoon weer open.
+ */
+function normalizeSkips(raw: UserState['skips'] | undefined): UserState['skips'] {
+  const out: UserState['skips'] = {}
+  for (const [key, skip] of Object.entries(raw ?? {})) {
+    if (!skip || typeof skip !== 'object') continue
+    if (skip.what !== 'strength' && skip.what !== 'run') continue
+    if (!isSkipReason(skip.reason)) continue
+    out[key] = { reason: skip.reason, what: skip.what }
+  }
+  return out
 }
 
 /**

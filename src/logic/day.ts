@@ -445,8 +445,7 @@ export function pickUpToday(
   const blok = what === 'run' ? bron.run : bron.strength
   if (!blok || blok.done || blok.skipped) return { kind: 'blocked', reason: PICK_UP_NOTHING }
 
-  const hier = buildDay(state, vandaag)
-  if (hier.isRest) return { kind: 'blocked', reason: REST_DAY_REASON }
+  if (buildDay(state, vandaag).isRest) return { kind: 'blocked', reason: REST_DAY_REASON }
 
   /*
     De brondag is niet altijd de dag waar de sessie oorspronkelijk hoort: hij kan daar zelf
@@ -457,6 +456,16 @@ export function pickUpToday(
   const oorsprong = blok.movedFrom ?? iso
   let basis = blok.movedFrom ? undoMoveIn(state, oorsprong, iso, what) : state
 
+  /*
+    Kwam de sessie van vandaag — je had hem naar een eerdere dag gehaald en daar laten
+    liggen — dan is het terugdraaien hierboven het hele antwoord. Hij staat weer waar hij
+    hoort, en er valt niets te verplaatsen.
+  */
+  if (oorsprong === vandaag) {
+    return { kind: 'ok', next: basis, warnings: pickUpWarnings(state, basis, vandaag, what) }
+  }
+
+  const hier = buildDay(basis, vandaag)
   const staat = what === 'run' ? hier.run : hier.strength
   if (staat && !staat.skipped) {
     // geen ketens: een sessie die hier zelf al een verplaatsing is, schuift niet verder
