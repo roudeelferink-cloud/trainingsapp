@@ -38,7 +38,7 @@ function logSession(iso: string, weight: number) {
   const slots = firstSlot(iso)
   const key = slots[0].slot.key
   A.completeSession(iso, buildDay(getState(), iso).strength!.kind, slots, {
-    [key]: [{ weight, reps: 10, rir: 1, done: true }],
+    [key]: [{ weight, reps: 10, done: true }],
   }, false, [key])
 }
 
@@ -218,7 +218,7 @@ describe('het schema van Anouc', () => {
   it('klimt rustiger dan het standaardtempo bij precies dezelfde sessie', () => {
     const ex = getExercise('leg_press')
     const bounds = { repMin: 10, repMax: 12 }
-    const sets = [{ weight: 40, reps: 12, rir: 1, done: true }]
+    const sets = [{ weight: 40, reps: 12, done: true }]
     const start = emptyExerciseState()
 
     const standaard = applyProgression(ex, bounds, sets, start, {
@@ -248,7 +248,7 @@ describe('het schema van Anouc', () => {
     // buiten de kalibratieweken, alle sets op de bovengrens met RIR 1
     setState((s) => ({ ...s, startDate: '2026-07-06' }))
     A.completeSession(WO, kind, [slot], {
-      [key]: [{ weight: 40, reps: slot.repMax, rir: 1, done: true }],
+      [key]: [{ weight: 40, reps: slot.repMax, done: true }],
     }, false, [key])
 
     expect(getState().exerciseState[slot.exercise.id].targetWeight).toBe(40)
@@ -274,7 +274,7 @@ describe('de guardrails werken voor allebei de profielen', () => {
         const strength = buildDay(getState(), dag).strength!
         const slot = strength.slots[0]
         A.completeSession(dag, strength.kind, [slot], {
-          [slot.slot.key]: [{ weight: 30, reps: slot.repMax, rir: 1, done: true }],
+          [slot.slot.key]: [{ weight: 30, reps: slot.repMax, done: true }],
         }, false, [slot.slot.key], 'zwaar')
 
         expect(getState().sessions[`${dag}:${strength.kind}`].feel).toBe('zwaar')

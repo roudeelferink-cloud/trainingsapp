@@ -217,7 +217,6 @@ describe('de nieuwe regel over de historie in fixtures/', () => {
       const sets: LoggedSet[] = Array.from({ length: r.sets }, () => ({
         weight: streef.targetWeight ?? gewicht,
         reps: streef.targetReps ?? r.repMin,
-        rir: 2,
         done: true,
       }))
 

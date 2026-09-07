@@ -1,7 +1,7 @@
-import type { AppState, ProgramId, ReviewCache, UserState } from '../types'
+import type { AppState, ProgramId, ReviewCache, SessionLog, UserState } from '../types'
 import { mondayOf, today } from '../logic/dates'
 import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
-import { runMigrations, type RawState } from './migrations'
+import { runMigrations, stripRir, type RawState } from './migrations'
 
 /**
  * Het schema: hoe een lege staat eruitziet, en hoe oude data naar de huidige versie
@@ -25,7 +25,7 @@ export function isPin(code: unknown): code is string {
   return typeof code === 'string' && /^[0-9]{4}$/.test(code)
 }
 
-export const SCHEMA_VERSION = 16
+export const SCHEMA_VERSION = 17
 
 export const USER_SEEDS: { id: string; naam: string; programId: ProgramId }[] = [
   { id: ROB, naam: 'Rob', programId: 'kracht_hardlopen' },
@@ -96,7 +96,7 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     permanentReplacements: s.permanentReplacements ?? {},
     checkins: s.checkins ?? {},
     dayChecks: s.dayChecks ?? {},
-    sessions: s.sessions ?? {},
+    sessions: normalizeSessions(s.sessions),
     runs: s.runs ?? {},
     runPlans: s.runPlans ?? {},
     deloadSkips: s.deloadSkips ?? {},
@@ -111,6 +111,32 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     lastExportAt: typeof s.lastExportAt === 'string' ? s.lastExportAt : null,
     review: isReviewCache(s.review) ? s.review : null,
   }
+}
+
+/**
+ * De sessielogs zoals de app ze wil lezen.
+ *
+ * De enige bewerking is het strippen van de RIR per set. Die is sinds v17 uit de app, en
+ * de migratiestap haalt hem al uit alles wat een oudere versie meldt — maar een bestand
+ * dat zichzelf v17 of nieuwer noemt en het veld tóch meedraagt komt langs de migraties
+ * heen. Dan valt het hier alsnog weg, in plaats van als dood gewicht mee te reizen.
+ */
+function normalizeSessions(raw: UserState['sessions'] | undefined): UserState['sessions'] {
+  const sessions = raw ?? {}
+  const out: UserState['sessions'] = {}
+  for (const [key, log] of Object.entries(sessions)) {
+    // half-kapotte data blijft staan zoals hij is; wegwerken is niet aan deze functie
+    if (!log || typeof log !== 'object') {
+      out[key] = log
+      continue
+    }
+    const entries: SessionLog['entries'] = {}
+    for (const [slotKey, sets] of Object.entries(log.entries ?? {})) {
+      entries[slotKey] = stripRir(sets) as SessionLog['entries'][string]
+    }
+    out[key] = { ...log, entries }
+  }
+  return out
 }
 
 /**

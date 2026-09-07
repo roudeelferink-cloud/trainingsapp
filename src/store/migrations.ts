@@ -305,8 +305,9 @@ function v9_to_v10(state: RawState): RawState {
  * - `deviations` — afwijkingen van voorstellen, zodat er later een patroon uit te lezen is.
  *
  * De beoordeling van een sessie (`feel`, op het sessielog en op het looplog) heeft geen
- * stap nodig: hij is optioneel en ontbreekt gewoon bij alles wat er al staat. Dat is ook
- * precies hoe de progressie hem leest — geen beoordeling betekent terugvallen op de RIR.
+ * stap nodig: hij is optioneel en ontbreekt gewoon bij alles wat er al staat. (Destijds
+ * viel de progressie zonder beoordeling terug op de RIR per set; sinds v17 bestaat die
+ * niet meer en doet de opbouwregel op de gelogde sets dat werk.)
  *
  * De schijven in de instellingen komen via `normalizeSettings` binnen, net als de
  * stanggewichten destijds; die stap staat hieronder alsnog expliciet zodat een gebruiker
@@ -530,6 +531,62 @@ function v15_to_v16(state: RawState): RawState {
 }
 
 
+/**
+ * v16 -> v17: de RIR per set is uit de app.
+ *
+ * Elke set had een getal "hoeveel herhalingen zaten er nog in het vat". Het moest tijdens
+ * de sessie ingevuld worden, het stond standaard op 2 en het werd zelden bijgesteld — dus
+ * stond er meestal een 2 die niets zei. En het deed dubbel werk: sinds de opbouwregel op
+ * de gelogde sets loopt en de beoordeling na afloop de handmatige route is, was de RIR een
+ * derde maat die af en toe stilletjes de doorslag gaf.
+ *
+ * Deze stap haalt het veld uit alles wat opgeslagen staat. Een export van vóór deze versie
+ * blijft gewoon importeerbaar: hij komt hier langs en gaat er schoon uit. De gewichten,
+ * reps, bandniveaus en vinkjes blijven precies zoals ze waren — er verdwijnt één getal, en
+ * geen enkele sessie.
+ */
+function v16_to_v17(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!isRecord(raw) || !isRecord(raw.sessions)) {
+      next[id] = raw
+      continue
+    }
+
+    const sessions: Record<string, unknown> = {}
+    for (const [key, log] of Object.entries(raw.sessions)) {
+      if (!isRecord(log) || !isRecord(log.entries)) {
+        sessions[key] = log
+        continue
+      }
+      const entries: Record<string, unknown> = {}
+      for (const [slotKey, sets] of Object.entries(log.entries)) {
+        entries[slotKey] = stripRir(sets)
+      }
+      sessions[key] = { ...log, entries }
+    }
+    next[id] = { ...raw, sessions }
+  }
+
+  return { ...state, users: next }
+}
+
+/**
+ * De sets van één oefening zonder het RIR-veld. Staat hier los omdat de import hem ook
+ * gebruikt: een bestand dat zichzelf al v17 noemt maar toch nog een `rir` meedraagt hoort
+ * net zo schoon binnen te komen als een oud bestand dat de stap hierboven passeert.
+ */
+export function stripRir(sets: unknown): unknown[] {
+  if (!Array.isArray(sets)) return []
+  return sets.map((s) => {
+    if (!isRecord(s)) return s
+    const { rir: _weg, ...rest } = s
+    return rest
+  })
+}
+
 /** Een bruikbaar aantal kilometers, of null als er niets te lezen valt. */
 function getal(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null
@@ -551,6 +608,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   13: v13_to_v14,
   14: v14_to_v15,
   15: v15_to_v16,
+  16: v16_to_v17,
 }
 
 /**

@@ -45,7 +45,7 @@ function logSessie(
     startedAt: start.toISOString(),
     short: false,
     entries: Object.fromEntries(
-      slots.map((r) => [r.slot.key, [{ weight: 40, reps: r.repMax, rir: 2, done: true }]]),
+      slots.map((r) => [r.slot.key, [{ weight: 40, reps: r.repMax, done: true }]]),
     ),
     exercises: Object.fromEntries(slots.map((r) => [r.slot.key, r.exercise.id])),
     skippedSlots: [],
@@ -329,7 +329,7 @@ describe('de extra oefening toevoegen', () => {
     const slots = buildDay(getState(), iso).strength!.slots
     const eersteId = slots[0].exercise.id
     const entries = Object.fromEntries(
-      slots.map((r) => [r.slot.key, [{ weight: 60, reps: r.repMax, rir: 1, done: true }]]),
+      slots.map((r) => [r.slot.key, [{ weight: 60, reps: r.repMax, done: true }]]),
     )
 
     A.setWarmupDone(iso, kind, true)

@@ -126,7 +126,7 @@ function log(weight: number, reps: number): Record<string, SessionLog> {
       skippedSlots: [],
       completedSlots: [],
       exercises: { 'legs_a:0': 'leg_press' },
-      entries: { 'legs_a:0': [{ weight, reps, rir: 1, done: true }] },
+      entries: { 'legs_a:0': [{ weight, reps, done: true }] },
     },
   }
 }

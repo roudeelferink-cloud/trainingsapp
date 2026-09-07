@@ -61,7 +61,7 @@ function vulHistorie(datum = MON) {
         skippedSlots: [],
         completedSlots: [],
         exercises: { 'legs_a:0': 'leg_press' },
-        entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1, done: true }] },
+        entries: { 'legs_a:0': [{ weight: 100, reps: 10, done: true }] },
       },
     },
     runs: {

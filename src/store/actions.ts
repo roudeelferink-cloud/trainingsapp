@@ -519,7 +519,7 @@ function sameSets(a: LoggedSet[] | undefined, b: LoggedSet[]): boolean {
   if (!a || a.length !== b.length) return false
   return a.every((x, i) => {
     const y = b[i]
-    return x.weight === y.weight && x.reps === y.reps && x.rir === y.rir && x.level === y.level
+    return x.weight === y.weight && x.reps === y.reps && x.level === y.level
   })
 }
 
@@ -530,7 +530,8 @@ function sameSets(a: LoggedSet[] | undefined, b: LoggedSet[]): boolean {
  *
  * De afsluitende beoordeling (`feel`) gaat mee de progressie in: die beslist samen met
  * de gehaalde reps of het gewicht omhoog mag. Hij hoort bij de sessie, dus hij wordt ook
- * op het log bewaard. Wie hem overslaat, valt terug op de gelogde RIR.
+ * op het log bewaard. Wie hem overslaat verliest niets: dan doet de opbouwregel het werk
+ * op de gelogde sets, en die heeft geen beoordeling nodig.
  */
 export function completeSession(
   iso: string,

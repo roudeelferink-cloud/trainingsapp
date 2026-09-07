@@ -16,7 +16,7 @@ import { nextLoadable, roundToLoadable } from './plates'
 
 export type ProgressionPace = 'standard' | 'gentle'
 
-export const CALIBRATION_TEXT = 'op gevoel, stop bij RIR 2-3'
+export const CALIBRATION_TEXT = 'train op gevoel, stop met 2-3 herhalingen in de tank'
 
 /**
  * De maximale sprong per oefening per week. Samengesteld werk verdraagt een grotere
@@ -162,8 +162,8 @@ export interface ProgressionOptions {
  *   12,5 springt, of alleen schijven van 5 kg — dan blijft het gewicht staan en gaan
  *   er reps bij.
  *
- * Zonder beoordeling (oude logs, of overgeslagen) valt de beslissing terug op de
- * gelogde RIR: RIR ≤ 2 telt dan als 'goed'.
+ * Zonder beoordeling (oude logs, of overgeslagen) gaat het gewicht langs deze weg niet
+ * omhoog: dit is de handmatige route. `opbouw.ts` doet dan het werk op de gelogde sets.
  *
  * `pace: 'gentle'` (beginnersprogramma) behandelt élke oefening als reps-progressie:
  * eerst herhalingen opbouwen tot boven de bovengrens, pas daarna gewicht erbij.
@@ -188,17 +188,17 @@ export function applyProgression(
   const repCeiling = progression === 'reps' ? bounds.repMax + 2 : bounds.repMax
   /*
     Het gewicht gaat langs deze weg alleen omhoog als je de sessie zelf beoordeeld hebt.
-    Vroeger viel dat zonder beoordeling terug op de gelogde RIR, en dan verhoogde deze
-    regel bij elke sessie op de bovengrens. Sinds `opbouw.ts` de progressie op de gelogde
-    sets doet, zouden dat twee regels zijn die naar dezelfde sets kijken en om de beurt
-    een stap nemen. Nu is dit de handmatige route — jij zegt dat het makkelijk ging — en
-    doet de andere regel het werk als je niets zegt.
+    Vroeger viel dat zonder beoordeling terug op een per set gelogd getal (RIR), en dan
+    verhoogde deze regel bij elke sessie op de bovengrens. Sinds `opbouw.ts` de progressie
+    op de gelogde sets doet, zouden dat twee regels zijn die naar dezelfde sets kijken en
+    om de beurt een stap nemen. Nu is dit de handmatige route — jij zegt dat het makkelijk
+    ging — en doet de andere regel het werk als je niets zegt.
 
     Reps opbouwen gaat wél gewoon door zonder beoordeling: dat is geen stap omhoog maar
     het volmaken van wat er al staat, en het is de enige weg die het rustige programma
     van Anouc heeft.
   */
-  const feelRaisesWeight = opts.feel !== undefined && allowsIncrease(opts.feel)
+  const raiseFeel = feelSaysGo(opts.feel) ? opts.feel : null
 
   const next: ExerciseState = {
     ...prev,
@@ -235,7 +235,6 @@ export function applyProgression(
   next.belowMinStreak = 0
 
   const repsAtCeiling = minReps >= Math.min(repCeiling, Math.max(currentTargetReps, bounds.repMax))
-  const succeeded = repsAtCeiling && feelRaisesWeight
   const repsSucceeded = progression === 'reps' && minReps >= currentTargetReps
 
   if (opts.feel === 'zwaar' && repsAtCeiling) {
@@ -249,14 +248,14 @@ export function applyProgression(
   }
 
   if (progression === 'weight') {
-    if (succeeded) {
+    if (repsAtCeiling && raiseFeel) {
       const step = raise(ex, next.targetWeight, prev, opts)
       if (step.weight !== null) {
         next.targetWeight = step.weight
         next.targetReps = bounds.repMin
         next.increaseWeek = mondayOf(opts.iso)
         next.increasedKg = step.total
-        const msg = `${ex.naam}: alle sets op ${bounds.repMax} ${reason(opts.feel)} — omhoog naar ${fmt(next.targetWeight)} kg.`
+        const msg = `${ex.naam}: alle sets op ${bounds.repMax} ${reason(raiseFeel)} — omhoog naar ${fmt(next.targetWeight)} kg.`
         return { next, message: msg }
       }
       // niet verhogen: dan maar een rep erbij, en uitleggen waarom
@@ -275,7 +274,7 @@ export function applyProgression(
       return { next, message: null }
     }
     // op het repsplafond kan alleen het gewicht nog omhoog, en dat is de handmatige route
-    if (!feelRaisesWeight) {
+    if (!raiseFeel) {
       next.targetReps = repCeiling
       return { next, message: null }
     }
@@ -359,17 +358,20 @@ function raise(
 }
 
 /**
- * Ging het goed genoeg om te verhogen? De beoordeling is leidend; ontbreekt hij, dan
- * beslist de gelogde RIR zoals voorheen.
+ * Ging het goed genoeg om te verhogen?
+ *
+ * Alleen de beoordeling telt. Zonder beoordeling is het antwoord nee — niet "misschien":
+ * er stond ooit een tweede maat naast (RIR per set), maar die vroeg om een getal tijdens
+ * de sessie dat niemand betrouwbaar invulde, en hij deed hetzelfde werk als de
+ * opbouwregel op de sets. Wie niets zegt, laat die regel het werk doen.
  */
-function feelSaysGo(done: LoggedSet[], feel: Feel | undefined): boolean {
-  if (feel) return allowsIncrease(feel)
-  return Math.max(...done.map((s) => s.rir)) <= 2
+function feelSaysGo(feel: Feel | undefined): boolean {
+  return feel !== undefined && allowsIncrease(feel)
 }
 
-/** Waarom er verhoogd werd: de beoordeling, of anders de RIR waar hij op terugviel. */
-function reason(feel: Feel | undefined): string {
-  return feel ? `en de sessie viel ${feel}` : 'met RIR ≤ 2'
+/** Waarom er verhoogd werd: de beoordeling die je gaf. */
+function reason(feel: Feel): string {
+  return `en de sessie viel ${feel}`
 }
 
 /**
@@ -431,7 +433,7 @@ function bandProgression(
     return { next, message: null }
   }
 
-  const succeeded = minReps >= currentTargetReps && feelSaysGo(done, opts.feel)
+  const succeeded = minReps >= currentTargetReps && feelSaysGo(opts.feel)
   if (!succeeded) {
     next.targetReps = Math.max(bounds.repMin, Math.min(minReps, repCeiling))
     return { next, message: null }

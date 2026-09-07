@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { getExercise } from '../src/data/exercises'
 import { buildDay } from '../src/logic/day'
-import { addDays } from '../src/logic/dates'
+import { addDays, today } from '../src/logic/dates'
 import {
   DREMPEL,
   MAX_VERHOGINGEN_PER_SESSIE,
@@ -51,7 +51,7 @@ function es(patch: Partial<ExerciseState> = {}): ExerciseState {
 }
 
 function sets(n: number, weight: number, reps: number): LoggedSet[] {
-  return Array.from({ length: n }, () => ({ weight, reps, rir: 2, done: true }))
+  return Array.from({ length: n }, () => ({ weight, reps, done: true }))
 }
 
 describe('een sessie beoordelen', () => {
@@ -248,7 +248,6 @@ function logSessie(iso: string, opts: { reps?: number; gewicht?: number; setsMin
     entries[r.slot.key] = Array.from({ length: Math.max(0, aantal) }, () => ({
       weight: opts.gewicht ?? t.weight ?? 0,
       reps: opts.reps ?? t.reps,
-      rir: 2,
       done: true,
     }))
   }
@@ -407,14 +406,19 @@ describe('wat je ervan ziet', () => {
   })
 
   it('zet die regel ook op het sessiescherm, tussen de andere contextregels', () => {
-    const weken = maandagen(4)
-    for (const iso of weken.slice(0, 3)) logSessie(iso)
+    for (const iso of maandagen(3)) logSessie(iso)
 
-    // de warming-up eerst: daarna staat de eerste oefening in beeld
-    const kind = buildDay(getState(), weken[3]).strength!.kind
-    F.setWarmupDone(weken[3], kind, true)
+    /*
+      De sessie waar we naar kijken staat op de maandag van deze week, niet op de vierde
+      maandag na de startdatum: het sessiescherm weigert een dag die verder terug ligt dan
+      het terugwerkende venster, en dan zou deze test alleen slagen in de weken vlak na
+      die startdatum. De regel hangt aan de oefeningstaat en niet aan de datum.
+    */
+    const dag = mondayOf(today())
+    const kind = buildDay(getState(), dag).strength!.kind
+    F.setWarmupDone(dag, kind, true)
     const html = renderToString(
-      createElement(SessionScreen, { date: weken[3], kind, onClose: () => {} }),
+      createElement(SessionScreen, { date: dag, kind, onClose: () => {} }),
     ).replace(/<!-- -->/g, '')
 
     expect(html).toContain('3× 140 kg × 10 gehaald — nu 145')
@@ -446,7 +450,6 @@ describe('de oude makkelijk-regel verhoogt niet dubbel', () => {
       entries[r.slot.key] = Array.from({ length: r.sets }, () => ({
         weight: t.weight ?? 0,
         reps: r.repMax,
-        rir: 1,
         done: true,
       }))
     }
@@ -487,7 +490,6 @@ describe('een extra oefening binnen een sessie', () => {
       entries[r.slot.key] = Array.from({ length: r.sets }, () => ({
         weight: t.weight ?? 0,
         reps: t.reps,
-        rir: 2,
         done: true,
       }))
     }

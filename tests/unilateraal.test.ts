@@ -103,7 +103,7 @@ describe('label en uitleg bewegen mee', () => {
 })
 
 describe('het rekenwerk gebruikt dezelfde vlag', () => {
-  const set = (weight: number, reps: number): LoggedSet => ({ weight, reps, rir: 2, done: true })
+  const set = (weight: number, reps: number): LoggedSet => ({ weight, reps, done: true })
 
   it('telt een set eenzijdig werk dubbel en tweezijdig werk enkel', () => {
     expect(sideFactor(getExercise('db_row_1arm'))).toBe(2)

@@ -6,6 +6,7 @@ import { addDays, mondayOf, weekday } from './dates'
 import { deloadFor, type DeloadPlan } from './deload'
 import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
 import { dayGuardrails, legStackAround, type Guardrail } from './guardrails'
+import { CALIBRATION_TEXT } from './progression'
 import { round05 } from './running'
 import { runContext } from './runningLoad'
 import { scheduledRun, scheduledStrength } from './schedule'
@@ -202,7 +203,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       if (deload.active) notes.push('Deloadweek: 1 set minder per oefening en 40% van het gewicht af.')
       if (lowEnergy) notes.push('Check-in laag: 1 set minder en zwaar kuitwerk eruit.')
       if (checkin === 3) notes.push('Check-in 3: normaal programma, maar vandaag geen nieuwe gewichtsverhogingen.')
-      if (cycle.calibration) notes.push('Kalibratieweek: train op gevoel, stop bij RIR 2-3. Log wat je doet.')
+      if (cycle.calibration) notes.push(`Kalibratieweek: ${CALIBRATION_TEXT}. Log wat je doet.`)
       if (state.settings?.travelMode) notes.push('Reismodus: lichaamsgewicht en band, max 30 min.')
       if (tooLong) notes.push(tooLong.text)
     }

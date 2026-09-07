@@ -127,8 +127,8 @@ function krachtsessie(datum: string, benen: boolean, feel: Feel): UserState['ses
     short: false,
     entries: {
       [slotKey]: [
-        { weight: benen ? 140 : 60, reps: 10, rir: 2, done: true },
-        { weight: benen ? 140 : 60, reps: 9, rir: 1, done: true },
+        { weight: benen ? 140 : 60, reps: 10, done: true },
+        { weight: benen ? 140 : 60, reps: 9, done: true },
       ],
     },
     exercises: { [slotKey]: exercise },

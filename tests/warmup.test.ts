@@ -89,7 +89,7 @@ describe('het warming-upblok', () => {
     A.saveSessionDraft(
       MON,
       'legs_a',
-      { 'legs_a:0': [{ weight: 100, reps: 10, rir: 2, done: true }] },
+      { 'legs_a:0': [{ weight: 100, reps: 10, done: true }] },
       { 'legs_a:0': 'leg_press' },
       false,
       [],
@@ -109,7 +109,7 @@ describe('het warming-upblok', () => {
     const slots = buildDay(getState(), MON).strength!.slots.slice(0, 1)
     const key = slots[0].slot.key
     A.completeSession(MON, 'legs_a', slots, {
-      [key]: [{ weight: 100, reps: 10, rir: 1, done: true }],
+      [key]: [{ weight: 100, reps: 10, done: true }],
     }, false, [key])
 
     const log = getState().sessions[KEY]

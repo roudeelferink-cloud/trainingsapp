@@ -17,7 +17,7 @@ import { isTravelSafe, resolveSlot } from '../src/logic/select'
 import { seedSets } from '../src/logic/sessionFlow'
 import { oneRmSeries } from '../src/logic/stats'
 import { startWeightAdvice } from '../src/logic/startWeight'
-import type { ExerciseState, LoggedSet, UserState } from '../src/types'
+import type { ExerciseState, Feel, LoggedSet, UserState } from '../src/types'
 import { MON, baseState } from './helpers'
 
 const BOUNDS = { repMin: 15, repMax: 20 }
@@ -29,12 +29,22 @@ beforeEach(() => {
   state = baseState()
 })
 
-function sets(level: number, reps: number, rir = 1): LoggedSet[] {
-  return Array.from({ length: 3 }, () => ({ weight: 0, level, reps, rir, done: true }))
+function sets(level: number, reps: number): LoggedSet[] {
+  return Array.from({ length: 3 }, () => ({ weight: 0, level, reps, done: true }))
 }
 
-function na(prev: ExerciseState, id: string, s: LoggedSet[], allowIncrease = true): ExerciseState {
-  return applyProgression(getExercise(id), BOUNDS, s, prev, { allowIncrease, iso: MON }).next
+/**
+ * Bandprogressie loopt langs dezelfde handmatige route als gewicht: zonder beoordeling
+ * gaat er niets omhoog. De sessies hieronder geven er daarom standaard een mee.
+ */
+function na(
+  prev: ExerciseState,
+  id: string,
+  s: LoggedSet[],
+  allowIncrease = true,
+  feel: Feel | undefined = 'goed',
+): ExerciseState {
+  return applyProgression(getExercise(id), BOUNDS, s, prev, { allowIncrease, iso: MON, feel }).next
 }
 
 describe('nieuw materiaal in de bibliotheek', () => {
@@ -130,8 +140,8 @@ describe('bandwerk logt op niveau, niet op kilo\'s', () => {
     expect(bandLabel(1)).toBe('niveau 1 · geel')
     expect(bandLabel(MAX_BAND_LEVEL)).toContain(`niveau ${MAX_BAND_LEVEL}`)
     // buiten de set valt terug op de randen in plaats van te crashen
-    expect(levelOf({ weight: 0, reps: 10, rir: 2 })).toBe(MIN_BAND_LEVEL)
-    expect(levelOf({ weight: 0, level: 99, reps: 10, rir: 2 })).toBe(MAX_BAND_LEVEL)
+    expect(levelOf({ weight: 0, reps: 10 })).toBe(MIN_BAND_LEVEL)
+    expect(levelOf({ weight: 0, level: 99, reps: 10 })).toBe(MAX_BAND_LEVEL)
   })
 
   it('zegt in het invoerveld dat er geen kilo\'s aan te pas komen', () => {
@@ -140,12 +150,12 @@ describe('bandwerk logt op niveau, niet op kilo\'s', () => {
   })
 
   it('telt niet mee in het tilvolume', () => {
-    const set = { weight: 0, level: 3, reps: 20, rir: 1, done: true }
+    const set = { weight: 0, level: 3, reps: 20, done: true }
     expect(setVolumeKg(clamshell(), set)).toBe(0)
     // ook niet als er ooit een getal in het gewichtsveld is beland
     expect(setVolumeKg(clamshell(), { ...set, weight: 12 })).toBe(0)
     // en de kabelvariant telt gewoon wel
-    expect(setVolumeKg(getExercise('cable_hip_abduction'), { weight: 5, reps: 20, rir: 1 })).toBeGreaterThan(0)
+    expect(setVolumeKg(getExercise('cable_hip_abduction'), { weight: 5, reps: 20 })).toBeGreaterThan(0)
   })
 
   it('vervuilt de 1RM-grafiek niet, ook niet met oude gelogde kilo\'s', () => {
@@ -158,8 +168,8 @@ describe('bandwerk logt op niveau, niet op kilo\'s', () => {
       completedSlots: [],
       exercises: { 'legs_a:5': 'band_lateral_walk', 'legs_a:0': 'leg_press' },
       entries: {
-        'legs_a:5': [{ weight: 12, level: 2, reps: 20, rir: 1, done: true }],
-        'legs_a:0': [{ weight: 100, reps: 10, rir: 1, done: true }],
+        'legs_a:5': [{ weight: 12, level: 2, reps: 20, done: true }],
+        'legs_a:0': [{ weight: 100, reps: 10, done: true }],
       },
     }
     const series = oneRmSeries({ ...state, sessions: { [`${MON}:legs_a`]: log } })
@@ -189,18 +199,20 @@ describe('progressie op bandniveau', () => {
     const res = applyProgression(getExercise('clamshell'), BOUNDS, sets(1, CEILING), es, {
       allowIncrease: true,
       iso: MON,
+      feel: 'goed',
     })
     expect(res.next.targetLevel).toBe(2)
     expect(res.next.targetReps).toBe(BOUNDS.repMin)
     expect(res.message).toContain('niveau 2')
   })
 
-  it('stapt niet omhoog als de sets nog niet dicht bij falen zaten', () => {
-    // RIR 4: er zat nog veel in het vat, dus het aantal reps telt niet als geslaagd
+  it('stapt niet omhoog zonder beoordeling van de sessie', () => {
+    // De band ging vroeger omhoog op een per set gelogd getal (RIR). Dat getal bestaat
+    // niet meer: een zwaardere band vraagt nu om één tik na afloop.
     const res = applyProgression(
       getExercise('clamshell'),
       BOUNDS,
-      sets(2, CEILING, 4),
+      sets(2, CEILING),
       { ...emptyExerciseState(), targetLevel: 2, targetReps: CEILING },
       { allowIncrease: true, iso: MON },
     )
@@ -218,6 +230,7 @@ describe('progressie op bandniveau', () => {
     const res = applyProgression(getExercise('clamshell'), BOUNDS, sets(3, BOUNDS.repMin - 4), es, {
       allowIncrease: true,
       iso: MON,
+      feel: 'goed',
     })
     expect(res.next.targetLevel).toBe(2)
     expect(res.message).toContain('terug naar niveau 2')
@@ -249,7 +262,11 @@ describe('doorschakelen naar de kabelvariant', () => {
 
   function opDeZwaarsteBand(id: string) {
     const es = { ...emptyExerciseState(), targetLevel: MAX_BAND_LEVEL, targetReps: CEILING }
-    return applyProgression(getExercise(id), BOUNDS, topBand, es, { allowIncrease: true, iso: MON })
+    return applyProgression(getExercise(id), BOUNDS, topBand, es, {
+      allowIncrease: true,
+      iso: MON,
+      feel: 'goed',
+    })
   }
 
   it('groeit door zodra de zwaarste band op het repsplafond zit', () => {

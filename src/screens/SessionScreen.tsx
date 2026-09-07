@@ -7,11 +7,11 @@ import {
   Primary,
   Screen,
   Secondary,
-  Segments,
   TopLine,
 } from '../components/logboek'
 import { MoveSheet } from '../components/MoveSheet'
 import { RestTimer } from '../components/RestTimer'
+import { SetsRegel } from '../components/Sets'
 import { ChoiceGrid, Chip, Sheet, Stepper, formatDecimal } from '../components/ui'
 import { LOAD_LABEL } from '../data/exercises'
 import { getFigure } from '../data/figures'
@@ -20,6 +20,7 @@ import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '.
 import { TOO_OLD_TEXT, backfillNotice, isTooOld } from '../logic/backfill'
 import { buildDay, canMove, moveTargets } from '../logic/day'
 import { formatShort } from '../logic/dates'
+import { lastSessionFor } from '../logic/history'
 import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
 import { loadHint, repsHint, repsInputLabel, weightInputLabel } from '../logic/load'
 import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
@@ -215,7 +216,7 @@ export function SessionScreen({
     setEntries((cur) => {
       const arr = [...(cur[slotKey] ?? [])]
       const last = arr[arr.length - 1]
-      arr.push(last ? { ...last, done: false } : { weight: 0, reps: 0, rir: 2, done: false })
+      arr.push(last ? { ...last, done: false } : { weight: 0, reps: 0, done: false })
       const next = { ...cur, [slotKey]: arr }
       persistDraft(next, completed)
       return next
@@ -361,7 +362,6 @@ export function SessionScreen({
   const advicePlates =
     advice === null ? undefined : bar > 0 ? platesFromTotal(advice.weight, bar) : advice.weight
   const rustSeconden = resolved.slot.role === 'core' ? REST_CORE : REST_ACCESSORY
-  const huidige = actieveSet === -1 ? null : sets[actieveSet]
   /*
     Welke set de steppers bewerken: de set die je zelf aantikte, anders de eerste die nog
     open staat, anders de laatste. Zie `editIndex` — daar staat waarom die volgorde.
@@ -447,8 +447,9 @@ export function SessionScreen({
             {resolved.exercise.unilateral && ' p/kant'}
           </span>
           <span>rust {klokje(rustSeconden)}</span>
-          {huidige && <span>RIR {huidige.rir}</span>}
         </div>
+
+        <VorigeKeer exercise={resolved.exercise} date={date} target={target} />
 
         <Toelichting
           exercise={resolved.exercise}
@@ -561,17 +562,6 @@ export function SessionScreen({
               <p className="text-meta text-dim">{repsHint(resolved.exercise)}</p>
             )}
           </div>
-
-          {/*
-            RIR hoort bij de set die je net gedaan hebt: zonder beoordeling achteraf is
-            dit wat de progressie te lezen krijgt.
-          */}
-          <Segments<number>
-            label="RIR"
-            options={[0, 1, 2, 3, 4].map((n) => ({ id: n, label: n }))}
-            value={sets[bewerkIndex]?.rir}
-            onChange={(v) => v !== undefined && updateSet(resolved.slot.key, bewerkIndex, { rir: v })}
-          />
         </div>
       </Screen>
 
@@ -827,13 +817,47 @@ function SetRij({
         <Caps tone="accent" size="lg" className="shrink-0">
           Bijstellen
         </Caps>
-      ) : set.done ? (
-        <div className="shrink-0 text-meta text-faint">RIR {set.rir}</div>
       ) : actief ? (
         <Caps tone="accent" size="lg" className="shrink-0">
           Nu
         </Caps>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * Wat je hier de vorige keer deed: één regel met de datum en de sets van de laatste
+ * afgeronde sessie waarin deze oefening zat, ongeacht het sessietype.
+ *
+ * Wijkt het streefgewicht van vandaag daarvan af, dan staat dat er achter — dat is het
+ * hele verhaal in één regel: dit deed je, dit staat er nu. Geen knop, alleen tonen.
+ */
+function VorigeKeer({
+  exercise,
+  date,
+  target,
+}: {
+  exercise: Exercise
+  date: string
+  target: Target
+}) {
+  const state = useStore()
+  const vorige = lastSessionFor(state, exercise.id, date)
+  if (!vorige) return null
+
+  const band = isBandExercise(exercise)
+  const nu = band ? target.level : target.weight
+  const anders = nu !== null && Math.abs(nu - vorige.top) > 1e-9
+
+  return (
+    <div className="mt-in-block">
+      <SetsRegel
+        exercise={exercise}
+        sets={vorige.sets}
+        lead={formatShort(vorige.date)}
+        extra={anders ? `nu ${band ? bandLabel(nu) : fmt(nu)}` : undefined}
+      />
     </div>
   )
 }
@@ -1071,8 +1095,8 @@ function SessieBladen(props: {
             </p>
             {/*
               De beoordeling ís de afrondknop: één tik, en de sessie staat erin. Dat is
-              bewust — een los schermpje erna wordt overgeslagen, en zonder beoordeling
-              moet de progressie terugvallen op de RIR per set.
+              bewust — een los schermpje erna wordt overgeslagen. Zonder beoordeling gaat
+              er niets verloren: dan doet de opbouwregel het werk op de gelogde sets.
             */}
             <div className="flex flex-col gap-in-block">
               <Caps>Hoe ging het?</Caps>

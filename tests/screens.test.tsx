@@ -191,7 +191,9 @@ describe('schermen renderen', () => {
         createElement(SessionScreen, { date: iso, kind: plan.strength.kind, onClose: noop }),
       )
       expect(html, plan.strength.naam).toContain('Set 1')
-      expect(html, plan.strength.naam).toContain('RIR')
+      // gewicht en reps, en verder niets: de RIR per set is uit de app
+      expect(html, plan.strength.naam).toContain('Reps set 1')
+      expect(html, plan.strength.naam).not.toContain('RIR')
       gerenderd++
     }
     expect(gerenderd).toBeGreaterThanOrEqual(4)
@@ -365,7 +367,6 @@ describe('schermen renderen', () => {
         [slot.slot.key]: Array.from({ length: slot.sets }, () => ({
           weight: 40,
           reps: 10,
-          rir: 2,
           done: true,
         })),
       },
@@ -397,7 +398,6 @@ describe('schermen renderen', () => {
         [laatste.slot.key]: Array.from({ length: laatste.sets }, () => ({
           weight: 20,
           reps: 10,
-          rir: 2,
           done: true,
         })),
       },

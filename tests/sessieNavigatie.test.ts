@@ -89,7 +89,7 @@ describe('de voortgangsbalk laat zien waar je staat', () => {
 
 describe('sets bijstellen zonder de oefening terug te zetten', () => {
   const sets = (done: boolean[]): LoggedSet[] =>
-    done.map((d) => ({ weight: 40, reps: 8, rir: 2, done: d }))
+    done.map((d) => ({ weight: 40, reps: 8, done: d }))
 
   it('pakt zonder keuze de eerste set die nog open staat', () => {
     expect(editIndex(sets([true, false, false]), null)).toBe(1)

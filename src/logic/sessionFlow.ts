@@ -18,12 +18,11 @@ export function seedSets(count: number, target: Target, advice: StartAdvice | nu
       weight: 0,
       level,
       reps: target.reps,
-      rir: 2,
       done: false,
     }))
   }
   const weight = target.weight ?? advice?.weight ?? 0
-  return Array.from({ length: count }, () => ({ weight, reps: target.reps, rir: 2, done: false }))
+  return Array.from({ length: count }, () => ({ weight, reps: target.reps, done: false }))
 }
 
 /**
@@ -39,7 +38,6 @@ export function checkSet(sets: LoggedSet[], i: number): LoggedSet[] {
       weight: out[i].weight,
       level: out[i].level,
       reps: out[i].reps,
-      rir: out[i].rir,
     }
   }
   return out

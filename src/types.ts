@@ -224,7 +224,6 @@ export interface Warmup {
 export interface LoggedSet {
   weight: number
   reps: number
-  rir: number
   /**
    * Bandniveau bij een oefening met `unit: 'band'`: 1 is de lichtste band. Bandwerk
    * heeft geen kilo's, dus daar blijft `weight` 0 en telt dit veld. Zo blijven het
@@ -240,7 +239,8 @@ export interface LoggedSet {
  *
  * Dit is de enige subjectieve maat die de guardrails gebruiken: 'makkelijk' en 'goed'
  * geven ruimte om te verhogen, 'zwaar' zet alles op de rem. Ontbreekt hij (oude logs,
- * of overgeslagen), dan valt de progressie terug op de gelogde RIR.
+ * of overgeslagen), dan verhoogt de handmatige route niets en doet `opbouw.ts` het werk
+ * op de gelogde sets — daar is geen beoordeling voor nodig.
  */
 export type Feel = 'makkelijk' | 'goed' | 'zwaar'
 
@@ -296,7 +296,15 @@ export interface SessionLog {
   backfilledOn?: string
 }
 
-export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek'
+/**
+ * Waarom een sessie niet doorging.
+ *
+ * De eerste vier kies je zelf. `ingehaald` niet: die zet de app zelf neer als je een
+ * gemiste sessie vandaag oppakt en de sessie die daar al stond niet meer past. Hij staat
+ * bewust in dezelfde lijst en niet ergens apart — een overgeslagen sessie is een
+ * overgeslagen sessie, en de reden hoort erbij te staan.
+ */
+export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek' | 'ingehaald'
 
 /**
  * Eén hardloopsessie. Gepland en werkelijk staan bewust apart: `plannedKm` is wat de

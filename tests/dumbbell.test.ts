@@ -25,7 +25,7 @@ beforeEach(() => {
   state = { ...defaultState(), startDate: MON }
 })
 
-const set = (weight: number, reps: number): LoggedSet => ({ weight, reps, rir: 2, done: true })
+const set = (weight: number, reps: number): LoggedSet => ({ weight, reps, done: true })
 
 describe('wat telt als dumbbell-werk', () => {
   it('herkent dumbbells aan de uitrusting', () => {

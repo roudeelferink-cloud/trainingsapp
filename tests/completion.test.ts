@@ -12,7 +12,7 @@ beforeEach(() => {
 })
 
 describe('afgeronde oefeningen bewaren en herstellen', () => {
-  const draftEntries = { 'legs_a:0': [{ weight: 100, reps: 10, rir: 2, done: true }] }
+  const draftEntries = { 'legs_a:0': [{ weight: 100, reps: 10, done: true }] }
   const draftExercises = { 'legs_a:0': 'leg_press' }
 
   it('bewaart de afgeronde status in het concept en herstelt die uit localStorage', () => {
@@ -41,7 +41,7 @@ describe('afgeronde oefeningen bewaren en herstellen', () => {
       MON,
       'legs_a',
       slots,
-      { [slotKey]: [{ weight: 100, reps: 10, rir: 3, done: true }] },
+      { [slotKey]: [{ weight: 100, reps: 10, done: true }] },
       false,
       [slotKey],
     )
@@ -59,8 +59,8 @@ describe('alleen afgevinkte sets tellen mee', () => {
     const slot = slots[0]
     const entries = {
       [slot.slot.key]: [
-        { weight: 100, reps: 10, rir: 3, done: true },
-        { weight: 180, reps: 10, rir: 3, done: false }, // voorgevuld, niet gedaan
+        { weight: 100, reps: 10, done: true },
+        { weight: 180, reps: 10, done: false }, // voorgevuld, niet gedaan
       ],
     }
 
@@ -69,7 +69,7 @@ describe('alleen afgevinkte sets tellen mee', () => {
     const log = getState().sessions[key]
     expect(log.completedSlots).toEqual([slot.slot.key])
     // de niet-afgevinkte set is niet opgeslagen…
-    expect(log.entries[slot.slot.key]).toEqual([{ weight: 100, reps: 10, rir: 3, done: true }])
+    expect(log.entries[slot.slot.key]).toEqual([{ weight: 100, reps: 10, done: true }])
     // …en stuurt de progressie ook niet: het streefgewicht volgt de gedane set
     expect(getState().exerciseState[slot.exercise.id].targetWeight).toBe(100)
   })
@@ -81,7 +81,7 @@ describe('alleen afgevinkte sets tellen mee', () => {
       MON,
       'legs_a',
       slots,
-      { [slot.slot.key]: [{ weight: 100, reps: 0, rir: 2, done: true }] },
+      { [slot.slot.key]: [{ weight: 100, reps: 0, done: true }] },
       false,
       [],
     )
@@ -105,8 +105,8 @@ describe('migratie v3 -> v4', () => {
           exercises: { 'legs_a:0': 'leg_press' },
           entries: {
             'legs_a:0': [
-              { weight: 100, reps: 10, rir: 1 },
-              { weight: 100, reps: 0, rir: 2 },
+              { weight: 100, reps: 10 },
+              { weight: 100, reps: 0 },
             ],
           },
         },
@@ -116,8 +116,8 @@ describe('migratie v3 -> v4', () => {
     const s = migrate(v3).users.rob
     expect(s.sessions[key].completedSlots).toEqual([])
     expect(s.sessions[key].entries['legs_a:0']).toEqual([
-      { weight: 100, reps: 10, rir: 1, done: true },
-      { weight: 100, reps: 0, rir: 2, done: false },
+      { weight: 100, reps: 10, done: true },
+      { weight: 100, reps: 0, done: false },
     ])
   })
 })

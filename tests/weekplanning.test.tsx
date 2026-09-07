@@ -115,7 +115,7 @@ describe('verschuiven en overslaan', () => {
     const strength = buildDay(getState(), maandag).strength!
     const r = strength.slots[0]
     A.completeSession(maandag, strength.kind, [r], {
-      [r.slot.key]: [{ weight: 60, reps: 10, rir: 2, done: true }],
+      [r.slot.key]: [{ weight: 60, reps: 10, done: true }],
     }, false, [r.slot.key])
 
     expect(plan()).toContain('gedaan')

@@ -115,7 +115,7 @@ describe('vanaf de sessie zelf', () => {
     A.saveSessionDraft(
       iso,
       strength.kind,
-      { [r.slot.key]: [{ weight: 40, reps: 10, rir: 2, done: true }] },
+      { [r.slot.key]: [{ weight: 40, reps: 10, done: true }] },
       { [r.slot.key]: r.exercise.id },
       strength.short,
       [],

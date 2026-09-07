@@ -26,7 +26,7 @@ const sessionLog = {
     skippedSlots: [],
     completedSlots: ['legs_a:0'],
     exercises: { 'legs_a:0': 'leg_press' },
-    entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1, done: true }] },
+    entries: { 'legs_a:0': [{ weight: 100, reps: 10, done: true }] },
   },
 }
 
@@ -132,8 +132,8 @@ describe('migratie van oudere data', () => {
         completedAt: '2026-08-03T18:00:00.000Z',
         skippedSlots: [],
         entries: {
-          'legs_a:0': [{ weight: 100, reps: 10, rir: 1 }],
-          'legs_a:4': [{ weight: 40, reps: 15, rir: 2 }],
+          'legs_a:0': [{ weight: 100, reps: 10 }],
+          'legs_a:4': [{ weight: 40, reps: 15 }],
         },
       },
     },
@@ -161,7 +161,7 @@ describe('migratie van oudere data', () => {
     expect(s.settings.bodyweightKg).toBe(80)
     expect(s.settings.sensitive.knee_deep).toBe('off')
     expect(s.sessions[`${MON}:legs_a`].entries['legs_a:0']).toEqual([
-      { weight: 100, reps: 10, rir: 1, done: true },
+      { weight: 100, reps: 10, done: true },
     ])
   })
 
@@ -225,9 +225,9 @@ describe('migratie van oudere data', () => {
           exercises: { 'legs_a:0': 'leg_press' },
           entries: {
             'legs_a:0': [
-              { weight: '100', reps: 10, rir: 1 },
-              { weight: null, reps: undefined, rir: 2 },
-              { weight: 0, reps: 0, rir: 2 },
+              { weight: '100', reps: 10 },
+              { weight: null, reps: undefined },
+              { weight: 0, reps: 0 },
             ],
           },
         },
@@ -236,7 +236,7 @@ describe('migratie van oudere data', () => {
     expect(importJSON(JSON.stringify(v2)).ok).toBe(true)
     const sets = getState().sessions[`${MON}:legs_a`].entries['legs_a:0']
     // tekst wordt een getal, onbruikbare waarden worden 0, lege sets vervallen
-    expect(sets).toEqual([{ weight: 100, reps: 10, rir: 1, done: true }])
+    expect(sets).toEqual([{ weight: 100, reps: 10, done: true }])
     expect(getRoot().schemaVersion).toBe(SCHEMA_VERSION)
   })
 
@@ -247,7 +247,7 @@ describe('migratie van oudere data', () => {
       sessions: {
         [`${MON}:legs_a`]: {
           date: MON, kind: 'legs_a', short: false, completedAt: null, skippedSlots: [],
-          exercises: {}, entries: { 'legs_a:0': [{ weight: 0, reps: 0, rir: 2 }] },
+          exercises: {}, entries: { 'legs_a:0': [{ weight: 0, reps: 0 }] },
         },
       },
     }

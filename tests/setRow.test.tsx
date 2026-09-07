@@ -117,7 +117,6 @@ describe('elke setrij, niet alleen de eerste', () => {
         [slot.slot.key]: Array.from({ length: sets }, (_, i) => ({
           weight: 40,
           reps: 10,
-          rir: 2,
           done: i === 0,
         })),
       },

@@ -270,7 +270,7 @@ describe('krachtprogressie blijft onaangeroerd', () => {
   /** De eerste oefening van maandag, zoals het sessiescherm hem ook zou aanleveren. */
   const slot = () => buildDay(getState(), MON).strength!.slots.slice(0, 1)
   const slotKey = () => slot()[0].slot.key
-  const entries = () => ({ [slotKey()]: [{ weight: 100, reps: 10, rir: 1, done: true }] })
+  const entries = () => ({ [slotKey()]: [{ weight: 100, reps: 10, done: true }] })
 
   /** lastUpdated is een wandkloktijd; die zegt niets over de progressie zelf. */
   const targets = () =>
@@ -376,7 +376,7 @@ describe('opslag, export en migratie', () => {
           skippedSlots: [],
           completedSlots: ['legs_a:0'],
           exercises: { 'legs_a:0': 'leg_press' },
-          entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1, done: true }] },
+          entries: { 'legs_a:0': [{ weight: 100, reps: 10, done: true }] },
         },
       },
       protein: { [MON]: 150 },
@@ -402,7 +402,7 @@ describe('opslag, export en migratie', () => {
           short: false,
           completedAt: '2026-08-03T18:00:00.000Z',
           skippedSlots: [],
-          entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1 }] },
+          entries: { 'legs_a:0': [{ weight: 100, reps: 10 }] },
         },
       },
     }

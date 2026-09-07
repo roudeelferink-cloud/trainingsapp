@@ -91,7 +91,7 @@ describe('wat er nog open staat', () => {
   it('haalt een afgevinkte sessie uit de lijst', () => {
     const slots = buildDay(getState(), MON).strength!.slots.slice(0, 1)
     A.completeSession(MON, 'legs_a', slots, {
-      [slots[0].slot.key]: [{ weight: 60, reps: 10, rir: 2, done: true }],
+      [slots[0].slot.key]: [{ weight: 60, reps: 10, done: true }],
     }, false, [slots[0].slot.key])
 
     expect(missedSessions(getState(), VANDAAG).some((m) => m.date === MON && m.what === 'strength')).toBe(false)
@@ -153,7 +153,6 @@ function logEersteOefening(iso: string): { kind: DayKind; exerciseId: string } {
   const sets: LoggedSet[] = Array.from({ length: r.sets }, () => ({
     weight: 140,
     reps: 10,
-    rir: 2,
     done: true,
   }))
   A.completeSession(iso, strength.kind, [r], { [r.slot.key]: sets }, false, [r.slot.key])
@@ -205,7 +204,6 @@ describe('een sessie die achteraf ingevuld wordt', () => {
     const sets: LoggedSet[] = Array.from({ length: r.sets }, () => ({
       weight: 140,
       reps: 10,
-      rir: 2,
       done: true,
     }))
     const messages = A.completeSession(MON, strength.kind, [r], { [r.slot.key]: sets }, false, [r.slot.key])
@@ -223,7 +221,7 @@ describe('een sessie die achteraf ingevuld wordt', () => {
     const strength = buildDay(getState(), MON).strength!
     const twee = strength.slots.slice(0, 2)
     const entries = Object.fromEntries(
-      twee.map((r) => [r.slot.key, [{ weight: 40, reps: r.repMax, rir: 2, done: true }]]),
+      twee.map((r) => [r.slot.key, [{ weight: 40, reps: r.repMax, done: true }]]),
     )
     A.completeSession(MON, strength.kind, twee, entries, false, twee.map((r) => r.slot.key))
 
@@ -236,7 +234,7 @@ describe('een sessie die achteraf ingevuld wordt', () => {
     const strength = buildDay(getState(), MON).strength!
     const slots = strength.slots
     const entries = Object.fromEntries(
-      slots.map((r) => [r.slot.key, [{ weight: 40, reps: r.repMax, rir: 2, done: true }]]),
+      slots.map((r) => [r.slot.key, [{ weight: 40, reps: r.repMax, done: true }]]),
     )
     A.completeSession(MON, strength.kind, slots, entries, false, slots.map((r) => r.slot.key), 'makkelijk')
 
@@ -294,7 +292,7 @@ describe('hasLaterLogFor', () => {
       date: DO,
       kind: 'pull',
       short: false,
-      entries: { 'pull:0': [{ weight: 40, reps: 10, rir: 2, done: true }] },
+      entries: { 'pull:0': [{ weight: 40, reps: 10, done: true }] },
       exercises: { 'pull:0': 'lat_pulldown' },
       skippedSlots: [],
       completedSlots: [],
@@ -330,7 +328,7 @@ describe('de deloadtelling en het rollend gemiddelde blijven kloppen', () => {
     const strength = buildDay(getState(), MON).strength!
     const r = strength.slots[0]
     A.completeSession(MON, strength.kind, [r], {
-      [r.slot.key]: [{ weight: 100, reps: 8, rir: 2, done: true }],
+      [r.slot.key]: [{ weight: 100, reps: 8, done: true }],
     }, false, [r.slot.key], 'zwaar')
 
     // de beoordeling hangt aan de datum van de sessie, niet aan de dag van invullen

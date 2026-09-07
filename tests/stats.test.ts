@@ -20,7 +20,7 @@ function sessionLog(date: string, weight: number) {
       skippedSlots: [],
       completedSlots: [],
       exercises: { 'legs_a:0': 'leg_press' },
-      entries: { 'legs_a:0': [{ weight, reps: 10, rir: 1, done: true }] },
+      entries: { 'legs_a:0': [{ weight, reps: 10, done: true }] },
     },
   }
 }
@@ -58,7 +58,7 @@ describe('statistiek', () => {
         skippedSlots: [],
         completedSlots: [],
         exercises: {},
-        entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1, done: true }] },
+        entries: { 'legs_a:0': [{ weight: 100, reps: 10, done: true }] },
       },
     }
     expect(oneRmSeries(baseState({ sessions: kaal }))).toEqual([])

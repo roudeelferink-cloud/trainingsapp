@@ -35,7 +35,7 @@ describe('voorvullen van sets', () => {
     const sets = seedSets(3, targetFor(ex, ex.setsReps.repMin, state, opts), startWeightAdvice(ex, state))
     expect(sets).toHaveLength(3)
     for (const s of sets) {
-      expect(s).toEqual({ weight: 100, reps: 9, rir: 2, done: false })
+      expect(s).toEqual({ weight: 100, reps: 9, done: false })
     }
   })
 
@@ -46,7 +46,7 @@ describe('voorvullen van sets', () => {
     expect(advice).toMatchObject({ weight: 40, source: 'bodyweight' }) // 82 × 0,5, afgerond op de stap
 
     const sets = seedSets(2, targetFor(ex, ex.setsReps.repMin, state, opts), advice)
-    expect(sets[0]).toEqual({ weight: 40, reps: ex.setsReps.repMin, rir: 2, done: false })
+    expect(sets[0]).toEqual({ weight: 40, reps: ex.setsReps.repMin, done: false })
   })
 
   it('laat zonder historie én zonder advies het gewicht leeg, met schema-reps', () => {
@@ -54,7 +54,7 @@ describe('voorvullen van sets', () => {
     expect(startWeightAdvice(ex, state)).toBeNull()
 
     const sets = seedSets(2, targetFor(ex, ex.setsReps.repMin, state, opts), null)
-    expect(sets[0]).toEqual({ weight: 0, reps: ex.setsReps.repMin, rir: 2, done: false })
+    expect(sets[0]).toEqual({ weight: 0, reps: ex.setsReps.repMin, done: false })
   })
 
   it('telt een voorgevulde set niet als afgevinkt', () => {
@@ -77,32 +77,32 @@ describe('voorvullen van sets', () => {
 
 describe('sets afvinken', () => {
   const fresh = (): LoggedSet[] => [
-    { weight: 40, reps: 8, rir: 2, done: false },
-    { weight: 40, reps: 8, rir: 2, done: false },
-    { weight: 40, reps: 8, rir: 2, done: false },
+    { weight: 40, reps: 8, done: false },
+    { weight: 40, reps: 8, done: false },
+    { weight: 40, reps: 8, done: false },
   ]
 
   it('neemt bij het afvinken de waarden over in de direct volgende set', () => {
     const sets = fresh()
-    sets[0] = { weight: 42.5, reps: 9, rir: 1, done: false } // bijgesteld vóór het afvinken
+    sets[0] = { weight: 42.5, reps: 9, done: false } // bijgesteld vóór het afvinken
 
     const out = checkSet(sets, 0)
-    expect(out[0]).toEqual({ weight: 42.5, reps: 9, rir: 1, done: true })
-    expect(out[1]).toEqual({ weight: 42.5, reps: 9, rir: 1, done: false })
+    expect(out[0]).toEqual({ weight: 42.5, reps: 9, done: true })
+    expect(out[1]).toEqual({ weight: 42.5, reps: 9, done: false })
     // alleen de direct volgende set, niet verder vooruit
-    expect(out[2]).toEqual({ weight: 40, reps: 8, rir: 2, done: false })
+    expect(out[2]).toEqual({ weight: 40, reps: 8, done: false })
   })
 
   it('overschrijft een al afgevinkte volgende set niet', () => {
     const sets = fresh()
-    sets[1] = { weight: 50, reps: 6, rir: 0, done: true }
+    sets[1] = { weight: 50, reps: 6, done: true }
     const out = checkSet(sets, 0)
-    expect(out[1]).toEqual({ weight: 50, reps: 6, rir: 0, done: true })
+    expect(out[1]).toEqual({ weight: 50, reps: 6, done: true })
   })
 
   it('zet een set weer open zonder de waarden aan te passen', () => {
     const out = uncheckSet(checkSet(fresh(), 0), 0)
-    expect(out[0]).toEqual({ weight: 40, reps: 8, rir: 2, done: false })
+    expect(out[0]).toEqual({ weight: 40, reps: 8, done: false })
   })
 
   it('herkent wanneer alle sets afgevinkt zijn', () => {

@@ -16,8 +16,8 @@ const legPress = getExercise('leg_press') // progression 'weight', stap 1,25 kg
 const dbPress = getExercise('db_shoulder_press') // progression 'reps', stap 2,5 kg
 const s0 = baseState()
 
-const sets = (n: number, weight: number, reps: number, rir: number) =>
-  Array.from({ length: n }, () => ({ weight, reps, rir }))
+const sets = (n: number, weight: number, reps: number) =>
+  Array.from({ length: n }, () => ({ weight, reps }))
 
 describe('streefwaarden', () => {
   it('toont in de kalibratieweken geen gewicht maar een instructie', () => {
@@ -62,7 +62,7 @@ describe('progressie op gewicht', () => {
 
   it('verhoogt met de kleinste stap die te laden is', () => {
     // schijven gaan per paar: met 1,25 kg als lichtste schijf is 2,5 kg de kleinste stap
-    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10, 1), base, {
+    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10), base, {
       allowIncrease: true,
       iso: MON,
       feel: 'makkelijk',
@@ -72,8 +72,8 @@ describe('progressie op gewicht', () => {
     expect(r.message).toContain('omhoog')
   })
 
-  it('verhoogt niet bij RIR 3', () => {
-    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10, 3), base, {
+  it('verhoogt niet zonder beoordeling van de sessie', () => {
+    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10), base, {
       allowIncrease: true,
       iso: MON,
     })
@@ -81,13 +81,13 @@ describe('progressie op gewicht', () => {
   })
 
   it('verhoogt niet als één set de bovengrens niet haalt', () => {
-    const mixed = [...sets(2, 100, 10, 1), { weight: 100, reps: 9, rir: 1 }]
+    const mixed = [...sets(2, 100, 10), { weight: 100, reps: 9 }]
     const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, mixed, base, { allowIncrease: true, iso: MON })
     expect(r.next.targetWeight).toBe(100)
   })
 
   it('verhoogt niet als de check-in op 3 stond', () => {
-    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10, 1), base, {
+    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 100, 10), base, {
       allowIncrease: false,
       iso: MON,
     })
@@ -99,7 +99,7 @@ describe('progressie op gewicht', () => {
 describe('progressie op reps', () => {
   it('groeit eerst door tot repMax + 2', () => {
     const start = { ...emptyExerciseState(), targetWeight: 15, targetReps: 12 }
-    const r = applyProgression(dbPress, { repMin: 8, repMax: 12 }, sets(1, 15, 12, 1), start, {
+    const r = applyProgression(dbPress, { repMin: 8, repMax: 12 }, sets(1, 15, 12), start, {
       allowIncrease: true,
       iso: MON,
     })
@@ -109,7 +109,7 @@ describe('progressie op reps', () => {
 
   it('gaat pas daarna omhoog in gewicht en terug naar de ondergrens', () => {
     const start = { ...emptyExerciseState(), targetWeight: 15, targetReps: 14 }
-    const r = applyProgression(dbPress, { repMin: 8, repMax: 12 }, sets(1, 15, 14, 1), start, {
+    const r = applyProgression(dbPress, { repMin: 8, repMax: 12 }, sets(1, 15, 14), start, {
       allowIncrease: true,
       iso: MON,
       feel: 'goed',
@@ -124,17 +124,17 @@ describe('double progression op gevoel', () => {
   const bounds = { repMin: 8, repMax: 10 }
 
   it('verhoogt bij alle sets op de bovengrens en een sessie die goed voelde', () => {
-    const r = applyProgression(legPress, bounds, sets(3, 100, 10, 3), base, {
+    const r = applyProgression(legPress, bounds, sets(3, 100, 10), base, {
       allowIncrease: true,
       iso: MON,
       feel: 'goed',
     })
-    // RIR 3 zou vroeger tegenhouden; de beoordeling is nu leidend
+    // de beoordeling is leidend; er is geen tweede maat meer die dit kan tegenhouden
     expect(r.next.targetWeight).toBe(102.5)
   })
 
   it('verhoogt ook als het makkelijk ging', () => {
-    const r = applyProgression(legPress, bounds, sets(3, 100, 10, 2), base, {
+    const r = applyProgression(legPress, bounds, sets(3, 100, 10), base, {
       allowIncrease: true,
       iso: MON,
       feel: 'makkelijk',
@@ -143,7 +143,7 @@ describe('double progression op gevoel', () => {
   })
 
   it('laat het gewicht staan als de sessie zwaar viel, ook met alle reps gehaald', () => {
-    const r = applyProgression(legPress, bounds, sets(3, 100, 10, 0), base, {
+    const r = applyProgression(legPress, bounds, sets(3, 100, 10), base, {
       allowIncrease: true,
       iso: MON,
       feel: 'zwaar',
@@ -153,16 +153,15 @@ describe('double progression op gevoel', () => {
   })
 
   it('verhoogt zonder beoordeling niets: dan doet de opbouwregel het werk', () => {
-    // Vroeger viel dit terug op de gelogde RIR, en dan verhoogde deze regel bij elke
-    // sessie op de bovengrens. Twee regels die naar dezelfde sets kijken nemen om de
-    // beurt een stap; nu is dit de handmatige route en telt `opbouw.ts` de sessies.
-    for (const rir of [1, 3]) {
-      const r = applyProgression(legPress, bounds, sets(3, 100, 10, rir), base, {
-        allowIncrease: true,
-        iso: MON,
-      })
-      expect(r.next.targetWeight, `RIR ${rir}`).toBe(100)
-    }
+    // Vroeger stond er een tweede maat naast (RIR per set), en dan verhoogde deze regel
+    // bij elke sessie op de bovengrens. Twee regels die naar dezelfde sets kijken nemen om
+    // de beurt een stap; nu is dit de handmatige route en telt `opbouw.ts` de sessies.
+    const r = applyProgression(legPress, bounds, sets(3, 100, 10), base, {
+      allowIncrease: true,
+      iso: MON,
+    })
+    expect(r.next.targetWeight).toBe(100)
+    expect(r.message).toBeNull()
   })
 })
 
@@ -171,7 +170,7 @@ describe('een deloadweek kost geen voortgang', () => {
   const bounds = { repMin: 8, repMax: 10 }
 
   it('laat het streefgewicht staan als er met opzet lichter getild is', () => {
-    const r = applyProgression(legPress, bounds, sets(3, 60, 10, 1), base, {
+    const r = applyProgression(legPress, bounds, sets(3, 60, 10), base, {
       allowIncrease: false,
       iso: MON,
       feel: 'makkelijk',
@@ -181,7 +180,7 @@ describe('een deloadweek kost geen voortgang', () => {
   })
 
   it('neemt een zwaardere set wél over, ook in een deloadweek', () => {
-    const r = applyProgression(legPress, bounds, sets(3, 105, 10, 1), base, {
+    const r = applyProgression(legPress, bounds, sets(3, 105, 10), base, {
       allowIncrease: false,
       iso: MON,
       feel: 'goed',
@@ -191,7 +190,7 @@ describe('een deloadweek kost geen voortgang', () => {
   })
 
   it('zakt buiten een deloadweek wél mee met wat er getild is', () => {
-    const r = applyProgression(legPress, bounds, sets(3, 60, 10, 1), base, {
+    const r = applyProgression(legPress, bounds, sets(3, 60, 10), base, {
       allowIncrease: true,
       iso: MON,
       feel: 'goed',
@@ -205,7 +204,7 @@ describe('maximale sprong per week', () => {
   const bounds = { repMin: 8, repMax: 10 }
   const base0: ExerciseState = { ...emptyExerciseState(), targetWeight: 100, targetReps: 8 }
   const goed = (prev: ExerciseState, iso: string) =>
-    applyProgression(legPress, bounds, sets(3, prev.targetWeight ?? 0, 10, 1), prev, {
+    applyProgression(legPress, bounds, sets(3, prev.targetWeight ?? 0, 10), prev, {
       allowIncrease: true,
       iso,
       feel: 'goed',
@@ -231,7 +230,7 @@ describe('maximale sprong per week', () => {
     const curl = getExercise('leg_curl')
     const start = { ...emptyExerciseState(), targetWeight: 40, targetReps: 12 }
     const stap = (prev: ExerciseState, iso: string) =>
-      applyProgression(curl, { repMin: 12, repMax: 12 }, sets(3, prev.targetWeight ?? 0, 12, 1), prev, {
+      applyProgression(curl, { repMin: 12, repMax: 12 }, sets(3, prev.targetWeight ?? 0, 12), prev, {
         allowIncrease: true,
         iso,
         feel: 'goed',
@@ -252,7 +251,7 @@ describe('maximale sprong per week', () => {
     // alleen schijven van 5 kg: de kleinste stap is 10 kg, vier weken aan weekruimte
     const settings = { ...baseState().settings, plates: [5, 10, 20] }
     const start = { ...emptyExerciseState(), targetWeight: 100, targetReps: 8, increaseWeek: MON, increasedKg: 10 }
-    const r = applyProgression(legPress, bounds, sets(3, 100, 10, 1), start, {
+    const r = applyProgression(legPress, bounds, sets(3, 100, 10), start, {
       allowIncrease: true,
       iso: addDays(MON, 7),
       feel: 'goed',
@@ -268,7 +267,7 @@ describe('terugschakelen', () => {
   const base = { ...emptyExerciseState(), targetWeight: 100, targetReps: 8 }
 
   it('verlaagt nog niet na één sessie onder de ondergrens', () => {
-    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(1, 100, 6, 0), base, {
+    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(1, 100, 6), base, {
       allowIncrease: true,
       iso: MON,
     })
@@ -277,14 +276,14 @@ describe('terugschakelen', () => {
   })
 
   it('verlaagt met 10% na twee sessies onder de ondergrens en meldt dat', () => {
-    const eerste = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(1, 100, 6, 0), base, {
+    const eerste = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(1, 100, 6), base, {
       allowIncrease: true,
       iso: MON,
     })
     const tweede = applyProgression(
       legPress,
       { repMin: 8, repMax: 10 },
-      sets(1, 100, 6, 0),
+      sets(1, 100, 6),
       eerste.next,
       { allowIncrease: true, iso: MON },
     )
@@ -294,14 +293,14 @@ describe('terugschakelen', () => {
   })
 
   it('zet de teller terug zodra de ondergrens weer gehaald wordt', () => {
-    const eerste = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(1, 100, 6, 0), base, {
+    const eerste = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(1, 100, 6), base, {
       allowIncrease: true,
       iso: MON,
     })
     const herstel = applyProgression(
       legPress,
       { repMin: 8, repMax: 10 },
-      sets(1, 100, 9, 1),
+      sets(1, 100, 9),
       eerste.next,
       { allowIncrease: true, iso: MON },
     )
@@ -309,7 +308,7 @@ describe('terugschakelen', () => {
   })
 
   it('negeert lege sets', () => {
-    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 0, 0, 2), base, {
+    const r = applyProgression(legPress, { repMin: 8, repMax: 10 }, sets(3, 0, 0), base, {
       allowIncrease: true,
       iso: MON,
     })

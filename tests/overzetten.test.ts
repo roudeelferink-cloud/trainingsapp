@@ -33,6 +33,24 @@ const OUD = JSON.parse(
 
 beforeEach(() => resetState())
 
+/** Dezelfde sessies, maar zonder het RIR-veld dat de migratie naar v17 eruit haalt. */
+function zonderRir(sessions: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(sessions).map(([key, log]) => [
+      key,
+      {
+        ...log,
+        entries: Object.fromEntries(
+          Object.entries<any[]>(log.entries).map(([slotKey, sets]) => [
+            slotKey,
+            sets.map(({ rir: _weg, ...rest }) => rest),
+          ]),
+        ),
+      },
+    ]),
+  )
+}
+
 describe('een export van de Pages-versie inlezen', () => {
   it('leest hem in en hoogt hem op naar de huidige versie', () => {
     expect(OUD.schemaVersion).toBe(14)
@@ -49,12 +67,30 @@ describe('een export van de Pages-versie inlezen', () => {
 
       expect(Object.keys(nieuw.sessions)).toEqual(Object.keys(oud.sessions))
       expect(Object.keys(nieuw.runs)).toEqual(Object.keys(oud.runs))
-      expect(nieuw.sessions).toEqual(oud.sessions)
+      // de RIR per set is sinds v17 uit de app; verder komt elke sessie er ongewijzigd uit
+      expect(nieuw.sessions).toEqual(zonderRir(oud.sessions))
       expect(nieuw.runs).toEqual(oud.runs)
       expect(nieuw.activities).toEqual(oud.activities)
       expect(nieuw.deviations).toEqual(oud.deviations)
       expect(nieuw.notices).toEqual(oud.notices)
     }
+  })
+
+  it('haalt de RIR per set eruit en laat de rest van de set staan', () => {
+    // de fixture komt uit v14: daar stond op elke set nog een RIR
+    const voor = Object.values<any>(OUD.users[ROB].sessions).flatMap((log: any) =>
+      Object.values<any[]>(log.entries).flat(),
+    )
+    expect(voor.some((s) => 'rir' in s)).toBe(true)
+
+    importJSON(JSON.stringify(OUD))
+    const na = Object.values(getUser(ROB)!.sessions).flatMap((log) =>
+      Object.values(log.entries).flat(),
+    )
+    expect(na.some((s) => 'rir' in s)).toBe(false)
+    expect(na).toHaveLength(voor.length)
+    // gewicht, reps en het vinkje blijven precies zoals ze waren
+    expect(na[0]).toEqual({ weight: voor[0].weight, reps: voor[0].reps, done: voor[0].done })
   })
 
   it('houdt de streefgewichten, check-ins en dagchecks compleet', () => {

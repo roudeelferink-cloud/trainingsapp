@@ -35,7 +35,7 @@ const v5 = {
       skippedSlots: [],
       completedSlots: ['legs_a:0'],
       exercises: { 'legs_a:0': 'leg_press' },
-      entries: { 'legs_a:0': [{ weight: 120, reps: 10, rir: 1, done: true }] },
+      entries: { 'legs_a:0': [{ weight: 120, reps: 10, done: true }] },
     },
   },
   runs: {
@@ -108,7 +108,7 @@ describe('migratie van bestaande localStorage-data', () => {
           short: false,
           completedAt: '2026-08-03T18:00:00.000Z',
           skippedSlots: [],
-          entries: { 'legs_a:0': [{ weight: 100, reps: 10, rir: 1 }] },
+          entries: { 'legs_a:0': [{ weight: 100, reps: 10 }] },
         },
       },
     }
@@ -160,7 +160,7 @@ describe('v8 -> v9: de syncvelden eruit', () => {
             skippedSlots: [],
             completedSlots: ['legs_a:0'],
             exercises: { 'legs_a:0': 'leg_press' },
-            entries: { 'legs_a:0': [{ weight: 120, reps: 10, rir: 1, done: true }] },
+            entries: { 'legs_a:0': [{ weight: 120, reps: 10, done: true }] },
           },
         },
         runs: { [MON]: { date: MON, kind: 'short', plannedKm: 6, km: 6.5, minutes: 38, bike: false, completedAt: 'x' } },
@@ -248,7 +248,7 @@ describe('v10 -> v11: de guardrails-laag', () => {
             skippedSlots: [],
             completedSlots: ['legs_a:0'],
             exercises: { 'legs_a:0': 'leg_press' },
-            entries: { 'legs_a:0': [{ weight: 120, reps: 10, rir: 1, done: true }] },
+            entries: { 'legs_a:0': [{ weight: 120, reps: 10, done: true }] },
           },
         },
         runs: { [MON]: { date: MON, kind: 'short', plannedKm: 6, km: 6.5, minutes: 38, bike: false, completedAt: 'x' } },
@@ -319,7 +319,7 @@ describe('v12 -> v13: eiwit en onderhoud verdwijnen', () => {
             skippedSlots: [],
             completedSlots: ['legs_a:0'],
             exercises: { 'legs_a:0': 'leg_press' },
-            entries: { 'legs_a:0': [{ weight: 120, reps: 10, rir: 1, done: true }] },
+            entries: { 'legs_a:0': [{ weight: 120, reps: 10, done: true }] },
           },
         },
       },
@@ -481,7 +481,7 @@ describe('v13 -> v14: de werkelijk gelopen afstand is de maat', () => {
   it('komt via de volledige migratie op de huidige versie uit', () => {
     const root = migrate(structuredClone(v13))
     expect(root.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(16)
+    expect(SCHEMA_VERSION).toBe(17)
     expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
     expect(root.users[ROB].runs['2026-08-06'].km).toBe(6)
   })
@@ -674,7 +674,7 @@ describe('de keten van 14 naar 16', () => {
   }
 
   it('loopt zonder gaten door van 14 naar de huidige versie', () => {
-    expect(SCHEMA_VERSION).toBe(16)
+    expect(SCHEMA_VERSION).toBe(17)
     for (let v = 1; v < SCHEMA_VERSION; v++) {
       expect(MIGRATIONS[v], `stap ${v} -> ${v + 1}`).toBeTypeOf('function')
     }

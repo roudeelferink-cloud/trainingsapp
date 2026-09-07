@@ -23,14 +23,14 @@ function sessieVan(iso: string) {
 describe('beoordeling per sessie', () => {
   it('slaat de beoordeling op bij de sessie', () => {
     const { kind, slot, key } = sessieVan(MON)
-    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 100, reps: slot.repMax, rir: 2, done: true }] }, false, [key], 'goed')
+    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 100, reps: slot.repMax, done: true }] }, false, [key], 'goed')
 
     expect(getState().sessions[`${MON}:${kind}`].feel).toBe('goed')
   })
 
   it('laat een zware sessie het gewicht niet verhogen', () => {
     const { kind, slot, key } = sessieVan(MON)
-    const sets = [{ weight: 100, reps: slot.repMax, rir: 0, done: true }]
+    const sets = [{ weight: 100, reps: slot.repMax, done: true }]
 
     A.completeSession(MON, kind, [slot], { [key]: sets }, false, [key], 'zwaar')
     expect(getState().exerciseState[slot.exercise.id].targetWeight).toBe(100)
@@ -38,7 +38,7 @@ describe('beoordeling per sessie', () => {
 
   it('verhoogt na dezelfde sessie als die goed voelde', () => {
     const { kind, slot, key } = sessieVan(MON)
-    const sets = [{ weight: 100, reps: slot.repMax, rir: 0, done: true }]
+    const sets = [{ weight: 100, reps: slot.repMax, done: true }]
 
     A.completeSession(MON, kind, [slot], { [key]: sets }, false, [key], 'goed')
     expect(getState().exerciseState[slot.exercise.id].targetWeight).toBeGreaterThan(100)
@@ -46,14 +46,14 @@ describe('beoordeling per sessie', () => {
 
   it('is achteraf bij te stellen', () => {
     const { kind, slot, key } = sessieVan(MON)
-    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 100, reps: 8, rir: 2, done: true }] }, false, [key], 'goed')
+    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 100, reps: 8, done: true }] }, false, [key], 'goed')
     A.setSessionFeel(MON, kind, 'zwaar')
     expect(getState().sessions[`${MON}:${kind}`].feel).toBe('zwaar')
   })
 
   it('telt zware sessies van kracht en loop bij elkaar op', () => {
     const { kind, slot, key } = sessieVan(MON)
-    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 100, reps: 8, rir: 2, done: true }] }, false, [key], 'zwaar')
+    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 100, reps: 8, done: true }] }, false, [key], 'zwaar')
     A.completeRun(DI, 'short', { plannedKm: 6, km: 6, minutes: 36, bike: false, feel: 'zwaar' })
     A.completeRun(DO, 'short', { plannedKm: 6, km: 6, minutes: 36, bike: false, feel: 'zwaar' })
 
@@ -141,7 +141,7 @@ describe('zwaarder tillen dan voorgesteld', () => {
       },
     }))
 
-    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 95, reps: 8, rir: 2, done: true }] }, false, [key], 'goed')
+    A.completeSession(MON, kind, [slot], { [key]: [{ weight: 95, reps: 8, done: true }] }, false, [key], 'goed')
 
     const afwijking = getState().deviations.at(-1)!
     expect(afwijking.kind).toBe('lift_weight')
