@@ -11,6 +11,7 @@ import {
   isPin,
   migrate,
 } from './schema'
+import { mergeImport } from './merge'
 
 /**
  * De store: wat er op dit toestel staat, en wie eraan mag komen.
@@ -202,13 +203,8 @@ export function importJSON(text: string): { ok: true } | { ok: false; error: str
   if (v > SCHEMA_VERSION) {
     return { ok: false, error: `Bestand komt uit een nieuwere versie (${v}). Werk de app eerst bij.` }
   }
-  // ouder bestand: migrate() hoogt het op naar de huidige versie
-  const next = migrate(parsed)
-  // een bestand zonder gekozen gebruiker of pincode mag die van dit toestel niet wissen
-  replaceRoot({
-    ...next,
-    currentUser: next.currentUser || root.currentUser,
-    pin: next.pin ?? root.pin,
-  })
+  // ouder bestand: migrate() hoogt het op naar de huidige versie. Daarna samenvoegen, niet
+  // vervangen: zie merge.ts — het profiel en de historie van dit toestel blijven staan
+  replaceRoot(mergeImport(root, migrate(parsed)))
   return { ok: true }
 }

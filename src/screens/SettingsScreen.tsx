@@ -101,7 +101,7 @@ export function SettingsScreen({ onClose }: { onClose?: () => void }) {
   async function doImport(file: File) {
     const text = await file.text()
     const res = importJSON(text)
-    setMessage(res.ok ? 'Import gelukt.' : `Import mislukt: ${res.error}`)
+    setMessage(res.ok ? 'Import gelukt: samengevoegd met wat er al stond.' : `Import mislukt: ${res.error}`)
   }
 
   const permanents = Object.entries(state.permanentReplacements)
@@ -302,7 +302,9 @@ export function SettingsScreen({ onClose }: { onClose?: () => void }) {
         <p className="mb-block text-body text-muted">
           Alles staat op dit toestel; er gaat niets naar internet. Een export is daarmee ook de
           enige manier om je gegevens naar een ander toestel te verplaatsen: exporteer hier, en
-          importeer het bestand daar. Een import vervangt alles wat er op dat toestel staat.
+          importeer het bestand daar. Een import voegt de historie samen met wat er al staat:
+          niets van dit toestel gaat verloren, en hetzelfde bestand twee keer inlezen geeft
+          geen dubbele sessies.
         </p>
         <div className="flex flex-col gap-in-block">
           <button className="btn-ghost w-full" onClick={doExport}>
