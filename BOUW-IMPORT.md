@@ -71,3 +71,84 @@ nieuw, gekopieerd uit `~/trainingsreview/fixtures`. Vóór de fix faalden er 6:
 **Stand:** `npm test` 1143 groen (55 bestanden), `npm run test:server` 89 groen,
 `npm run build` (inclusief `tsc --noEmit`) schoon. De bestaande `overzetten.test.ts`
 (verhuizen v14) is ongewijzigd groen.
+
+---
+
+# Vervolg — een v16-export op een vers toestel
+
+Tak `import-v16`, afgetakt van `main` (`2699176`). Niet gepusht.
+
+## Klacht
+
+Na de fix hierboven verschijnt de historie in de praktijk nog steeds niet. Het bestand:
+een echte export, schemaVersion 16, `currentUser: 'rob'`, met onder `rob` 14 afgeronde
+sessies, 9 loops en 15 check-ins, en een klein beetje onder `anouc`.
+
+## Onderzoek
+
+Gereproduceerd met precies dat bestand (buiten de repo), via `importJSON` — dezelfde
+functie die de knop Importeer in Instellingen aanroept; het scherm leest het bestand en
+geeft de tekst ongewijzigd door. Historie en `historyFor`/`loggedExercises` lezen het
+actieve profiel (`useStore`/`getState`).
+
+1. **Migratie v16 → v18: geen verlies.** Per sessie dezelfde sets en dezelfde
+   oefeningen, elke loop ongewijzigd, de 15 check-ins worden 15 dagchecks (benen), de
+   activiteiten gaan mee. Alleen slaap en energie vervallen, zoals bedoeld sinds v18.
+2. **Leeg toestel, of een toestel op `rob`:** alles komt binnen en is zichtbaar: 14
+   sessies, 9 loops, 15 dagchecks, 34 oefeningen in de historie per oefening.
+3. **Toestel op een ander profiel: hier zit het.** Een verse installatie maakt geen
+   eigen id aan: `defaultRoot()` zet `rob` en `anouc` klaar met `currentUser: ''`. Maar
+   Importeer zit in Instellingen, en daar kom je pas na de onboarding — het toestel
+   staat dus al op een gekozen profiel, zonder historie. Stond dat op `anouc`, dan
+   landde de historie netjes onder `rob`, maar de fix hierboven liet het toestel bewust
+   op `anouc` staan ("het bestand bepaalt niet wie dit toestel gebruikt"). Historie
+   toonde daarna de 2 sessies van Anouc uit het bestand in plaats van de 14 van Rob.
+
+Die regel klopte voor een toestel dat al gebruikt wordt, maar niet voor een toestel waar
+nog niets op staat.
+
+## Fix
+
+`kiesProfiel` in `src/store/merge.ts`:
+
+- heeft het profiel van dit toestel historie, dan blijft het toestel daarop (zoals na de
+  vorige fix);
+- is het nog leeg, dan gaat het toestel naar het profiel dat het bestand als gebruiker
+  noemt, als dat historie heeft — of, noemt het bestand niemand, naar het enige profiel
+  in het bestand met historie;
+- anders blijft het staan.
+
+Er gaat niets verloren: het samenvoegen van de historie is ongewijzigd, beide profielen
+houden hun gegevens, de pincode van het toestel blijft. Stil is het ook niet:
+`importJSON` geeft dan `profiel` terug, en Instellingen meldt "Dit toestel staat nu op
+Rob; wisselen kan bij Profiel."
+
+## Fixture
+
+Het echte bestand staat niet in de repo: die is publiek, en het bevat een pincode en
+persoonlijke gegevens. `tests/fixtures/export-v16.json` is eruit gemaakt, ingekort en
+geanonimiseerd: nog steeds schemaVersion 16 met `checkins` én de oude `dayChecks`, en
+`currentUser: 'rob'`; 5 sessies (3 met leg press), 4 loops en 6 check-ins onder `rob`, 1
+van elk onder `anouc`. Een andere pincode; geen notities bij activiteiten, geen
+afwijkingen, meldingen of opgeslagen advies, geen notitie per oefening, een ander
+lichaamsgewicht.
+
+## Getest
+
+In `tests/importHistorie.test.ts`, 8 tests erbij. Met de code van `main` falen er 2: het
+toestel op een leeg ander profiel (de klacht) en het bestand zonder gebruiker.
+
+- leeg toestel en toestel op `rob`: 5 sessies, 4 loops, 6 dagchecks, zichtbaar in
+  Historie en de historie per oefening (leg press 3×);
+- toestel op leeg `anouc`: het toestel gaat naar Rob, de import meldt dat, Rob ziet zijn
+  historie en Anouc houdt wat het bestand voor haar had;
+- toestel op `anouc` mét eigen historie: blijft op Anouc, niets verloren;
+- bestand zonder gebruiker: het enige profiel met historie;
+- de pincode blijft, ook als het profiel wisselt;
+- twee keer hetzelfde v16-bestand: geen dubbele historie.
+
+Met het echte bestand nagelopen, in alle drie de situaties (leeg, `rob`, leeg `anouc`):
+het profiel dat je daarna ziet toont 14 sessies, 9 loops en 15 dagchecks.
+
+**Stand:** `npm test` 1151 groen (55 bestanden), `npm run test:server` 89 groen,
+`npm run build` (inclusief `tsc --noEmit`) schoon.
