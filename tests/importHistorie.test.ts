@@ -34,6 +34,8 @@ function fixture(naam: string): Record<string, any> {
 
 const V14 = fixture('export-pages-v14.json')
 const V18 = fixture('export-v18.json')
+/** Ingekort en geanonimiseerd uit een echte v16-export: gemaakt op Robs toestel. */
+const V16 = fixture('export-v16.json')
 
 /** Wat er in een bestand staat, geteld zoals de app het na import hoort te hebben. */
 function verwacht(user: Record<string, any>) {
@@ -198,9 +200,69 @@ describe('één profiel per toestel', () => {
   })
 })
 
+describe('een v16-export op een vers toestel', () => {
+  const rob = verwacht(V16.users[ROB])
+
+  it('het bestand heeft wat de test nodig heeft', () => {
+    expect(V16.schemaVersion).toBe(16)
+    expect(V16.currentUser).toBe(ROB)
+    expect(rob).toEqual({ sessies: 5, loops: 4, checks: 6 })
+  })
+
+  it('leeg toestel: Rob ziet zijn historie', () => {
+    expect(importJSON(JSON.stringify(V16))).toEqual({ ok: true })
+    expect(getRoot().currentUser).toBe(ROB)
+    expect(geteld(getState())).toEqual(rob)
+    expect(historie()).toMatchObject({ sessies: 5, loops: 4, legPress: 3 })
+    expect(historie().oefeningen.length).toBeGreaterThan(0)
+  })
+
+  it('toestel staat al op het profiel van het bestand: hetzelfde', () => {
+    setCurrentUser(ROB)
+    expect(importJSON(JSON.stringify(V16))).toEqual({ ok: true })
+    expect(geteld(getState())).toEqual(rob)
+  })
+
+  // de klacht: het toestel stond op een ander, nog leeg profiel, en de historie belandde
+  // onder 'rob' terwijl het toestel naar dat andere profiel bleef kijken
+  it('toestel staat op een ander, leeg profiel: het gaat naar het profiel uit het bestand', () => {
+    setCurrentUser(ANOUC)
+    expect(importJSON(JSON.stringify(V16))).toEqual({ ok: true, profiel: 'Rob' })
+    expect(getRoot().currentUser).toBe(ROB)
+    expect(getState().id).toBe(ROB)
+    expect(geteld(getState())).toEqual(rob)
+    expect(historie()).toMatchObject({ sessies: 5, loops: 4, legPress: 3 })
+    // en wat er voor Anouc in het bestand stond is er ook, onder haar eigen profiel
+    expect(geteld(getUser(ANOUC)!)).toEqual(verwacht(V16.users[ANOUC]))
+  })
+
+  it('een toestelprofiel met eigen historie blijft staan', () => {
+    toestelVanAnouc()
+    expect(importJSON(JSON.stringify(V16))).toEqual({ ok: true })
+    expect(getRoot().currentUser).toBe(ANOUC)
+    expect(getState().sessions['2026-09-14:legs_a']).toEqual(EIGEN_SESSIE)
+    expect(geteld(getUser(ROB)!)).toEqual(rob)
+  })
+
+  it('een bestand zonder gebruiker kiest het enige profiel met historie', () => {
+    setCurrentUser(ANOUC)
+    const zonder = exportVanEenToestel({ ...V16, currentUser: '' }, ROB)
+    importJSON(JSON.stringify({ ...zonder, currentUser: '' }))
+    expect(getRoot().currentUser).toBe(ROB)
+  })
+
+  it('de pincode van het toestel blijft, ook als het profiel wisselt', () => {
+    setCurrentUser(ANOUC)
+    setPin('9876')
+    importJSON(JSON.stringify(V16))
+    expect(getRoot().pin).toBe('9876')
+  })
+})
+
 describe('opnieuw importeren', () => {
   for (const [naam, bestand] of [
     ['v14', V14],
+    ['v16', V16],
     ['v18', V18],
   ] as const) {
     it(`${naam}: tweemaal hetzelfde bestand geeft geen dubbele historie`, () => {

@@ -20,8 +20,14 @@ import type { AppState, RunLog, SessionLog, UserState } from '../types'
  * - **De rest** (instellingen, streefgewichten, startdatum) komt van de kant met de
  *   jongste historie: dat is de kant die weet waar je nu staat. Een profiel dat hier nog
  *   niets gelogd heeft neemt het bestand in zijn geheel over, zoals voorheen.
- * - **Wie dit toestel gebruikt** en **de pincode** horen bij het toestel: die komen alleen
- *   uit het bestand als ze hier nog niet gezet zijn.
+ * - **De pincode** hoort bij het toestel: die komt alleen uit het bestand als hij hier nog
+ *   niet gezet is.
+ * - **Wie dit toestel gebruikt** ook, zolang dat profiel hier iets gelogd heeft. Maar een
+ *   vers toestel staat na de eerste start al op een profiel, nog zonder historie. Is dat
+ *   een ander profiel dan dat van wie het bestand maakte, dan landde de historie onder
+ *   het ene id en keek het toestel naar het andere: na import leek er niets te staan.
+ *   Daarom: heeft het profiel van dit toestel nog niets, dan gaat het toestel naar het
+ *   profiel uit het bestand (zie `kiesProfiel`).
  */
 export function mergeImport(local: AppState, incoming: AppState): AppState {
   const users: Record<string, UserState> = { ...local.users }
@@ -31,10 +37,32 @@ export function mergeImport(local: AppState, incoming: AppState): AppState {
   }
   return {
     ...incoming,
-    currentUser: local.currentUser || incoming.currentUser,
+    currentUser: kiesProfiel(local, incoming),
     pin: local.pin ?? incoming.pin,
     users,
   }
+}
+
+/**
+ * Welk profiel dit toestel na de import toont.
+ *
+ * Het profiel van het toestel blijft, tenzij het hier nog niets gelogd heeft en het
+ * bestand één passend profiel met historie aanwijst: het profiel dat het bestand zelf
+ * als gebruiker noemt, of — noemt het niemand — het enige profiel met historie. Een leeg
+ * profiel wisselen verliest niets: de gegevens van beide profielen blijven staan, en
+ * terugzetten kan in Instellingen.
+ */
+function kiesProfiel(local: AppState, incoming: AppState): string {
+  const hier = local.currentUser
+  if (!hier) return incoming.currentUser
+  const eigen = local.users[hier]
+  if (eigen && hasHistory(eigen)) return hier
+
+  const metHistorie = Object.values(incoming.users).filter(hasHistory).map((u) => u.id)
+  const bestand = incoming.currentUser
+  if (bestand && metHistorie.includes(bestand)) return bestand
+  if (!bestand && metHistorie.length === 1) return metHistorie[0]
+  return hier
 }
 
 function mergeUser(local: UserState, incoming: UserState): UserState {

@@ -190,7 +190,15 @@ export function exportJSON(): string {
   return payload
 }
 
-export function importJSON(text: string): { ok: true } | { ok: false; error: string } {
+/**
+ * Leest een export in en voegt hem samen met wat er staat (zie merge.ts).
+ *
+ * `profiel` is er alleen als het toestel door de import op een ander profiel is gezet —
+ * dat mag de gebruiker niet stilletjes overkomen, dus het scherm meldt het.
+ */
+export function importJSON(
+  text: string,
+): { ok: true; profiel?: string } | { ok: false; error: string } {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
@@ -205,6 +213,8 @@ export function importJSON(text: string): { ok: true } | { ok: false; error: str
   }
   // ouder bestand: migrate() hoogt het op naar de huidige versie. Daarna samenvoegen, niet
   // vervangen: zie merge.ts — het profiel en de historie van dit toestel blijven staan
+  const voor = root.currentUser
   replaceRoot(mergeImport(root, migrate(parsed)))
+  if (voor && root.currentUser !== voor) return { ok: true, profiel: root.users[root.currentUser].naam }
   return { ok: true }
 }

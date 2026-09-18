@@ -1,0 +1,1337 @@
+{
+  "schemaVersion": 16,
+  "currentUser": "rob",
+  "pin": "4321",
+  "users": {
+    "rob": {
+      "id": "rob",
+      "naam": "Rob",
+      "programId": "kracht_hardlopen",
+      "startDate": "2026-08-03",
+      "settings": {
+        "sensitive": {
+          "knee_deep": "ok",
+          "hip_deep": "ok",
+          "achilles": "careful",
+          "calf": "careful",
+          "lateral_hip": "ok",
+          "lower_back": "ok",
+          "shoulder": "ok"
+        },
+        "bodyweightKg": 80,
+        "travelMode": false,
+        "barWeights": {
+          "trap_bar": 20,
+          "smith": 15,
+          "barbell": 20,
+          "deadlift_bar": 20,
+          "curl_bar": 7.5
+        },
+        "plates": [
+          1.25,
+          2.5,
+          5,
+          10,
+          15,
+          20,
+          25
+        ],
+        "progressie": {
+          "benen": "opbouwen",
+          "bovenlichaam": "opbouwen",
+          "romp": "opbouwen"
+        }
+      },
+      "permanentReplacements": {},
+      "checkins": {
+        "2026-08-08": 4,
+        "2026-08-09": 2,
+        "2026-08-10": 3,
+        "2026-08-11": 4,
+        "2026-08-14": 3,
+        "2026-08-16": 3
+      },
+      "dayChecks": {
+        "2026-08-16": {
+          "sleep": 2,
+          "energy": 2
+        }
+      },
+      "sessions": {
+        "2026-08-08:optional_upper": {
+          "kind": "optional_upper",
+          "completedSlots": [],
+          "completedAt": "2026-08-08T19:05:55.624Z",
+          "date": "2026-08-08",
+          "exercises": {
+            "optional_upper:0": "lat_pulldown_neutral",
+            "optional_upper:4": "band_pushdown",
+            "optional_upper:2": "face_pull",
+            "optional_upper:1": "incline_db_press",
+            "optional_upper:3": "hammer_curl"
+          },
+          "short": false,
+          "skippedSlots": [],
+          "entries": {
+            "optional_upper:2": [
+              {
+                "rir": 2,
+                "reps": 15,
+                "weight": 17.5,
+                "done": true
+              },
+              {
+                "weight": 17.5,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "reps": 15,
+                "weight": 17.5,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "optional_upper:1": [
+              {
+                "weight": 12,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 12,
+                "rir": 2,
+                "reps": 12,
+                "done": true
+              },
+              {
+                "reps": 12,
+                "rir": 1,
+                "done": true,
+                "weight": 12
+              },
+              {
+                "weight": 12,
+                "reps": 10,
+                "rir": 0,
+                "done": true
+              }
+            ],
+            "optional_upper:3": [
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 15,
+                "reps": 10
+              },
+              {
+                "reps": 10,
+                "rir": 2,
+                "weight": 15,
+                "done": true
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 15,
+                "reps": 10
+              },
+              {
+                "done": true,
+                "weight": 15,
+                "rir": 2,
+                "reps": 10
+              },
+              {
+                "done": true,
+                "weight": 15,
+                "rir": 2,
+                "reps": 10
+              }
+            ],
+            "optional_upper:4": [
+              {
+                "done": true,
+                "weight": 18,
+                "reps": 12,
+                "rir": 2
+              },
+              {
+                "weight": 19,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "reps": 14,
+                "weight": 19,
+                "done": true,
+                "rir": 0
+              }
+            ],
+            "optional_upper:0": [
+              {
+                "reps": 12,
+                "rir": 2,
+                "weight": 41,
+                "done": true
+              },
+              {
+                "weight": 41,
+                "done": true,
+                "reps": 12,
+                "rir": 2
+              },
+              {
+                "reps": 12,
+                "weight": 41,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "done": true,
+                "weight": 41,
+                "reps": 12,
+                "rir": 2
+              }
+            ]
+          }
+        },
+        "2026-08-10:legs_a": {
+          "entries": {
+            "legs_a:2": [
+              {
+                "rir": 2,
+                "done": true,
+                "weight": 60,
+                "reps": 10
+              },
+              {
+                "done": true,
+                "weight": 60,
+                "reps": 10,
+                "rir": 2
+              },
+              {
+                "done": true,
+                "weight": 60,
+                "reps": 10,
+                "rir": 2
+              }
+            ],
+            "legs_a:3": [
+              {
+                "reps": 12,
+                "rir": 2,
+                "weight": 60,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "done": true,
+                "rir": 2,
+                "reps": 12
+              }
+            ],
+            "legs_a:0": [
+              {
+                "weight": 100,
+                "done": true,
+                "rir": 2,
+                "reps": 12
+              },
+              {
+                "rir": 2,
+                "reps": 12,
+                "weight": 100,
+                "done": true
+              },
+              {
+                "reps": 12,
+                "done": true,
+                "weight": 100,
+                "rir": 2
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 100,
+                "reps": 12
+              }
+            ],
+            "legs_a:1": [
+              {
+                "done": true,
+                "weight": 35,
+                "reps": 8,
+                "rir": 2
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 8,
+                "weight": 35
+              },
+              {
+                "done": true,
+                "weight": 35,
+                "reps": 8,
+                "rir": 2
+              }
+            ],
+            "legs_a:5": [
+              {
+                "reps": 20,
+                "weight": 0,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "done": true,
+                "rir": 2,
+                "reps": 20
+              },
+              {
+                "rir": 2,
+                "reps": 20,
+                "weight": 0,
+                "done": true
+              }
+            ],
+            "legs_a:4": [
+              {
+                "reps": 18,
+                "done": true,
+                "weight": 35,
+                "rir": 2
+              },
+              {
+                "rir": 2,
+                "done": true,
+                "reps": 18,
+                "weight": 35
+              },
+              {
+                "reps": 18,
+                "weight": 35,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 35,
+                "reps": 18
+              }
+            ]
+          },
+          "completedSlots": [
+            "legs_a:5",
+            "legs_a:0",
+            "legs_a:1",
+            "legs_a:2",
+            "legs_a:3",
+            "legs_a:4"
+          ],
+          "kind": "legs_a",
+          "date": "2026-08-10",
+          "exercises": {
+            "legs_a:0": "leg_press",
+            "legs_a:3": "leg_curl",
+            "legs_a:2": "rdl_trapbar",
+            "legs_a:4": "standing_calf_smith",
+            "legs_a:5": "band_lateral_walk",
+            "legs_a:1": "smith_squat"
+          },
+          "completedAt": "2026-08-10T19:42:36.987Z",
+          "skippedSlots": [],
+          "short": false
+        },
+        "2026-08-11:push": {
+          "exercises": {
+            "push:2": "incline_db_press",
+            "push:3": "triceps_pushdown",
+            "push:1": "db_shoulder_press",
+            "push:4": "ab_roller_ex",
+            "push:0": "bench_smith"
+          },
+          "completedSlots": [
+            "push:0",
+            "push:1",
+            "push:2",
+            "push:3",
+            "push:4"
+          ],
+          "entries": {
+            "push:0": [
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 35,
+                "reps": 10
+              },
+              {
+                "reps": 10,
+                "rir": 2,
+                "done": true,
+                "weight": 45
+              },
+              {
+                "rir": 2,
+                "reps": 10,
+                "weight": 45,
+                "done": true
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 45,
+                "reps": 10
+              }
+            ],
+            "push:1": [
+              {
+                "weight": 12.5,
+                "done": true,
+                "rir": 2,
+                "reps": 8
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 12.5,
+                "reps": 10
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 10,
+                "weight": 12.5
+              }
+            ],
+            "push:4": [
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 10,
+                "weight": 0
+              },
+              {
+                "weight": 0,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 10,
+                "weight": 0
+              }
+            ],
+            "push:3": [
+              {
+                "weight": 18.75,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 18.75,
+                "reps": 12
+              },
+              {
+                "weight": 18.75,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "push:2": [
+              {
+                "weight": 15,
+                "done": true,
+                "rir": 2,
+                "reps": 10
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 10,
+                "weight": 15
+              },
+              {
+                "reps": 10,
+                "rir": 2,
+                "weight": 15,
+                "done": true
+              }
+            ]
+          },
+          "kind": "push",
+          "date": "2026-08-11",
+          "completedAt": "2026-08-11T18:56:18.521Z",
+          "short": false,
+          "skippedSlots": []
+        },
+        "2026-08-17:legs_a": {
+          "date": "2026-08-17",
+          "kind": "legs_a",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 100,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 100,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 100,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 100,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:1": [
+              {
+                "weight": 35,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 35,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 35,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:2": [
+              {
+                "weight": 40,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 40,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 40,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:3": [
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:4": [
+              {
+                "weight": 45,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 55,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 55,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 55,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:5": [
+              {
+                "weight": 0,
+                "level": 5,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 5,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 5,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:6": [
+              {
+                "weight": 0,
+                "level": 1,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 1,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 1,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press",
+            "legs_a:1": "smith_squat",
+            "legs_a:2": "rdl_trapbar",
+            "legs_a:3": "leg_curl",
+            "legs_a:4": "standing_calf_smith",
+            "legs_a:5": "band_lateral_walk",
+            "legs_a:6": "clamshell"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0",
+            "legs_a:1",
+            "legs_a:2",
+            "legs_a:3",
+            "legs_a:4",
+            "legs_a:5",
+            "legs_a:6"
+          ],
+          "completedAt": "2026-08-17T18:59:33.117Z",
+          "warmup": {
+            "type": "loopband",
+            "minutes": 5,
+            "done": true
+          },
+          "feel": "goed"
+        },
+        "2026-08-24:legs_a": {
+          "date": "2026-08-24",
+          "kind": "legs_a",
+          "short": false,
+          "entries": {
+            "legs_a:0": [
+              {
+                "weight": 110,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 110,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 110,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 110,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:2": [
+              {
+                "weight": 40,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 40,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 40,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:1": [
+              {
+                "weight": 65,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 65,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 65,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:3": [
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 60,
+                "reps": 12,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:4": [],
+            "legs_a:5": [
+              {
+                "weight": 0,
+                "level": 5,
+                "reps": 21,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 5,
+                "reps": 21,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 3,
+                "reps": 21,
+                "rir": 2,
+                "done": true
+              }
+            ],
+            "legs_a:6": [
+              {
+                "weight": 0,
+                "level": 1,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 1,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "level": 1,
+                "reps": 15,
+                "rir": 2,
+                "done": true
+              }
+            ]
+          },
+          "exercises": {
+            "legs_a:0": "leg_press",
+            "legs_a:2": "rdl_trapbar",
+            "legs_a:1": "leg_extension",
+            "legs_a:3": "leg_curl",
+            "legs_a:4": "heel_drop_ecc",
+            "legs_a:5": "band_lateral_walk",
+            "legs_a:6": "clamshell"
+          },
+          "skippedSlots": [],
+          "completedSlots": [
+            "legs_a:0",
+            "legs_a:1",
+            "legs_a:3",
+            "legs_a:2",
+            "legs_a:4",
+            "legs_a:5",
+            "legs_a:6"
+          ],
+          "completedAt": "2026-08-24T19:10:51.153Z",
+          "warmup": {
+            "type": "fiets",
+            "minutes": 15,
+            "done": true
+          },
+          "startedAt": "2026-08-24T18:33:46.168Z",
+          "feel": "goed"
+        }
+      },
+      "runs": {
+        "2026-08-09": {
+          "completedAt": "2026-08-09T08:18:08.053Z",
+          "bike": false,
+          "date": "2026-08-09",
+          "plannedKm": 10,
+          "kind": "long",
+          "minutes": 30,
+          "km": 5
+        },
+        "2026-08-11": {
+          "km": 6,
+          "completedAt": "2026-08-11T18:27:31.793Z",
+          "date": "2026-08-11",
+          "plannedKm": 5,
+          "bike": false,
+          "minutes": 35,
+          "kind": "short"
+        },
+        "2026-08-13": {
+          "plannedKm": 5,
+          "kind": "short",
+          "minutes": 30,
+          "completedAt": "2026-08-13T18:47:45.112Z",
+          "km": 5,
+          "bike": false,
+          "date": "2026-08-13"
+        },
+        "2026-08-16": {
+          "date": "2026-08-16",
+          "kind": "long",
+          "plannedKm": 6,
+          "km": 11,
+          "minutes": 71,
+          "bike": false,
+          "completedAt": "2026-08-16T16:58:11.132Z"
+        }
+      },
+      "runPlans": {},
+      "deloadSkips": {},
+      "deviations": [],
+      "activities": [
+        {
+          "date": "2026-08-09",
+          "createdAt": "2026-08-09T19:14:40.119Z",
+          "note": null,
+          "intensity": "normaal",
+          "minutes": 25,
+          "id": "act_msm6m3jr_1",
+          "type": "fietsen"
+        }
+      ],
+      "skips": {},
+      "moves": {},
+      "runMoves": {},
+      "overrides": {},
+      "exerciseState": {
+        "leg_extension": {
+          "lastNote": null,
+          "lastUpdated": "2026-08-24T19:10:51.153Z",
+          "targetReps": 12,
+          "belowMinStreak": 0,
+          "targetWeight": 65,
+          "increaseWeek": "2026-08-17",
+          "increasedKg": 2.5,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "leg_curl": {
+          "targetReps": 12,
+          "lastUpdated": "2026-08-24T19:10:51.153Z",
+          "targetWeight": 60,
+          "lastNote": null,
+          "belowMinStreak": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "triceps_pushdown": {
+          "targetReps": 12,
+          "lastUpdated": "2026-08-25T19:33:34.163Z",
+          "lastNote": null,
+          "belowMinStreak": 0,
+          "targetWeight": 18.75,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "ab_roller_ex": {
+          "lastUpdated": "2026-08-25T19:33:34.163Z",
+          "belowMinStreak": 0,
+          "targetWeight": 0,
+          "lastNote": null,
+          "targetReps": 10,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "face_pull": {
+          "targetReps": 12,
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-08T19:05:55.624Z",
+          "lastNote": null,
+          "targetWeight": 17.5,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "standing_calf_smith": {
+          "lastNote": null,
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-21T18:05:46.773Z",
+          "targetWeight": 52.5,
+          "targetReps": 12,
+          "increaseWeek": "2026-08-17",
+          "increasedKg": 2.5,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "bench_smith": {
+          "lastUpdated": "2026-08-25T19:33:34.162Z",
+          "belowMinStreak": 0,
+          "lastNote": null,
+          "targetReps": 8,
+          "targetWeight": 50,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "incline_db_press": {
+          "lastUpdated": "2026-08-25T19:33:34.162Z",
+          "targetWeight": 15,
+          "lastNote": null,
+          "targetReps": 8,
+          "belowMinStreak": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "band_lateral_walk": {
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-24T19:10:51.153Z",
+          "lastNote": null,
+          "targetReps": 21,
+          "targetWeight": null,
+          "targetLevel": 5,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "leg_press": {
+          "lastNote": null,
+          "targetReps": 8,
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-24T19:10:51.153Z",
+          "targetWeight": 110,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "rdl_trapbar": {
+          "targetWeight": 40,
+          "targetReps": 10,
+          "lastUpdated": "2026-08-24T19:10:51.153Z",
+          "belowMinStreak": 0,
+          "lastNote": null,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "smith_squat": {
+          "targetReps": 8,
+          "belowMinStreak": 0,
+          "targetWeight": 35,
+          "lastUpdated": "2026-08-17T18:59:33.117Z",
+          "lastNote": null,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "lat_pulldown_neutral": {
+          "targetWeight": 41,
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-08T19:05:55.623Z",
+          "targetReps": 8,
+          "lastNote": null,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "db_shoulder_press": {
+          "targetWeight": 12.5,
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-25T19:33:34.162Z",
+          "targetReps": 10,
+          "lastNote": null,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "band_pushdown": {
+          "targetWeight": 19,
+          "targetReps": 12,
+          "lastNote": null,
+          "lastUpdated": "2026-08-08T19:05:55.624Z",
+          "belowMinStreak": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "hammer_curl": {
+          "targetWeight": 15,
+          "lastNote": null,
+          "lastUpdated": "2026-08-08T19:05:55.624Z",
+          "targetReps": 10,
+          "belowMinStreak": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "clamshell": {
+          "targetWeight": null,
+          "targetReps": 15,
+          "targetLevel": 1,
+          "graduatedTo": null,
+          "belowMinStreak": 0,
+          "lastNote": null,
+          "lastUpdated": "2026-08-24T19:10:51.153Z",
+          "increaseWeek": null,
+          "increasedKg": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        }
+      },
+      "notices": [],
+      "lastExportAt": "2026-08-30T18:37:21.493Z",
+      "review": null,
+      "exportedAt": "2026-08-09T19:39:13.893Z"
+    },
+    "anouc": {
+      "id": "anouc",
+      "naam": "Anouc",
+      "programId": "fullbody_hardlopen",
+      "startDate": "2026-08-03",
+      "settings": {
+        "sensitive": {
+          "knee_deep": "ok",
+          "hip_deep": "ok",
+          "achilles": "ok",
+          "calf": "ok",
+          "lateral_hip": "ok",
+          "lower_back": "ok",
+          "shoulder": "ok"
+        },
+        "bodyweightKg": 80,
+        "travelMode": false,
+        "barWeights": {
+          "trap_bar": 20,
+          "smith": 15,
+          "barbell": 20,
+          "deadlift_bar": 20,
+          "curl_bar": 7.5
+        },
+        "plates": [
+          1.25,
+          2.5,
+          5,
+          10,
+          15,
+          20,
+          25
+        ],
+        "progressie": {
+          "benen": "onderhoud",
+          "bovenlichaam": "onderhoud",
+          "romp": "onderhoud"
+        }
+      },
+      "permanentReplacements": {},
+      "checkins": {
+        "2026-08-09": 3
+      },
+      "dayChecks": {},
+      "sessions": {
+        "2026-08-12:full_body_a": {
+          "completedSlots": [
+            "full_body_a:0",
+            "full_body_a:1",
+            "full_body_a:3",
+            "full_body_a:5"
+          ],
+          "kind": "full_body_a",
+          "skippedSlots": [
+            "full_body_a:2",
+            "full_body_a:4"
+          ],
+          "exercises": {
+            "full_body_a:1": "lat_pulldown",
+            "full_body_a:5": "dead_bug",
+            "full_body_a:3": "glute_bridge_bw",
+            "full_body_a:4": "band_hip_abduction_seated",
+            "full_body_a:2": "cable_chest_press",
+            "full_body_a:0": "leg_press"
+          },
+          "completedAt": "2026-08-12T15:50:55.562Z",
+          "entries": {
+            "full_body_a:1": [
+              {
+                "weight": 19,
+                "reps": 10,
+                "rir": 2,
+                "done": true
+              },
+              {
+                "reps": 10,
+                "rir": 2,
+                "weight": 19,
+                "done": true
+              },
+              {
+                "weight": 19,
+                "done": true,
+                "rir": 1,
+                "reps": 10
+              }
+            ],
+            "full_body_a:3": [
+              {
+                "reps": 15,
+                "rir": 2,
+                "weight": 0,
+                "done": true
+              },
+              {
+                "weight": 0,
+                "done": true,
+                "reps": 15,
+                "rir": 2
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "weight": 0,
+                "reps": 15
+              }
+            ],
+            "full_body_a:4": [
+              {
+                "done": false,
+                "rir": 2,
+                "weight": 0,
+                "reps": 15
+              },
+              {
+                "weight": 0,
+                "reps": 15,
+                "rir": 2,
+                "done": false
+              },
+              {
+                "reps": 15,
+                "weight": 0,
+                "rir": 2,
+                "done": false
+              }
+            ],
+            "full_body_a:5": [
+              {
+                "weight": 4,
+                "done": true,
+                "reps": 10,
+                "rir": 4
+              },
+              {
+                "weight": 4,
+                "rir": 4,
+                "reps": 10,
+                "done": true
+              },
+              {
+                "reps": 10,
+                "weight": 4,
+                "rir": 4,
+                "done": true
+              }
+            ],
+            "full_body_a:2": [
+              {
+                "weight": 0,
+                "done": false,
+                "rir": 2,
+                "reps": 10
+              },
+              {
+                "done": false,
+                "weight": 0,
+                "reps": 10,
+                "rir": 2
+              },
+              {
+                "rir": 2,
+                "reps": 10,
+                "weight": 0,
+                "done": false
+              }
+            ],
+            "full_body_a:0": [
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 10,
+                "weight": 100
+              },
+              {
+                "rir": 2,
+                "weight": 100,
+                "reps": 10,
+                "done": true
+              },
+              {
+                "done": true,
+                "rir": 2,
+                "reps": 10,
+                "weight": 100
+              }
+            ]
+          },
+          "short": false,
+          "date": "2026-08-12"
+        }
+      },
+      "runs": {
+        "2026-08-09": {
+          "kind": "long",
+          "bike": false,
+          "minutes": 30,
+          "date": "2026-08-09",
+          "completedAt": "2026-08-09T19:53:30.376Z",
+          "km": 5,
+          "plannedKm": 0
+        }
+      },
+      "runPlans": {},
+      "deloadSkips": {},
+      "deviations": [],
+      "activities": [
+        {
+          "createdAt": "2026-08-10T11:48:55.259Z",
+          "type": "hardlopen",
+          "note": null,
+          "id": "act_msn64pqz_1",
+          "date": "2026-08-10",
+          "minutes": 95,
+          "intensity": "rustig"
+        }
+      ],
+      "skips": {},
+      "moves": {},
+      "runMoves": {},
+      "overrides": {},
+      "exerciseState": {
+        "glute_bridge_bw": {
+          "lastNote": null,
+          "lastUpdated": "2026-08-12T15:50:55.562Z",
+          "belowMinStreak": 0,
+          "targetReps": 12,
+          "targetWeight": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "leg_press": {
+          "targetWeight": 100,
+          "lastNote": null,
+          "belowMinStreak": 0,
+          "lastUpdated": "2026-08-12T15:50:55.562Z",
+          "targetReps": 10,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "dead_bug": {
+          "targetWeight": 4,
+          "lastNote": null,
+          "targetReps": 10,
+          "lastUpdated": "2026-08-12T15:50:55.562Z",
+          "belowMinStreak": 0,
+          "hitStreak": 0,
+          "raiseNote": null
+        },
+        "lat_pulldown": {
+          "lastNote": null,
+          "targetWeight": 19,
+          "belowMinStreak": 0,
+          "targetReps": 10,
+          "lastUpdated": "2026-08-12T15:50:55.562Z",
+          "hitStreak": 0,
+          "raiseNote": null
+        }
+      },
+      "notices": [],
+      "lastExportAt": null,
+      "review": null
+    }
+  },
+  "exportedAt": "2026-08-30T18:37:21.493Z"
+}

@@ -101,7 +101,11 @@ export function SettingsScreen({ onClose }: { onClose?: () => void }) {
   async function doImport(file: File) {
     const text = await file.text()
     const res = importJSON(text)
-    setMessage(res.ok ? 'Import gelukt: samengevoegd met wat er al stond.' : `Import mislukt: ${res.error}`)
+    if (!res.ok) setMessage(`Import mislukt: ${res.error}`)
+    else if (res.profiel) {
+      // het profiel van dit toestel was nog leeg: nu staat het op wie de export maakte
+      setMessage(`Import gelukt. Dit toestel staat nu op ${res.profiel}; wisselen kan bij Profiel.`)
+    } else setMessage('Import gelukt: samengevoegd met wat er al stond.')
   }
 
   const permanents = Object.entries(state.permanentReplacements)
