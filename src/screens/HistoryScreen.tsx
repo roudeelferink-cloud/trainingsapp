@@ -5,6 +5,7 @@ import { BarChart, LineChart } from '../components/Chart'
 import { Caps, Link, Screen, Stats } from '../components/logboek'
 import { Empty } from '../components/ui'
 import { activityCount, recentActivities } from '../logic/activities'
+import { painLabel, painReports } from '../logic/dayCheck'
 import { formatShort, today } from '../logic/dates'
 import { loggedExercises } from '../logic/history'
 import { fmt, stateFor } from '../logic/progression'
@@ -147,6 +148,7 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
       </Blok>
 
       <ExtraActivityHistory />
+      <GemeldePijn />
       <Deviations />
 
       {oefening && <ExerciseScreen exerciseId={oefening} onClose={() => setOefening(null)} />}
@@ -288,6 +290,33 @@ function ExtraActivityHistory() {
         date={edit?.date ?? today()}
         activity={edit ?? undefined}
       />
+    </Blok>
+  )
+}
+
+/**
+ * Wat er in de dagcheck aan pijn gemeld is, per dag met de plek. Alleen de dagen waarop
+ * er iets gemeld is; staat er niets, dan valt het blok weg.
+ */
+function GemeldePijn() {
+  const state = useStore()
+  const meldingen = painReports(state, 30)
+  if (meldingen.length === 0) return null
+  return (
+    <Blok label="Gemelde pijn">
+      <div className="flex flex-col">
+        {meldingen.map((m, i) => (
+          <div
+            key={m.date}
+            className={`flex items-baseline justify-between gap-column border-t-hair border-rule py-row ${
+              i === meldingen.length - 1 ? 'border-b-hair' : ''
+            }`}
+          >
+            <span className="text-list text-ink">{painLabel(m.spot)}</span>
+            <span className="text-meta text-dim">{formatShort(m.date)}</span>
+          </div>
+        ))}
+      </div>
     </Blok>
   )
 }

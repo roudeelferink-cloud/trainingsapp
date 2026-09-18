@@ -244,16 +244,28 @@ export interface LoggedSet {
  */
 export type Feel = 'makkelijk' | 'goed' | 'zwaar'
 
-/** Schaal van 3 voor de dagcheck: 1 = slecht, 2 = oké, 3 = goed. */
-export type DayScore = 1 | 2 | 3
+/** Hoe de benen vandaag voelen. Eén tik in de dagcheck. */
+export type LegsFeel = 'fris' | 'normaal' | 'zwaar'
 
 /**
- * Optionele dagcheck: hoe je geslapen hebt en hoeveel energie je hebt. Overslaan mag
- * en heeft geen gevolgen; ingevuld telt hij mee in de deloadbeslissing.
+ * Waar het pijn doet of gevoelig is. `anders` is er voor alles wat niet in de vier past;
+ * daar hangt geen oefeningtag aan, dus die plek levert geen regel in het sessiescherm op.
+ */
+export type PainSpot = 'knie' | 'rug' | 'schouder' | 'heup' | 'anders'
+
+/**
+ * De dagcheck: twee vragen, allebei optioneel.
+ *
+ * - `legs` — benen fris, normaal of zwaar;
+ * - `pain` — pijn of gevoeligheid: `null` is "nee", een plek is "ja, hier". Afwezig
+ *   betekent dat de vraag niet beantwoord is.
+ *
+ * Tot en met v17 stonden hier slaap en energie, en stond "benen" als los getal van 1 tot 5
+ * in `checkins`. Die drie zijn in v18 samengegaan in `legs`; zie de migratie.
  */
 export interface DayCheck {
-  sleep: DayScore
-  energy: DayScore
+  legs?: LegsFeel
+  pain?: PainSpot | null
 }
 
 export interface SessionLog {
@@ -484,9 +496,7 @@ export interface UserState {
   settings: Settings
   /** slotKey -> exerciseId (permanent, rouleert niet mee) */
   permanentReplacements: Record<string, string>
-  /** datum -> 1..5 */
-  checkins: Record<string, number>
-  /** datum -> optionele dagcheck (slaap en energie) */
+  /** datum -> optionele dagcheck (benen, en pijn met de plek) */
   dayChecks: Record<string, DayCheck>
   /** sessiesleutel -> log */
   sessions: Record<string, SessionLog>

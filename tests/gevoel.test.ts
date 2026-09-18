@@ -64,23 +64,34 @@ describe('beoordeling per sessie', () => {
 
 describe('dagcheck', () => {
   it('is optioneel en per dag te wissen', () => {
-    A.setDayCheck(MON, { sleep: 1, energy: 1 })
-    expect(getState().dayChecks[MON]).toEqual({ sleep: 1, energy: 1 })
+    A.setDayCheck(MON, { legs: 'zwaar', pain: null })
+    expect(getState().dayChecks[MON]).toEqual({ legs: 'zwaar', pain: null })
 
     A.clearDayCheck(MON)
     expect(getState().dayChecks[MON]).toBeUndefined()
   })
 
-  it('laat slaap en energie los van elkaar zetten', () => {
-    A.setDayCheckPart(MON, 'sleep', 3)
-    expect(getState().dayChecks[MON]).toEqual({ sleep: 3, energy: 2 })
-    A.setDayCheckPart(MON, 'energy', 1)
-    expect(getState().dayChecks[MON]).toEqual({ sleep: 3, energy: 1 })
+  it('laat benen en pijn los van elkaar zetten', () => {
+    A.setDayCheckLegs(MON, 'fris')
+    expect(getState().dayChecks[MON]).toEqual({ legs: 'fris' })
+    A.setDayCheckPain(MON, 'knie')
+    expect(getState().dayChecks[MON]).toEqual({ legs: 'fris', pain: 'knie' })
+    A.setDayCheckPain(MON, null)
+    expect(getState().dayChecks[MON]).toEqual({ legs: 'fris', pain: null })
   })
 
-  it('maakt van twee slechte dagen een slechte week', () => {
-    A.setDayCheck(MON, { sleep: 1, energy: 1 })
-    A.setDayCheck(DI, { sleep: 1, energy: 2 })
+  it('haalt een antwoord weg zonder het andere, en de dag als er niets over is', () => {
+    A.setDayCheckLegs(MON, 'normaal')
+    A.setDayCheckPain(MON, 'rug')
+    A.setDayCheckLegs(MON, undefined)
+    expect(getState().dayChecks[MON]).toEqual({ pain: 'rug' })
+    A.setDayCheckPain(MON, undefined)
+    expect(getState().dayChecks[MON]).toBeUndefined()
+  })
+
+  it('maakt van twee dagen zware benen een slechte week', () => {
+    A.setDayCheck(MON, { legs: 'zwaar' })
+    A.setDayCheck(DI, { legs: 'zwaar', pain: 'heup' })
     expect(weekIsPoor(getState(), MON)).toBe(true)
   })
 })

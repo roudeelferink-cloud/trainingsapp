@@ -96,8 +96,8 @@ describe('de score van een sessie', () => {
 
   it('telt meer sets zwaarder', () => {
     const normaal = legLoadOn(s0, MON).score
-    const laag = legLoadOn(baseState({ checkins: { [MON]: 1 } }), MON).score
-    // een lage check-in haalt er een set per oefening af
+    const laag = legLoadOn(baseState({ dayChecks: { [MON]: { legs: 'zwaar' } } }), MON).score
+    // zware benen halen er een set per oefening af
     expect(laag).toBeLessThan(normaal)
   })
 

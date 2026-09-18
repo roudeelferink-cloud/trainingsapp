@@ -2,7 +2,7 @@ import type { AppState, ProgramId, ReviewCache, SessionLog, UserState } from '..
 import { mondayOf, today } from '../logic/dates'
 import { ANOUC, ROB, defaultSettingsFor, normalizeSettings } from './settings'
 import { isSkipReason } from '../logic/skips'
-import { runMigrations, stripRir, type RawState } from './migrations'
+import { normalizeDayCheck, runMigrations, stripRir, type RawState } from './migrations'
 
 /**
  * Het schema: hoe een lege staat eruitziet, en hoe oude data naar de huidige versie
@@ -26,7 +26,7 @@ export function isPin(code: unknown): code is string {
   return typeof code === 'string' && /^[0-9]{4}$/.test(code)
 }
 
-export const SCHEMA_VERSION = 17
+export const SCHEMA_VERSION = 18
 
 export const USER_SEEDS: { id: string; naam: string; programId: ProgramId }[] = [
   { id: ROB, naam: 'Rob', programId: 'kracht_hardlopen' },
@@ -41,7 +41,6 @@ export function defaultUser(id: string, naam: string, programId: ProgramId): Use
     startDate: mondayOf(today()),
     settings: defaultSettingsFor(id),
     permanentReplacements: {},
-    checkins: {},
     dayChecks: {},
     sessions: {},
     runs: {},
@@ -81,7 +80,8 @@ export function defaultRoot(): AppState {
 function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramId): UserState {
   const base = defaultUser(id, naam, programId)
   if (!raw || typeof raw !== 'object') return base
-  const s = raw as Partial<UserState>
+  // `checkins` bestaat sinds v18 niet meer; een bestand dat hem toch meedraagt verliest hem hier
+  const { checkins: _oud, ...s } = raw as Partial<UserState> & { checkins?: unknown }
   // de startinstellingen van deze gebruiker als terugval, daarna repareren wat er niet klopt
   const settings = normalizeSettings(s.settings, base.settings)
   return {
@@ -95,8 +95,7 @@ function migrateUser(raw: unknown, id: string, naam: string, programId: ProgramI
     startDate: typeof s.startDate === 'string' ? s.startDate : base.startDate,
     settings,
     permanentReplacements: s.permanentReplacements ?? {},
-    checkins: s.checkins ?? {},
-    dayChecks: s.dayChecks ?? {},
+    dayChecks: normalizeDayChecks(s.dayChecks),
     sessions: normalizeSessions(s.sessions),
     runs: s.runs ?? {},
     runPlans: s.runPlans ?? {},
@@ -154,6 +153,16 @@ function normalizeSessions(raw: UserState['sessions'] | undefined): UserState['s
       entries[slotKey] = stripRir(sets) as SessionLog['entries'][string]
     }
     out[key] = { ...log, entries }
+  }
+  return out
+}
+
+/** De dagchecks zoals de app ze leest: alleen benen en pijn, en alleen wat klopt. */
+function normalizeDayChecks(raw: UserState['dayChecks'] | undefined): UserState['dayChecks'] {
+  const out: UserState['dayChecks'] = {}
+  for (const [datum, check] of Object.entries(raw ?? {})) {
+    const schoon = normalizeDayCheck(check)
+    if (schoon) out[datum] = schoon as UserState['dayChecks'][string]
   }
   return out
 }

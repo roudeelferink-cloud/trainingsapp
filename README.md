@@ -256,8 +256,9 @@ en elk voorstel is te overschrijven; die afwijking wordt dan vastgelegd.
 - **Per sessie** (kracht én hardlopen) een afsluitende beoordeling: **makkelijk / goed /
   zwaar**. Die drie knoppen ronden de sessie meteen af — één tik. Overslaan mag, en kost
   je niets: de progressie loopt op wat je gelogd hebt, niet op deze knoppen.
-- **Per dag** een optionele dagcheck: slaap en energie, allebei op een schaal van 3
-  (slecht / oké / goed). Niet invullen heeft geen enkel gevolg.
+- **Per dag** een optionele dagcheck: **benen** fris / normaal / zwaar, en **pijn of
+  gevoeligheid** nee / ja — bij ja één tik voor de plek (knie, rug, schouder, heup,
+  anders). Twee tikken zonder pijn, drie met. Niet invullen heeft geen enkel gevolg.
 
 ### Progressie (`src/logic/opbouw.ts` en `src/logic/progression.ts`)
 
@@ -499,10 +500,12 @@ alle sets), berekend met dezelfde conventie.
 
 ## Aanpassen tijdens de rit
 
-- **Ochtend-check-in** (1-5, optioneel): 4-5 normaal · 3 geen nieuwe gewichtsverhogingen ·
-  1-2 automatisch afschalen (loop −30% of fietsen, 1 set minder, zwaar kuitwerk eruit,
-  zaterdag uit). Los daarvan staat de **dagcheck** (slaap en energie, schaal van 3): die
-  stuurt de dag van vandaag niet, maar telt mee in de deloadbeslissing.
+- **Dagcheck** (optioneel): **benen zwaar** schaalt automatisch af (1 set minder, zwaar
+  kuitwerk eruit, zaterdag uit) en telt mee in de deloadbeslissing — twee weken op rij
+  overwegend zware benen is een deloadweek. **Pijn** met een plek zet in het sessiescherm
+  één feitelijke regel bij de oefeningen die die plek belasten ("knie gemeld — kies
+  eventueel een lichter gewicht"); niets blokkeert en het gewicht blijft wat het was. De
+  plek staat in de historie en in de export.
 - **Na afloop:** elke sessie — kracht én loop — sluit je af met makkelijk, goed of zwaar.
   Bij een loop leg je daar ook de werkelijk gelopen afstand vast, plus eventueel de tijd;
   wat je van plan was en wat je liep blijven apart bewaard.
@@ -644,7 +647,7 @@ huishoudcode en de synctijdstempels op uit bestaande data. Het Firebase-project
 
 ### Versiebeheer van het formaat
 
-De opgeslagen staat heeft een `schemaVersion` (nu **17**). Bij het laden en bij een import:
+De opgeslagen staat heeft een `schemaVersion` (nu **18**). Bij het laden en bij een import:
 
 - **ouder dan de huidige versie** → de stappen in `src/store/migrations.ts` hogen de data op.
   Niets wordt geweigerd of gewist.
@@ -703,6 +706,9 @@ Bestaande stappen:
   `hitStreak` per oefening komen erbij, allebei op een schoon startpunt; `dismissedWarnings`
   gaat eruit, want die meldingen bestaan niet meer.
 - **v16 → v17** — de RIR per set is uit de app en wordt uit elke opgeslagen set gestript.
+- **v17 → v18** — de dagcheck is benen (fris/normaal/zwaar) plus pijn met de plek. De oude
+  benenschaal uit `checkins` gaat mee (1-2 zwaar, 3 normaal, 4-5 fris); slaap en energie
+  vervallen, en het veld `checkins` verdwijnt.
   Een export van vóór deze versie blijft importeerbaar en komt er schoon uit; gewichten,
   reps, bandniveaus en vinkjes blijven precies zoals ze waren.
 - **v11 → v12** — één veld erbij per gebruiker: `dismissedWarnings`, een sleutel per

@@ -38,12 +38,13 @@ import type {
   BarId,
   DayCheck,
   DayKind,
-  DayScore,
   Deviation,
   DeviationKind,
   Feel,
+  LegsFeel,
   LoggedSet,
   MuscleZone,
+  PainSpot,
   ReviewCache,
   RunKind,
   SessionLog,
@@ -59,34 +60,37 @@ import { normalizeSettings } from './settings'
 export { BUMP_MARKER }
 import { currentUserId, getState, setState } from './store'
 
-export function setCheckin(iso: string, value: number): void {
-  setState((s) => ({ ...s, checkins: { ...s.checkins, [iso]: value } }))
-}
-
-export function clearCheckin(iso: string): void {
-  setState((s) => {
-    const checkins = { ...s.checkins }
-    delete checkins[iso]
-    return { ...s, checkins }
-  })
-}
-
 /* ---- dagcheck en afwijkingen ---- */
 
 /**
- * De optionele dagcheck: slaap en energie, allebei op een schaal van 3. Overslaan mag —
- * er staat niets in de weg als dit leeg blijft, en twee slechte weken op rij zijn pas een
- * signaal als er ook echt iets ingevuld is.
+ * De dagcheck: benen en pijn, allebei optioneel en direct opgeslagen. Overslaan mag — er
+ * staat niets in de weg als dit leeg blijft.
  */
 export function setDayCheck(iso: string, check: DayCheck): void {
   setState((s) => ({ ...s, dayChecks: { ...s.dayChecks, [iso]: check } }))
 }
 
-export function setDayCheckPart(iso: string, part: 'sleep' | 'energy', value: DayScore): void {
+/** Eén vraag van de dagcheck zetten of (met `undefined`) weer leeg maken. */
+function patchDayCheck(iso: string, patch: Partial<DayCheck>): void {
   setState((s) => {
-    const current = s.dayChecks?.[iso] ?? { sleep: 2, energy: 2 }
-    return { ...s, dayChecks: { ...s.dayChecks, [iso]: { ...current, [part]: value } } }
+    const next: DayCheck = { ...(s.dayChecks?.[iso] ?? {}), ...patch }
+    for (const k of Object.keys(next) as (keyof DayCheck)[]) {
+      if (next[k] === undefined) delete next[k]
+    }
+    const dayChecks = { ...s.dayChecks }
+    if (Object.keys(next).length === 0) delete dayChecks[iso]
+    else dayChecks[iso] = next
+    return { ...s, dayChecks }
   })
+}
+
+export function setDayCheckLegs(iso: string, legs: LegsFeel | undefined): void {
+  patchDayCheck(iso, { legs })
+}
+
+/** `null` is "geen pijn", een plek is "ja, hier", `undefined` haalt het antwoord weg. */
+export function setDayCheckPain(iso: string, pain: PainSpot | null | undefined): void {
+  patchDayCheck(iso, { pain })
 }
 
 export function clearDayCheck(iso: string): void {
@@ -589,10 +593,9 @@ export function completeSession(
   )
   setState((s) => {
     const info = cycleInfo(s.startDate, iso)
-    const checkin = s.checkins[iso]
     const pace = programFor(s).pace
     const deload = deloadFor(s, iso).active
-    const allowIncrease = !info.calibration && !deload && checkin !== 3
+    const allowIncrease = !info.calibration && !deload
     const exerciseState = { ...s.exerciseState }
     let next = s
 

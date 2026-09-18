@@ -70,7 +70,9 @@ describe('migratie van bestaande localStorage-data', () => {
     expect(rob.settings.bodyweightKg).toBe(84)
     expect(rob.settings.sensitive.knee_deep).toBe('off')
     expect(rob.permanentReplacements).toEqual({ 'legs_a:0': 'hack_squat_smith' })
-    expect(rob.checkins).toEqual({ [MON]: 4 })
+    // de oude benenschaal (4) is sinds v18 'fris' in de dagcheck
+    expect(rob.dayChecks).toEqual({ [MON]: { legs: 'fris' } })
+    expect(Object.keys(rob)).not.toContain('checkins')
     // eiwit en onderhoud zijn sinds v13 uit de app; de migratie ruimt de velden op
     expect(Object.keys(rob)).not.toContain('protein')
     expect(Object.keys(rob)).not.toContain('maintenance')
@@ -123,7 +125,7 @@ describe('migratie van bestaande localStorage-data', () => {
   it('laat een al gemigreerde staat ongemoeid', () => {
     const eenmaal = migrate(v5)
     const tweemaal = migrate(eenmaal)
-    expect(tweemaal.users[ROB].checkins).toEqual(eenmaal.users[ROB].checkins)
+    expect(tweemaal.users[ROB].dayChecks).toEqual(eenmaal.users[ROB].dayChecks)
     expect(tweemaal.users[ROB].sessions).toEqual(eenmaal.users[ROB].sessions)
     expect(Object.keys(tweemaal.users).sort()).toEqual([ANOUC, ROB])
   })
@@ -284,7 +286,7 @@ describe('v10 -> v11: de guardrails-laag', () => {
     expect(log.entries['legs_a:0'][0].weight).toBe(120)
     expect(log.feel).toBeUndefined()
     expect(root.users[ROB].runs[MON].feel).toBeUndefined()
-    expect(root.users[ROB].checkins[MON]).toBe(4)
+    expect(root.users[ROB].dayChecks[MON]?.legs).toBe('fris')
     expect(Object.keys(root.users[ANOUC])).not.toContain('protein')
   })
 })
@@ -358,7 +360,8 @@ describe('v12 -> v13: eiwit en onderhoud verdwijnen', () => {
     expect(JSON.stringify(root)).not.toContain('proteinFactor')
     expect(JSON.stringify(root)).not.toContain('maintenanceItems')
     expect(root.users[ROB].sessions[`${MON}:legs_a`].entries['legs_a:0'][0].weight).toBe(120)
-    expect(root.users[ROB].dayChecks[MON]).toEqual({ sleep: 2, energy: 3 })
+    // v18: slaap en energie vervallen, de benen (4) komen als 'fris' in de dagcheck
+    expect(root.users[ROB].dayChecks[MON]).toEqual({ legs: 'fris' })
   })
 })
 
@@ -393,7 +396,8 @@ describe('v11 -> v12: meldingen wegklikken', () => {
   it('laat alles van v11 staan', () => {
     const root = migrate(structuredClone(v11))
     expect(root.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(root.users[ROB].dayChecks[MON]).toEqual({ sleep: 2, energy: 3 })
+    // alleen slaap en energie ingevuld: sinds v18 blijft er van die dag geen dagcheck over
+    expect(root.users[ROB].dayChecks[MON]).toBeUndefined()
     expect(root.users[ROB].runPlans[MON]).toBe(8)
     expect(root.users[ROB].deviations).toHaveLength(1)
     expect(root.users[ROB].settings.plates).toEqual([2.5, 5])
@@ -481,7 +485,7 @@ describe('v13 -> v14: de werkelijk gelopen afstand is de maat', () => {
   it('komt via de volledige migratie op de huidige versie uit', () => {
     const root = migrate(structuredClone(v13))
     expect(root.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(17)
+    expect(SCHEMA_VERSION).toBe(18)
     expect(root.users[ROB].runs['2026-08-04'].km).toBe(7.5)
     expect(root.users[ROB].runs['2026-08-06'].km).toBe(6)
   })
@@ -674,7 +678,7 @@ describe('de keten van 14 naar 16', () => {
   }
 
   it('loopt zonder gaten door van 14 naar de huidige versie', () => {
-    expect(SCHEMA_VERSION).toBe(17)
+    expect(SCHEMA_VERSION).toBe(18)
     for (let v = 1; v < SCHEMA_VERSION; v++) {
       expect(MIGRATIONS[v], `stap ${v} -> ${v + 1}`).toBeTypeOf('function')
     }

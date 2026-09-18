@@ -81,17 +81,20 @@ describe('schermen renderen', () => {
     }
   })
 
-  it('zet slaap, energie en benen in één check-inblok op Vandaag', () => {
+  it('zet benen en pijn in één dagcheckblok op Vandaag, zonder slaap en energie', () => {
     const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
     expect(html).toContain('Hoe ligt de dag?')
-    // slaap en energie op een schaal van 3, met de labels uit DAY_SCORES
-    expect(html).toContain('Slaap')
-    expect(html).toContain('Energie')
-    expect(html).toContain('Slecht')
-    expect(html).toContain('Goed')
-    // benen en pezen houden hun eigen schaal van 5, met de uitleg erbij
     expect(html).toContain('Benen')
-    expect(html).toContain('1 = brak · 5 = fris')
+    for (const woord of ['Fris', 'Normaal', 'Zwaar', 'Pijn', 'Nee', 'Ja']) expect(html).toContain(woord)
+    for (const weg of ['Slaap', 'Energie', '1 = brak']) expect(html).not.toContain(weg)
+    // de plekken verschijnen pas na "ja"
+    expect(html).not.toContain('Schouder')
+  })
+
+  it('toont de plekken zodra er pijn gemeld is', () => {
+    A.setDayCheckPain(today(), 'knie')
+    const html = render(createElement(Today, { onOpenSession: noop, onOpenRun: noop }))
+    for (const plek of ['Knie', 'Rug', 'Schouder', 'Heup', 'Anders']) expect(html).toContain(plek)
   })
 
   it('toont de deloadweek met de mogelijkheid om hem over te slaan', () => {

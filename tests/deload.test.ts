@@ -26,8 +26,8 @@ function checks(dates: string[], check: DayCheck): Record<string, DayCheck> {
   return Object.fromEntries(dates.map((d) => [d, check]))
 }
 
-const SLECHT: DayCheck = { sleep: 1, energy: 2 }
-const GOED: DayCheck = { sleep: 3, energy: 3 }
+const SLECHT: DayCheck = { legs: 'zwaar' }
+const GOED: DayCheck = { legs: 'fris' }
 
 describe('deloadtriggers', () => {
   it('plant elke achtste week een deload', () => {
@@ -104,11 +104,18 @@ describe('deloadtriggers', () => {
     expect(weekIsPoor(baseState({ dayChecks: checks([MON, addDays(MON, 2)], SLECHT) }), MON)).toBe(true)
   })
 
-  it('rekent slaap en energie samen', () => {
-    expect(isPoorDay({ sleep: 1, energy: 1 })).toBe(true)
-    expect(isPoorDay({ sleep: 1, energy: 2 })).toBe(true)
-    expect(isPoorDay({ sleep: 2, energy: 2 })).toBe(false)
-    expect(isPoorDay({ sleep: 1, energy: 3 })).toBe(false)
+  it('noemt een dag slecht bij zware benen, en alleen dan', () => {
+    expect(isPoorDay({ legs: 'zwaar' })).toBe(true)
+    expect(isPoorDay({ legs: 'zwaar', pain: 'knie' })).toBe(true)
+    expect(isPoorDay({ legs: 'normaal' })).toBe(false)
+    expect(isPoorDay({ legs: 'fris', pain: 'rug' })).toBe(false)
+  })
+
+  it('telt een dag met alleen pijn niet mee als ingevulde dag', () => {
+    const s = baseState({
+      dayChecks: { [MON]: { legs: 'zwaar' }, [addDays(MON, 1)]: { pain: 'knie' } },
+    })
+    expect(weekIsPoor(s, MON)).toBe(false)
   })
 })
 

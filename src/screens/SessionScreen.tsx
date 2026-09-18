@@ -26,6 +26,7 @@ import { loadHint, repsHint, repsInputLabel, weightInputLabel } from '../logic/l
 import { ORDER_CATEGORY_LABEL, ORDER_RATIONALE } from '../logic/order'
 import { WARMUP_HINT, WARMUP_TYPES, warmupLabel } from '../logic/warmup'
 import { FEELS } from '../logic/feel'
+import { painNote } from '../logic/dayCheck'
 import { CALIBRATION_TEXT, fmt, targetFor, type Target } from '../logic/progression'
 import { swapCandidates, type ResolvedSlot } from '../logic/select'
 import { afterEasySession } from '../logic/extra'
@@ -448,6 +449,13 @@ export function SessionScreen({
           </span>
           <span>rust {klokje(rustSeconden)}</span>
         </div>
+
+        {/* pijn gemeld in de dagcheck: één regel, niets aangepast, niets geblokkeerd */}
+        {painNote(resolved.exercise, plan.dayCheck) && (
+          <p className="mt-in-block font-serif italic text-note text-muted">
+            {painNote(resolved.exercise, plan.dayCheck)}
+          </p>
+        )}
 
         <VorigeKeer exercise={resolved.exercise} date={date} target={target} />
 

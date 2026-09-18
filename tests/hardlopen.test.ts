@@ -84,8 +84,8 @@ describe('de app schrijft geen kilometers voor', () => {
     expect(dayGuardrails(state, ZO)).toEqual([])
   })
 
-  it('kort de loop niet in bij een lage check-in', () => {
-    const state = baseState({ checkins: { [DI]: 1 }, runPlans: { [DI]: 8 } })
+  it('kort de loop niet in bij zware benen in de dagcheck', () => {
+    const state = baseState({ dayChecks: { [DI]: { legs: 'zwaar' } }, runPlans: { [DI]: 8 } })
     expect(buildDay(state, DI).run!.km).toBe(8)
   })
 
@@ -113,7 +113,7 @@ describe('de app schrijft geen kilometers voor', () => {
   })
 
   it('laat geen enkele guardrail meer over hardlopen gaan', () => {
-    const state = metLopen({ checkins: { [DI]: 1 } })
+    const state = metLopen({ dayChecks: { [DI]: { legs: 'zwaar' } } })
     for (let d = 0; d < 14; d++) {
       const iso = addDays(MON, d)
       for (const g of dayGuardrails(state, iso)) {

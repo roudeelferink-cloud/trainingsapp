@@ -1,6 +1,6 @@
 import { addDays } from '../../src/logic/dates'
 import { ANOUC, ROB, SCHEMA_VERSION, defaultRoot } from '../../src/store/schema'
-import type { AppState, Feel, UserState } from '../../src/types'
+import type { AppState, Feel, LegsFeel, UserState } from '../../src/types'
 
 /**
  * Een staat met echte historie, zodat de signalen ergens over gaan.
@@ -23,8 +23,8 @@ export interface Opbouw {
   km?: number[]
   /** beoordelingen van krachtsessies, per week */
   gevoel?: Feel[][]
-  /** dagchecks per week: [slaap, energie] per ingevulde dag */
-  dagchecks?: [number, number][][]
+  /** dagchecks per week: de benen per ingevulde dag */
+  dagchecks?: LegsFeel[][]
 }
 
 /**
@@ -39,7 +39,6 @@ export function robState(opbouw: Opbouw = {}): UserState {
   const runs: UserState['runs'] = {}
   const sessions: UserState['sessions'] = {}
   const dayChecks: UserState['dayChecks'] = {}
-  const checkins: UserState['checkins'] = {}
 
   weken.forEach((km, w) => {
     const maandag = addDays(START, 7 * w)
@@ -57,15 +56,11 @@ export function robState(opbouw: Opbouw = {}): UserState {
       sessions[`${datum}:${i === 0 ? 'legs_a' : 'push'}`] = krachtsessie(datum, i === 0, feel)
     })
 
-    const checks = opbouw.dagchecks?.[w] ?? [
-      [3, 3],
-      [2, 3],
-    ]
-    checks.forEach(([slaap, energie], i) => {
+    const checks = opbouw.dagchecks?.[w] ?? ['fris', 'normaal']
+    checks.forEach((legs, i) => {
       const datum = addDays(maandag, i)
       if (datum > VANDAAG) return
-      dayChecks[datum] = { sleep: slaap as 1 | 2 | 3, energy: energie as 1 | 2 | 3 }
-      checkins[datum] = 4
+      dayChecks[datum] = { legs, pain: null }
     })
   })
 
@@ -75,7 +70,6 @@ export function robState(opbouw: Opbouw = {}): UserState {
     runs,
     sessions,
     dayChecks,
-    checkins,
     exerciseState: {
       leg_press: {
         targetWeight: 140,

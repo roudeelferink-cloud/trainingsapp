@@ -587,6 +587,85 @@ export function stripRir(sets: unknown): unknown[] {
   })
 }
 
+/**
+ * v17 -> v18: de dagcheck is vereenvoudigd.
+ *
+ * Tot nu toe waren het drie losse vragen: slaap en energie op een schaal van 3 (in
+ * `dayChecks`), en "benen en pezen" op een schaal van 5 (in `checkins`). Dat is een
+ * handvol tikken voor iets wat je 's ochtends in één beweging wilt doen. Vanaf nu zijn
+ * het er twee: hoe voelen de benen (fris, normaal, zwaar), en is er ergens pijn — en zo
+ * ja, waar.
+ *
+ * Wat er met de oude data gebeurt:
+ *
+ * - **benen** gaan mee: 1 en 2 worden "zwaar", 3 "normaal", 4 en 5 "fris". Precies de
+ *   grens die de app al trok — onder de 3 ging er een set af — dus wat een dag in het
+ *   programma deed, doet hij na de migratie nog steeds.
+ * - **slaap en energie** vervallen. Er is geen eerlijke vertaling naar de benen of naar
+ *   pijn, en een verzonnen waarde zou de deloadtelling van de komende twee weken sturen.
+ * - `checkins` verdwijnt als veld; alles wat erin stond zit nu in `dayChecks`.
+ *
+ * Een dag met alleen slaap en energie ingevuld heeft na deze stap dus geen dagcheck meer.
+ */
+function v17_to_v18(state: RawState): RawState {
+  const users = (state.users ?? {}) as Record<string, unknown>
+  const next: Record<string, unknown> = {}
+
+  for (const [id, raw] of Object.entries(users)) {
+    if (!isRecord(raw)) {
+      next[id] = raw
+      continue
+    }
+    const { checkins, ...user } = raw
+    const dayChecks: Record<string, unknown> = {}
+
+    // wat er al in de nieuwe vorm staat (een bestand dat half gemigreerd is) blijft staan
+    if (isRecord(user.dayChecks)) {
+      for (const [datum, check] of Object.entries(user.dayChecks)) {
+        const schoon = normalizeDayCheck(check)
+        if (schoon) dayChecks[datum] = schoon
+      }
+    }
+    if (isRecord(checkins)) {
+      for (const [datum, waarde] of Object.entries(checkins)) {
+        const legs = legsFromCheckin(waarde)
+        if (!legs) continue
+        dayChecks[datum] = { ...(dayChecks[datum] as Record<string, unknown> | undefined), legs }
+      }
+    }
+
+    next[id] = { ...user, dayChecks }
+  }
+
+  return { ...state, users: next }
+}
+
+/** De oude benenschaal van 1 tot 5, omgezet naar de drie woorden van nu. */
+function legsFromCheckin(v: unknown): string | null {
+  const n = typeof v === 'number' ? v : Number(v)
+  if (!Number.isFinite(n) || n < 1 || n > 5) return null
+  if (n <= 2) return 'zwaar'
+  if (n === 3) return 'normaal'
+  return 'fris'
+}
+
+const LEGS = ['fris', 'normaal', 'zwaar']
+const PAIN_SPOTS = ['knie', 'rug', 'schouder', 'heup', 'anders']
+
+/**
+ * Eén dagcheck in de vorm van v18, of null als er niets bruikbaars in staat. Slaap en
+ * energie vallen er hier ook uit: een bestand dat zichzelf v18 noemt maar ze toch
+ * meedraagt komt zo net zo schoon binnen als een oud bestand.
+ */
+export function normalizeDayCheck(raw: unknown): { legs?: string; pain?: string | null } | null {
+  if (!isRecord(raw)) return null
+  const out: { legs?: string; pain?: string | null } = {}
+  if (typeof raw.legs === 'string' && LEGS.includes(raw.legs)) out.legs = raw.legs
+  if (raw.pain === null) out.pain = null
+  else if (typeof raw.pain === 'string' && PAIN_SPOTS.includes(raw.pain)) out.pain = raw.pain
+  return 'legs' in out || 'pain' in out ? out : null
+}
+
 /** Een bruikbaar aantal kilometers, of null als er niets te lezen valt. */
 function getal(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null
@@ -609,6 +688,7 @@ export const MIGRATIONS: Record<number, (s: RawState) => RawState> = {
   14: v14_to_v15,
   15: v15_to_v16,
   16: v16_to_v17,
+  17: v17_to_v18,
 }
 
 /**

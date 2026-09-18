@@ -33,6 +33,19 @@ const OUD = JSON.parse(
 
 beforeEach(() => resetState())
 
+/**
+ * Wat de dagchecks na de migratie naar v18 horen te zijn: de benen uit de oude check-in
+ * (1-2 zwaar, 3 normaal, 4-5 fris), en slaap en energie weg.
+ */
+function verwachteDagchecks(user: Record<string, any>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries<number>(user.checkins ?? {}).map(([datum, n]) => [
+      datum,
+      { legs: n <= 2 ? 'zwaar' : n === 3 ? 'normaal' : 'fris' },
+    ]),
+  )
+}
+
 /** Dezelfde sessies, maar zonder het RIR-veld dat de migratie naar v17 eruit haalt. */
 function zonderRir(sessions: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
@@ -105,8 +118,8 @@ describe('een export van de Pages-versie inlezen', () => {
         expect(nieuw.exerciseState[oefening], oefening).toMatchObject(es)
         expect(nieuw.exerciseState[oefening].hitStreak, oefening).toBe(0)
       }
-      expect(nieuw.checkins).toEqual(oud.checkins)
-      expect(nieuw.dayChecks).toEqual(oud.dayChecks)
+      expect(nieuw.dayChecks).toEqual(verwachteDagchecks(oud))
+      expect(Object.keys(nieuw)).not.toContain('checkins')
       expect(nieuw.runPlans).toEqual(oud.runPlans)
     }
   })
@@ -163,7 +176,6 @@ describe('een export van de Pages-versie inlezen', () => {
       expect(terug.sessions).toEqual(heen.sessions)
       expect(terug.runs).toEqual(heen.runs)
       expect(terug.exerciseState).toEqual(heen.exerciseState)
-      expect(terug.checkins).toEqual(heen.checkins)
       expect(terug.dayChecks).toEqual(heen.dayChecks)
     }
   })
@@ -174,8 +186,10 @@ describe('een export van de Pages-versie inlezen', () => {
     const tel = (u: Record<string, any>) => ({
       sessies: Object.keys(u.sessions ?? {}).length,
       loops: Object.keys(u.runs ?? {}).length,
-      checkins: Object.keys(u.checkins ?? {}).length,
-      dagchecks: Object.keys(u.dayChecks ?? {}).length,
+      // sinds v18 staan de benen in de dagcheck; één dag met benen per oude check-in
+      benen: u.checkins
+        ? Object.keys(u.checkins).length
+        : Object.values<any>(u.dayChecks ?? {}).filter((c) => c.legs).length,
       streef: Object.keys(u.exerciseState ?? {}).length,
       activiteiten: (u.activities ?? []).length,
     })

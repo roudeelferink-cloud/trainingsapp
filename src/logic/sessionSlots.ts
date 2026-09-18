@@ -18,7 +18,7 @@ import { isTravelSafe, offAreas, resolveSlot, type ResolvedSlot } from './select
 export interface SessionOptions {
   /** korte versie: alleen kernoefeningen */
   short: boolean
-  /** check-in 1-2: een set minder en zwaar kuitwerk eruit */
+  /** dagcheck benen zwaar: een set minder en zwaar kuitwerk eruit (de naam is historisch) */
   lowEnergy: boolean
   /** deloadweek: een set minder */
   deload: boolean

@@ -1,4 +1,4 @@
-import type { DayCheck, DayScore, Feel, RunLog, SessionLog, UserState } from '../types'
+import type { DayCheck, Feel, RunLog, SessionLog, UserState } from '../types'
 import { addDays, mondayOf } from './dates'
 
 /**
@@ -6,7 +6,7 @@ import { addDays, mondayOf } from './dates'
  *
  * Twee dingen, allebei optioneel en allebei één tik:
  * 1. na een sessie (kracht én hardlopen) een beoordeling: makkelijk / goed / zwaar;
- * 2. per dag een dagcheck: slaap en energie, elk op een schaal van 3.
+ * 2. per dag een dagcheck: benen (fris, normaal, zwaar) en eventueel pijn, zie `dayCheck.ts`.
  *
  * De guardrails lezen hier hun subjectieve signaal uit. Alles wat hier ontbreekt telt
  * als "niets gezegd": de app bouwt dan gewoon door op wat er gelogd is. Overslaan mag
@@ -32,20 +32,14 @@ export function allowsIncrease(feel: Feel | undefined): boolean {
   return feel === 'makkelijk' || feel === 'goed'
 }
 
-export const DAY_SCORES: { id: DayScore; label: string }[] = [
-  { id: 1, label: 'Slecht' },
-  { id: 2, label: 'Oké' },
-  { id: 3, label: 'Goed' },
-]
-
 /**
- * Een slechte dag: slaap en energie samen op 3 of lager. Dat is één keer 'slecht' met
- * hooguit een 'oké' ernaast — twee keer 'oké' (4) telt dus nog niet als slecht.
+ * Een slechte dag: benen zwaar. Tot en met v17 was dit "slaap en energie samen op 3 of
+ * lager"; die twee vragen zijn eruit, en de benen zijn wat er van de dagcheck overblijft
+ * dat iets over herstel zegt. Pijn telt hier niet mee: die gaat over één plek, niet over
+ * hoe je er in het algemeen bij staat.
  */
-export const POOR_DAY_SCORE = 3
-
 export function isPoorDay(check: DayCheck): boolean {
-  return check.sleep + check.energy <= POOR_DAY_SCORE
+  return check.legs === 'zwaar'
 }
 
 /** Minimaal aantal ingevulde dagchecks voordat een week iets over zichzelf zegt. */
@@ -63,12 +57,13 @@ export function weekIsPoor(state: UserState, iso: string): boolean {
   return poor * 2 > checks.length
 }
 
+/** De dagchecks van die week waarin de benen ingevuld zijn; alleen pijn zegt hier niets. */
 export function dayChecksInWeek(state: UserState, iso: string): DayCheck[] {
   const mon = mondayOf(iso)
   const out: DayCheck[] = []
   for (let i = 0; i < 7; i++) {
     const check = state.dayChecks?.[addDays(mon, i)]
-    if (check) out.push(check)
+    if (check?.legs) out.push(check)
   }
   return out
 }

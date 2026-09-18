@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildSignalen } from '../src/signalen'
-import type { Feel } from '../../src/types'
+import type { Feel, LegsFeel } from '../../src/types'
 import { deloadFor } from '../../src/logic/deload'
 import { dayGuardrails } from '../../src/logic/guardrails'
 import { averageRunKm, longestRunKm, weekRunFacts } from '../../src/logic/runningLoad'
@@ -80,15 +80,12 @@ describe('signalen', () => {
       gevoel: Array.from({ length: WEKEN }, (_, w) =>
         w >= WEKEN - 3 ? (['zwaar', 'zwaar'] as Feel[]) : (['goed', 'goed'] as Feel[]),
       ),
-      dagchecks: Array.from({ length: WEKEN }, () => [
-        [1, 1],
-        [1, 2],
-      ]) as [number, number][][],
+      dagchecks: Array.from({ length: WEKEN }, () => ['zwaar', 'zwaar'] as LegsFeel[]),
     })
     const s = buildSignalen(zwaar, VANDAAG)
 
     expect(s.herstel.zwareSessies14Dagen).toBeGreaterThanOrEqual(3)
-    expect(s.weken[6].slechteDagen).toBe(2)
+    expect(s.weken[6].benenZwaar).toBe(2)
     expect(s.weken[6].overwegendSlechteWeek).toBe(true)
     // en de deload die daaruit volgt staat er als feit bij, niet als suggestie
     expect(s.deload.aanleiding).toBe(deloadFor(zwaar, VANDAAG).reason)
@@ -100,7 +97,7 @@ describe('signalen', () => {
 
     expect(s.weken.every((w) => w.gelopenKm === 0)).toBe(true)
     expect(s.weken.every((w) => w.krachtsessies === 0)).toBe(true)
-    expect(s.weken.every((w) => w.slaapGem === null)).toBe(true)
+    expect(s.weken.every((w) => w.dagchecks === 0 && w.pijn.length === 0)).toBe(true)
     expect(s.hardlopen.gemiddeldeDuurloopKm).toBeNull()
     expect(s.hardlopen.dezeWeekLopen).toBe(0)
     expect(s.streefgewichten).toEqual([])

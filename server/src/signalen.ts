@@ -1,7 +1,7 @@
 import { cycleInfo } from '../../src/logic/cycle'
 import { addDays, mondayOf } from '../../src/logic/dates'
 import { deloadFor, weeksUntilDeload } from '../../src/logic/deload'
-import { dayChecksInWeek, heavyCountBefore, isPoorDay, weekIsPoor } from '../../src/logic/feel'
+import { dayChecksInWeek, heavyCountBefore, weekIsPoor } from '../../src/logic/feel'
 import { dayGuardrails, legStackAround } from '../../src/logic/guardrails'
 import { DREMPEL, MAX_VERHOGINGEN_PER_SESSIE, zoneOf } from '../../src/logic/opbouw'
 import { averageRunKm, longestRunKm, weekRunFacts } from '../../src/logic/runningLoad'
@@ -52,11 +52,12 @@ export interface WeekSignaal {
    * een zware sessie — dit is werk dat er bewust bij is gezet.
    */
   extraOefeningen: string[]
-  slaapGem: number | null
-  energieGem: number | null
-  benenGem: number | null
+  /** dagen waarop de benen in de dagcheck ingevuld zijn */
   dagchecks: number
-  slechteDagen: number
+  /** daarvan: benen zwaar */
+  benenZwaar: number
+  /** gemelde pijn, als plek per dag: 'knie', 'rug', ... */
+  pijn: string[]
   overwegendSlechteWeek: boolean
   overgeslagen: string[]
 }
@@ -221,10 +222,10 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
     }
 
     const checks = dayChecksInWeek(state, w.weekStart)
-    const benen: number[] = []
-    for (const dag of dagen) {
-      const v = state.checkins?.[dag]
-      if (typeof v === 'number') benen.push(v)
+    const pijn: string[] = []
+    for (const dag of [...dagen].sort()) {
+      const plek = state.dayChecks?.[dag]?.pain
+      if (plek) pijn.push(plek)
     }
 
     return {
@@ -239,11 +240,9 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
       gevoel,
       zwareSessies: gevoel.filter((f) => f === 'zwaar').length,
       extraOefeningen,
-      slaapGem: gemiddelde(checks.map((c) => c.sleep)),
-      energieGem: gemiddelde(checks.map((c) => c.energy)),
-      benenGem: gemiddelde(benen),
       dagchecks: checks.length,
-      slechteDagen: checks.filter(isPoorDay).length,
+      benenZwaar: checks.filter((c) => c.legs === 'zwaar').length,
+      pijn,
       overwegendSlechteWeek: weekIsPoor(state, w.weekStart),
       overgeslagen,
     }
@@ -302,11 +301,6 @@ function streefgewichten(state: UserState): { oefening: string; kg: number; reps
     }))
     .sort((a, b) => b.kg - a.kg)
     .slice(0, 20)
-}
-
-function gemiddelde(xs: number[]): number | null {
-  if (xs.length === 0) return null
-  return rond(xs.reduce((a, b) => a + b, 0) / xs.length)
 }
 
 function rond(n: number): number {

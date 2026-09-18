@@ -40,7 +40,7 @@ describe('export en import', () => {
     setState((s) => ({
       ...s,
       sessions: sessionLog,
-      checkins: { [MON]: 4 },
+      dayChecks: { [MON]: { legs: 'fris', pain: 'knie' } },
       permanentReplacements: { 'legs_a:0': 'hack_squat_smith' },
       exerciseState: {
         leg_press: {
@@ -66,7 +66,8 @@ describe('export en import', () => {
 
     const after = getState()
     expect(after.sessions).toEqual(before.sessions)
-    expect(after.checkins).toEqual(before.checkins)
+    expect(after.dayChecks).toEqual(before.dayChecks)
+    expect(after.dayChecks[MON]).toEqual({ legs: 'fris', pain: 'knie' })
     expect(after.permanentReplacements).toEqual(before.permanentReplacements)
     expect(after.exerciseState).toEqual(before.exerciseState)
     expect(after.settings).toEqual(before.settings)
@@ -155,7 +156,7 @@ describe('migratie van oudere data', () => {
     importJSON(JSON.stringify(v1))
     const s = getState()
     expect(s.startDate).toBe(MON)
-    expect(s.checkins).toEqual({ [MON]: 4 })
+    expect(s.dayChecks).toEqual({ [MON]: { legs: 'fris' } })
     // het eiwitveld uit de oude data is sinds v13 opgeruimd
     expect(Object.keys(s)).not.toContain('protein')
     expect(s.settings.bodyweightKg).toBe(80)
@@ -323,10 +324,10 @@ describe('acties op de gedeelde staat', () => {
   })
 
   it('bewaart de staat over een herlaadbeurt heen', () => {
-    A.setCheckin(MON, 4)
+    A.setDayCheckLegs(MON, 'fris')
     const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
     expect(opgeslagen).not.toBeNull()
     replaceRoot(migrate(JSON.parse(opgeslagen!)))
-    expect(getState().checkins[MON]).toBe(4)
+    expect(getState().dayChecks[MON]?.legs).toBe('fris')
   })
 })

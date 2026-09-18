@@ -1,9 +1,10 @@
 import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
-import type { UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
+import type { DayCheck, UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
 import { cycleInfo, type CycleInfo } from './cycle'
 import { isBackfillDate, TOO_OLD_TEXT } from './backfill'
 import { addDays, mondayOf, today, weekday } from './dates'
+import { dayCheckOn, legsHeavy } from './dayCheck'
 import { deloadFor, type DeloadPlan } from './deload'
 import { durationWarning, sessionMinutes, type DurationWarning } from './duration'
 import { dayGuardrails, legStackAround, type Guardrail } from './guardrails'
@@ -75,7 +76,8 @@ export interface DayPlan {
   cycle: CycleInfo
   /** de deloadweek waar deze dag in valt */
   deload: DeloadPlan
-  checkin: number | undefined
+  /** de dagcheck van deze dag; undefined als er niets ingevuld is */
+  dayCheck: DayCheck | undefined
   run: RunBlock | null
   strength: StrengthBlock | null
   /** krachtsessie van deze dag staat nu op die datum */
@@ -103,13 +105,14 @@ export function buildDay(state: UserState, iso: string): DayPlan {
   const wd = weekday(iso)
   const cycle = cycleInfo(state.startDate, iso)
   const deload = deloadFor(state, iso)
-  const checkin = state.checkins[iso]
+  const dayCheck = dayCheckOn(state, iso)
   const notes: string[] = []
-  const lowEnergy = checkin !== undefined && checkin <= 2
+  // benen zwaar doet wat een check-in van 1 of 2 vroeger deed: een set eraf, zwaar kuitwerk eruit
+  const lowEnergy = legsHeavy(dayCheck)
 
   if (wd === program.restWeekday) {
     return {
-      date: iso, weekday: wd, isRest: true, cycle, deload, checkin,
+      date: iso, weekday: wd, isRest: true, cycle, deload, dayCheck,
       run: null, strength: null, movedTo: null, runMovedTo: null,
       notes: ['Rustdag. Hier plant de app nooit iets.'],
       guardrails: [],
@@ -168,7 +171,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       notes.push(
         deload.active
           ? 'Deloadweek: de optionele zaterdagsessie staat automatisch uit.'
-          : 'Check-in laag: de optionele zaterdagsessie staat vandaag uit.',
+          : 'Benen zwaar: de optionele zaterdagsessie staat vandaag uit.',
       )
     } else {
       const tpl = program.templateFor(kind, cycle.week)!
@@ -209,8 +212,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
       }
 
       if (deload.active) notes.push('Deloadweek: 1 set minder per oefening en 40% van het gewicht af.')
-      if (lowEnergy) notes.push('Check-in laag: 1 set minder en zwaar kuitwerk eruit.')
-      if (checkin === 3) notes.push('Check-in 3: normaal programma, maar vandaag geen nieuwe gewichtsverhogingen.')
+      if (lowEnergy) notes.push('Benen zwaar: 1 set minder en zwaar kuitwerk eruit.')
       if (cycle.calibration) notes.push(`Kalibratieweek: ${CALIBRATION_TEXT}. Log wat je doet.`)
       if (state.settings?.travelMode) notes.push('Reismodus: lichaamsgewicht en band, max 30 min.')
       if (tooLong) notes.push(tooLong.text)
@@ -223,7 +225,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
   for (const g of guardrails) if (!notes.includes(g.text)) notes.push(g.text)
 
   return {
-    date: iso, weekday: wd, isRest: false, cycle, deload, checkin,
+    date: iso, weekday: wd, isRest: false, cycle, deload, dayCheck,
     run, strength, movedTo, runMovedTo, notes, guardrails,
   }
 }

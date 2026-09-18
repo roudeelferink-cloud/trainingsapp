@@ -9,7 +9,7 @@ import { DELOAD_EVERY_WEEKS } from './running'
  *
  * Drie aanleidingen, allemaal deterministisch en allemaal uit wat er gelogd is:
  * 1. **zwaar** — drie sessies als 'zwaar' beoordeeld binnen twee weken;
- * 2. **dagcheck** — twee weken op rij een overwegend slechte dagcheck;
+ * 2. **dagcheck** — twee weken op rij overwegend zware benen in de dagcheck;
  * 3. **ritme** — elke achtste trainingsweek, ook als er niets aan de hand is.
  *
  * De structuur van de week blijft staan: dezelfde sessies, dezelfde oefeningen, alleen
@@ -48,7 +48,7 @@ export interface DeloadPlan {
 
 const REASON_TEXT: Record<DeloadReason, string> = {
   zwaar: `Drie sessies als zwaar beoordeeld in twee weken — deloadweek: 40% van het gewicht eraf, 30% minder kilometers.`,
-  dagcheck: `Twee weken op rij slecht geslapen en weinig energie — deloadweek: 40% van het gewicht eraf, 30% minder kilometers.`,
+  dagcheck: `Twee weken op rij overwegend zware benen — deloadweek: 40% van het gewicht eraf, 30% minder kilometers.`,
   ritme: `Achtste trainingsweek — vaste deloadweek: 40% van het gewicht eraf, 30% minder kilometers.`,
 }
 
@@ -94,7 +94,7 @@ function skippedText(reason: DeloadReason): string {
 
 export function reasonLabel(reason: DeloadReason): string {
   if (reason === 'zwaar') return 'drie zware sessies'
-  if (reason === 'dagcheck') return 'twee slechte weken'
+  if (reason === 'dagcheck') return 'twee weken zware benen'
   return 'vaste achtste week'
 }
 

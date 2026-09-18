@@ -67,16 +67,16 @@ describe('twee gebruikers op één toestel', () => {
 describe('data van de twee gebruikers blijft gescheiden', () => {
   it('schrijft loggen alleen naar de gebruiker die actief is', () => {
     A.addActivity(MON, { type: 'fietsen', minutes: 40, intensity: 'rustig' })
-    A.setCheckin(MON, 4)
+    A.setDayCheckLegs(MON, 'fris')
 
-    expect(getUser(ROB)!.checkins[MON]).toBe(4)
+    expect(getUser(ROB)!.dayChecks[MON]?.legs).toBe('fris')
     expect(activitiesOn(getUser(ANOUC)!, MON)).toHaveLength(0)
-    expect(getUser(ANOUC)!.checkins).toEqual({})
+    expect(getUser(ANOUC)!.dayChecks).toEqual({})
 
     setCurrentUser(ANOUC)
-    A.setCheckin(MON, 2)
-    expect(getUser(ANOUC)!.checkins[MON]).toBe(2)
-    expect(getUser(ROB)!.checkins[MON]).toBe(4) // ongemoeid
+    A.setDayCheckLegs(MON, 'zwaar')
+    expect(getUser(ANOUC)!.dayChecks[MON]?.legs).toBe('zwaar')
+    expect(getUser(ROB)!.dayChecks[MON]?.legs).toBe('fris') // ongemoeid
   })
 
   it('houdt sessielogs, loops en instellingen uit elkaar', () => {
@@ -137,17 +137,17 @@ describe('data van de twee gebruikers blijft gescheiden', () => {
   })
 
   it('bewaart beide gebruikers over een herlaadbeurt heen', () => {
-    A.setCheckin(MON, 4)
+    A.setDayCheckLegs(MON, 'fris')
     setCurrentUser(ANOUC)
-    A.setCheckin(MON, 2)
+    A.setDayCheckLegs(MON, 'zwaar')
 
     const opgeslagen = localStorage.getItem('trainingsapp.state.v1')
     const herladen = migrate(JSON.parse(opgeslagen!))
 
     expect(herladen.schemaVersion).toBe(SCHEMA_VERSION)
     expect(herladen.currentUser).toBe(ANOUC)
-    expect(herladen.users[ROB].checkins[MON]).toBe(4)
-    expect(herladen.users[ANOUC].checkins[MON]).toBe(2)
+    expect(herladen.users[ROB].dayChecks[MON]?.legs).toBe('fris')
+    expect(herladen.users[ANOUC].dayChecks[MON]?.legs).toBe('zwaar')
   })
 })
 
@@ -267,8 +267,8 @@ describe('de guardrails werken voor allebei de profielen', () => {
       })
 
       it('registreert een dagcheck en een beoordeling per sessie', () => {
-        A.setDayCheck(MON, { sleep: 1, energy: 1 })
-        expect(getState().dayChecks[MON]).toEqual({ sleep: 1, energy: 1 })
+        A.setDayCheck(MON, { legs: 'zwaar', pain: 'rug' })
+        expect(getState().dayChecks[MON]).toEqual({ legs: 'zwaar', pain: 'rug' })
 
         const dag = [MON, DI, WO, DO, VR, ZA, ZO].find((iso) => buildDay(getState(), iso).strength)!
         const strength = buildDay(getState(), dag).strength!

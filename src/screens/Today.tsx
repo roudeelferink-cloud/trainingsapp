@@ -32,11 +32,12 @@ import { SKIP_CHOICES, SKIP_LABEL } from '../logic/skips'
 import { trainingStreak } from '../logic/stats'
 import { BIKE_MINUTES } from '../logic/running'
 import { fmt, runContext, weekRunFacts } from '../logic/runningLoad'
-import { DAY_SCORES, feelLabel } from '../logic/feel'
+import { feelLabel } from '../logic/feel'
+import { LEGS_OPTIONS, PAIN_SPOTS } from '../logic/dayCheck'
 import { DELOAD_RISK } from '../logic/deload'
 import * as A from '../store/actions'
 import { useStore } from '../store/store'
-import type { Activity, DayKind, DayScore, SkipReason } from '../types'
+import type { Activity, DayKind, LegsFeel, PainSpot, SkipReason } from '../types'
 
 /**
  * Vandaag: één pagina, van boven naar beneden te lezen. Bovenaan wat er op het
@@ -85,7 +86,7 @@ export function Today({
       <Verplaatst plan={plan} />
       <Bijsturing plan={plan} />
       <DeloadBlok iso={iso} plan={plan} />
-      <Dagcheck iso={iso} checkin={plan.checkin} />
+      <Dagcheck iso={iso} />
       <TweedeSessie iso={iso} plan={plan} onOpenSession={onOpenSession} />
       <ExtraActiviteiten iso={iso} />
     </Screen>
@@ -646,47 +647,68 @@ function DeloadBlok({ iso, plan }: { iso: string; plan: DayPlan }) {
  * ---------------------------------------------------------------------- */
 
 /**
- * De check-in, in één blok: slaap en energie op een schaal van drie, benen en pezen
- * op een schaal van vijf. Alles optioneel en direct opgeslagen — geen bevestigknop.
+ * De dagcheck: benen, en of er ergens pijn is. Twee tikken zonder pijn, drie met — alles
+ * optioneel en direct opgeslagen, geen bevestigknop.
  *
- * Slaap en energie voeden de deloadbeslissing, benen en pezen sturen het programma
- * van vandaag. Ze horen bij elkaar op het scherm omdat je ze in één beweging invult.
+ * Benen zwaar haalt een set af en telt mee in de deloadbeslissing; pijn zet in het
+ * sessiescherm één regel bij de oefeningen die die plek belasten. Beide sturen de keuze
+ * als je een krachtsessie door fietsen vervangt.
  */
-function Dagcheck({ iso, checkin }: { iso: string; checkin: number | undefined }) {
+function Dagcheck({ iso }: { iso: string }) {
   const state = useStore()
   const check = state.dayChecks?.[iso]
+  // "ja" zonder plek is nog geen antwoord; pas de plek wordt opgeslagen
+  const [ja, setJa] = useState(false)
+  const pijnJa = ja || !!check?.pain
 
   return (
     <div className="mt-block flex flex-col gap-checkin-row">
       <Caps>Hoe ligt de dag?</Caps>
 
-      {(
-        [
-          { part: 'sleep' as const, label: 'Slaap' },
-          { part: 'energy' as const, label: 'Energie' },
-        ]
-      ).map(({ part, label }) => (
-        <Segments<DayScore>
-          key={part}
-          label={label}
-          options={DAY_SCORES}
-          value={check?.[part]}
-          onChange={(v) => v !== undefined && A.setDayCheckPart(iso, part, v)}
-        />
-      ))}
-
-      <Segments<number>
+      <Segments<LegsFeel>
         label="Benen"
-        options={[1, 2, 3, 4, 5].map((n) => ({ id: n, label: n }))}
-        value={checkin}
+        options={LEGS_OPTIONS}
+        value={check?.legs}
         clearable
-        onChange={(v) => (v === undefined ? A.clearCheckin(iso) : A.setCheckin(iso, v))}
+        onChange={(v) => A.setDayCheckLegs(iso, v)}
       />
 
-      <div className="flex items-baseline justify-between gap-column">
-        <p className="text-meta text-dim">Benen en pezen: 1 = brak · 5 = fris</p>
-        {check ? <Link onClick={() => A.clearDayCheck(iso)}>Wissen</Link> : null}
-      </div>
+      <Segments<'nee' | 'ja'>
+        label="Pijn"
+        options={[
+          { id: 'nee', label: 'Nee' },
+          { id: 'ja', label: 'Ja' },
+        ]}
+        value={pijnJa ? 'ja' : check?.pain === null ? 'nee' : undefined}
+        clearable
+        onChange={(v) => {
+          setJa(v === 'ja')
+          if (v === 'nee') A.setDayCheckPain(iso, null)
+          else A.setDayCheckPain(iso, undefined)
+        }}
+      />
+
+      {/* vijf plekken passen niet op één rij naast een label; het rooster breekt ze af */}
+      {pijnJa && (
+        <ChoiceGrid<PainSpot>
+          options={PAIN_SPOTS}
+          value={check?.pain ?? undefined}
+          onChange={(v) => A.setDayCheckPain(iso, v)}
+        />
+      )}
+
+      {check ? (
+        <div className="flex justify-end">
+          <Link
+            onClick={() => {
+              setJa(false)
+              A.clearDayCheck(iso)
+            }}
+          >
+            Wissen
+          </Link>
+        </div>
+      ) : null}
     </div>
   )
 }

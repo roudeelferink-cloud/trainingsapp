@@ -1,5 +1,6 @@
 import type { DayKind, Exercise, Pattern, UserState } from '../types'
 import { cycleInfo } from './cycle'
+import { legsHeavy } from './dayCheck'
 import { DELOAD_WEIGHT_FACTOR, deloadFor } from './deload'
 import { bestEstimated1RM, stateFor } from './progression'
 import { scheduledStrength } from './schedule'
@@ -135,10 +136,9 @@ function computeLegLoad(state: UserState, iso: string): LegLoad {
 
   const cycle = cycleInfo(state.startDate, iso)
   const deload = deloadFor(state, iso).active
-  const checkin = state.checkins?.[iso]
-  const lowEnergy = checkin !== undefined && checkin <= 2
+  const lowEnergy = legsHeavy(state.dayChecks?.[iso])
 
-  // de optionele zaterdagsessie vervalt bij een deload of een lage check-in
+  // de optionele zaterdagsessie vervalt bij een deload of bij zware benen
   if (kind === 'optional_upper' && (deload || lowEnergy)) return { date: iso, ...LEEG }
 
   const { slots } = resolveSession(state, iso, kind, {

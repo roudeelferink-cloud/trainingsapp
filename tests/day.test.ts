@@ -30,7 +30,7 @@ describe('weekstructuur', () => {
 
   it('houdt woensdag ook leeg met check-in, deload en reismodus aan', () => {
     const state = baseState({
-      checkins: { [WO]: 5 },
+      dayChecks: { [WO]: { legs: 'fris' } },
       settings: { ...s0.settings, travelMode: true },
     })
     const day = buildDay(state, addDays(WO, 21))
@@ -79,33 +79,39 @@ describe('deload', () => {
   })
 })
 
-describe('ochtend-check-in', () => {
-  it('haalt bij 1-2 een set weg en gooit zwaar kuitwerk eruit', () => {
-    const laag = buildDay(baseState({ checkins: { [MON]: 2 } }), MON)
+describe('dagcheck: benen', () => {
+  it('haalt bij zware benen een set weg en gooit zwaar kuitwerk eruit', () => {
+    const laag = buildDay(baseState({ dayChecks: { [MON]: { legs: 'zwaar' } } }), MON)
     const normaal = buildDay(s0, MON)
     expect(laag.strength!.slots[0].sets).toBe(normaal.strength!.slots[0].sets - 1)
     expect(laag.strength!.hiddenCalf).toBe(true)
   })
 
   it('laat de loop met rust: de check-in stuurt alleen de krachtsessie', () => {
-    const laag = buildDay(baseState({ checkins: { [DI]: 1 } }), DI)
+    const laag = buildDay(baseState({ dayChecks: { [DI]: { legs: 'zwaar' } } }), DI)
     expect(laag.run!.km).toBe(0)
     expect(laag.run!.free).toBe(true)
   })
 
-  it('zet bij 1-2 de zaterdagsessie uit', () => {
-    expect(buildDay(baseState({ checkins: { [ZA]: 2 } }), ZA).strength).toBeNull()
+  it('zet bij zware benen de zaterdagsessie uit', () => {
+    expect(buildDay(baseState({ dayChecks: { [ZA]: { legs: 'zwaar' } } }), ZA).strength).toBeNull()
   })
 
-  it('laat bij 3 het programma staan en meldt dat er niet verhoogd wordt', () => {
-    const day = buildDay(baseState({ checkins: { [MON]: 3 } }), MON)
-    expect(day.strength!.slots.length).toBe(buildDay(s0, MON).strength!.slots.length)
-    expect(day.notes.join(' ')).toContain('geen nieuwe gewichtsverhogingen')
+  it('draait bij normale en frisse benen het normale programma, zonder melding', () => {
+    for (const legs of ['normaal', 'fris'] as const) {
+      const day = buildDay(baseState({ dayChecks: { [MON]: { legs } } }), MON)
+      expect(day.strength!.slots[0].sets).toBe(buildDay(s0, MON).strength!.slots[0].sets)
+      expect(day.strength!.slots.length).toBe(buildDay(s0, MON).strength!.slots.length)
+      expect(day.notes.join(' ')).not.toContain('Benen zwaar')
+    }
   })
 
-  it('draait bij 4-5 het normale programma', () => {
-    const day = buildDay(baseState({ checkins: { [MON]: 5 } }), MON)
-    expect(day.strength!.slots[0].sets).toBe(buildDay(s0, MON).strength!.slots[0].sets)
+  it('laat pijn het programma ongemoeid: de pijnregel staat in het sessiescherm', () => {
+    const day = buildDay(baseState({ dayChecks: { [MON]: { legs: 'normaal', pain: 'knie' } } }), MON)
+    expect(day.strength!.slots.map((r) => [r.exercise.id, r.sets])).toEqual(
+      buildDay(s0, MON).strength!.slots.map((r) => [r.exercise.id, r.sets]),
+    )
+    expect(day.dayCheck).toEqual({ legs: 'normaal', pain: 'knie' })
   })
 })
 
