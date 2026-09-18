@@ -91,6 +91,7 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `extraOefening.test.ts` | de extra oefening na een te makkelijke sessie: de gemeten sessieduur, elke voorwaarde die het aanbod tegenhoudt, twee makkelijke sessies op rij die het streefgewicht verhogen, en het opnieuw afronden zonder dubbele progressie |
 | `advies.test.tsx` | het adviesblok: wanneer er opgehaald wordt, het ophalen zelf (inclusief elke manier waarop dat mis kan gaan), het advies per profiel bewaren, en het blok dat zwijgt zolang er niets is |
 | `overzetten.test.ts` | verhuizen naar het nieuwe adres: een echte export van de Pages-versie (schemaVersion 14) inlezen zonder verlies — historie, streefgewichten, check-ins, dagchecks, pincode en beide profielen — plus een tweede rondje export-import |
+| `importHistorie.test.ts` | import van een v14- en een v18-export: sessies, loops en check-ins per profiel, zichtbaar in Historie en per oefening; één profiel per toestel (het bestand wisselt het profiel niet en een leeg profiel wist geen lokale historie); opnieuw importeren zonder dubbelingen; afgerond wint van concept, laatst afgerond van eerder |
 | `dagcheck.test.tsx` | de dagcheck van v18: de migratie van slaap/energie/benen 1-5 naar benen en pijn, het schoonmaken van rommel, de pijnregel per oefening en in het sessiescherm, de gemelde plek in historie en export |
 | `fietsen.test.ts` | een krachtsessie vervangen door fietsen: de keuzeregel (a/b/c), vervangen en ongedaan maken, de skip-reden, naleving als uitgevoerd, de beenbelasting van fietsen en de beenwaarschuwing na kracht-duur, streefgewichten/schema/deload onaangeroerd, fiets-km buiten het hardlopen, beenprioriteit, de deloadvariant, de bloktimer en export/import |
 | `fietsenScherm.test.tsx` | de schermen daarbij: het keuzeblad, Vandaag, Plannen, het sessiescherm, het fietsscherm met zijn blokken (ook na scherm-uit), en week en historie |
@@ -629,7 +630,9 @@ en de enige back-up.
 
 - **Exporteer alles** geeft een JSON met beide gebruikers, hun instellingen en de volledige
   historie.
-- **Importeer** leest zo'n bestand terug en vervangt daarmee wat er op dat toestel staat.
+- **Importeer** leest zo'n bestand terug en voegt het per profiel samen met wat er op dat
+  toestel staat (`src/store/merge.ts`): historie op sleutel of id, dus opnieuw importeren
+  geeft geen dubbele logs; welk profiel dit toestel gebruikt en de pincode blijven staan.
   Een oudere export wordt onderweg opgehoogd naar de huidige `schemaVersion`, dus een
   back-up van maanden geleden werkt gewoon.
 - Zodra er data is, herinnert het instellingenscherm je eraan zodra de laatste export
@@ -795,6 +798,7 @@ src/
   logic/review.ts     het advies van de server: wanneer ophalen, en stil blijven als het niet lukt
   store/schema.ts     de vorm van de opgeslagen staat en het migratiepad (zonder browser)
   store/store.ts      localStorage-store, export/import
+  store/merge.ts      import samenvoegen met wat er op het toestel staat
   store/settings.ts   standaardinstellingen en het heel maken van halve settings
   store/migrations.ts migratiepad tussen schemaVersions
   store/actions.ts    alle mutaties
