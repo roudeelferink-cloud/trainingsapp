@@ -13,13 +13,16 @@ import {
   TopLine,
   type Stat,
 } from '../components/logboek'
+import { BikeSwapSheet } from '../components/BikeSwapSheet'
 import { MoveSheet } from '../components/MoveSheet'
 import { ChoiceGrid, ConfirmCheck, Empty, Sheet, Stepper } from '../components/ui'
 import { programFor, restDayHint } from '../data/programs'
 import { activitiesOn } from '../logic/activities'
+import { BIKE_VARIANT_LABEL, canSwap, canUndoSwap } from '../logic/bike'
 import {
   buildDay,
   canMove,
+  hasLoggedWork,
   moveTargets,
   type DayPlan,
   type MoveWhat,
@@ -47,9 +50,12 @@ import type { Activity, DayKind, LegsFeel, PainSpot, SkipReason } from '../types
 export function Today({
   onOpenSession,
   onOpenRun,
+  onOpenBike = () => {},
 }: {
   onOpenSession: (date: string, kind: DayKind) => void
   onOpenRun: (date: string) => void
+  /** de fietstraining die de krachtsessie van die dag vervangt */
+  onOpenBike?: (date: string) => void
 }) {
   const state = useStore()
   const iso = today()
@@ -60,7 +66,13 @@ export function Today({
   return (
     <Screen
       action={
-        <TodayActions iso={iso} plan={plan} onOpenSession={onOpenSession} onOpenRun={onOpenRun} />
+        <TodayActions
+          iso={iso}
+          plan={plan}
+          onOpenSession={onOpenSession}
+          onOpenRun={onOpenRun}
+          onOpenBike={onOpenBike}
+        />
       }
     >
       <TopLine left={formatLong(plan.date)} right={<Markeringen plan={plan} />} />
@@ -87,7 +99,7 @@ export function Today({
       <Bijsturing plan={plan} />
       <DeloadBlok iso={iso} plan={plan} />
       <Dagcheck iso={iso} />
-      <TweedeSessie iso={iso} plan={plan} onOpenSession={onOpenSession} />
+      <TweedeSessie iso={iso} plan={plan} onOpenSession={onOpenSession} onOpenBike={onOpenBike} />
       <ExtraActiviteiten iso={iso} />
     </Screen>
   )
@@ -148,6 +160,16 @@ function Headline({ plan }: { plan: DayPlan }) {
         lead={van(run.kind === 'long' ? 'Duurloop' : 'Korte loop', run.movedFrom)}
         value={fmt(run.km)}
         unit="km"
+      />
+    )
+  }
+
+  if (s?.bike) {
+    return (
+      <Getal
+        lead={van(`${BIKE_VARIANT_LABEL[s.bike.variant]} · vervangt ${s.naam}`, s.movedFrom)}
+        value={String(s.bike.ride?.minutes ?? s.bike.plannedMin)}
+        unit="min fietsen"
       />
     )
   }
@@ -232,6 +254,12 @@ function useStats(plan: DayPlan): Stat[] {
       value: `${week.aantal}×`,
       suffix: ` / ${fmt(week.km)} km`,
       flex: 1.4,
+    })
+  } else if (s?.bike) {
+    items.push({
+      label: s.bike.ride ? 'Gereden' : 'Duur',
+      value: s.bike.ride ? String(s.bike.ride.minutes) : `~${s.bike.plannedMin}`,
+      suffix: ' min',
     })
   } else if (s && !s.skipped) {
     items.push({ label: 'Duur', value: `~${s.estimatedMin}`, suffix: ' min' })
@@ -725,13 +753,34 @@ function TweedeSessie({
   iso,
   plan,
   onOpenSession,
+  onOpenBike,
 }: {
   iso: string
   plan: DayPlan
   onOpenSession: (date: string, kind: DayKind) => void
+  onOpenBike: (date: string) => void
 }) {
   const s = plan.strength
   if (!s || !plan.run || plan.run.skipped) return null
+
+  if (s.bike) {
+    return (
+      <div className="mt-block border-t-hair border-rule pt-block">
+        <div className="flex items-center justify-between gap-column">
+          <div className="flex min-w-0 flex-col gap-tight">
+            <div className="truncate text-body text-ink">
+              Ook vandaag · {BIKE_VARIANT_LABEL[s.bike.variant]}
+            </div>
+            <div className="text-meta text-dim">
+              vervangt {s.naam} · {s.bike.ride ? `${s.bike.ride.minutes} min gereden` : `~${s.bike.plannedMin} min`}
+            </div>
+          </div>
+          <Link onClick={() => onOpenBike(iso)}>Bekijk</Link>
+        </div>
+      </div>
+    )
+  }
+  if (s.skipped) return null
 
   const meta = [
     s.movedFrom ? `van ${formatShort(s.movedFrom)}` : null,
@@ -804,11 +853,13 @@ function TodayActions({
   plan,
   onOpenSession,
   onOpenRun,
+  onOpenBike,
 }: {
   iso: string
   plan: DayPlan
   onOpenSession: (date: string, kind: DayKind) => void
   onOpenRun: (date: string) => void
+  onOpenBike: (date: string) => void
 }) {
   const run = plan.run
   const s = plan.strength
@@ -821,6 +872,7 @@ function TodayActions({
     )
   }
   if (run && !run.done) return <RunActions iso={iso} plan={plan} onOpenRun={onOpenRun} />
+  if (s?.bike) return <BikeActions iso={iso} plan={plan} onOpenBike={onOpenBike} />
   if (s?.skipped) {
     return (
       <Actions>
@@ -937,8 +989,11 @@ function StrengthActions({
   const [meer, setMeer] = useState(false)
   const [skipOpen, setSkipOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [fietsOpen, setFietsOpen] = useState(false)
   const targets = useMemo(() => (moveOpen ? moveTargets(state, iso) : []), [moveOpen, state, iso])
   const kanVerplaatsen = canMove(state, iso)
+  // vervangen kan zolang er van de sessie nog niets gelogd is
+  const kanVervangen = !hasLoggedWork(s.log) && canSwap(iso, today())
 
   return (
     <>
@@ -970,6 +1025,16 @@ function StrengthActions({
             Verplaatsen
           </button>
           <button
+            className="btn-ghost w-full disabled:opacity-40"
+            disabled={!kanVervangen}
+            onClick={() => {
+              setMeer(false)
+              setFietsOpen(true)
+            }}
+          >
+            Vervang door fietsen
+          </button>
+          <button
             className="btn-quiet w-full"
             onClick={() => {
               setMeer(false)
@@ -980,6 +1045,8 @@ function StrengthActions({
           </button>
         </div>
       </Sheet>
+
+      <BikeSwapSheet open={fietsOpen} iso={iso} naam={s.naam} onClose={() => setFietsOpen(false)} />
 
       <MoveSheet
         open={moveOpen}
@@ -1000,6 +1067,61 @@ function StrengthActions({
           setSkipOpen(false)
         }}
       />
+    </>
+  )
+}
+
+/**
+ * De krachtsessie van vandaag is vervangen door fietsen. De knop opent de rit; onder
+ * "Meer" staan de andere variant en de weg terug naar de krachtsessie.
+ */
+function BikeActions({
+  iso,
+  plan,
+  onOpenBike,
+}: {
+  iso: string
+  plan: DayPlan
+  onOpenBike: (date: string) => void
+}) {
+  const s = plan.strength!
+  const bike = s.bike!
+  const [meer, setMeer] = useState(false)
+  const ander = bike.variant === 'kracht_duur' ? 'duurrit' : 'kracht_duur'
+
+  return (
+    <>
+      <Actions>
+        <Primary onClick={() => onOpenBike(iso)}>{bike.ride ? 'Rit bekijken' : 'Start fietsen'}</Primary>
+        <Secondary onClick={() => setMeer(true)}>Meer</Secondary>
+      </Actions>
+
+      <Sheet open={meer} onClose={() => setMeer(false)} title={BIKE_VARIANT_LABEL[bike.variant]}>
+        <div className="flex flex-col gap-in-block">
+          {!bike.ride && (
+            <button
+              className="btn-ghost w-full"
+              onClick={() => {
+                A.setBikeVariant(iso, ander)
+                setMeer(false)
+              }}
+            >
+              Toch {BIKE_VARIANT_LABEL[ander].toLowerCase()}
+            </button>
+          )}
+          {canUndoSwap(iso, today()) && (
+            <button
+              className="btn-quiet w-full"
+              onClick={() => {
+                A.undoBikeSwap(iso)
+                setMeer(false)
+              }}
+            >
+              Terug naar {s.naam}
+            </button>
+          )}
+        </div>
+      </Sheet>
     </>
   )
 }

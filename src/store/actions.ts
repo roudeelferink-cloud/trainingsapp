@@ -7,6 +7,7 @@ import { cycleInfo } from '../logic/cycle'
 import {
   applyMove,
   buildDay,
+  hasLoggedWork,
   moveTargets,
   pickUpToday as planPickUp,
   sessionKeyFor,
@@ -537,9 +538,7 @@ export function replaceWithBike(iso: string, variant: BikeVariant): { ok: boolea
   const strength = buildDay(state, iso).strength
   if (!kind || !strength) return { ok: false, reason: 'Er staat op deze dag geen krachtsessie.' }
   if (strength.skipped && strength.skipped !== 'fietsen') return { ok: false, reason: 'Deze sessie is overgeslagen.' }
-  const log = state.sessions[sessionKeyFor(iso, kind)]
-  const gelogd = !!log?.completedAt || Object.values(log?.entries ?? {}).some((sets) => sets.some((x) => x.done))
-  if (gelogd) return { ok: false, reason: 'Van deze sessie is al iets gelogd.' }
+  if (hasLoggedWork(state.sessions[sessionKeyFor(iso, kind)])) return { ok: false, reason: 'Van deze sessie is al iets gelogd.' }
 
   const swap: BikeSwap = { variant, sessionKey: sessionKeyFor(iso, kind), legFocused: legFocusedOn(state, iso) }
   setState((s) => ({

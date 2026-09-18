@@ -10,7 +10,7 @@ import {
 import { formatShort } from '../logic/dates'
 import * as A from '../store/actions'
 import type { Activity, ActivityIntensity, ActivityType } from '../types'
-import { ChoiceGrid, Chip, Sheet, Stepper } from './ui'
+import { ChoiceGrid, Chip, Sheet, Stepper, Toggle } from './ui'
 
 /**
  * Invoer en weergave van losse activiteiten. Bewust licht: type, duur, intensiteit
@@ -57,13 +57,23 @@ function ActivityForm({
   const [intensity, setIntensity] = useState<ActivityIntensity>(activity?.intensity ?? 'normaal')
   const [note, setNote] = useState(activity?.note ?? '')
   const [day, setDay] = useState(activity?.date ?? date)
+  const [heavy, setHeavy] = useState(activity?.heavy ?? false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   // afstand vragen we alleen bij hardlopen, fietsen en wandelen
   const metAfstand = supportsDistance(type)
+  // één optionele keuze bij een losse rit; een vervangende rit heeft zijn variant al
+  const metZwaar = (type === 'fietsen' || type === 'spinning') && !activity?.variant
 
   function save() {
-    const input = { type, minutes, intensity, note, distanceKm: metAfstand ? km : null }
+    const input = {
+      type,
+      minutes,
+      intensity,
+      note,
+      distanceKm: metAfstand ? km : null,
+      heavy: metZwaar && heavy,
+    }
     if (activity) {
       A.updateActivity(activity.id, { ...input, date: day })
     } else {
@@ -125,6 +135,15 @@ function ActivityForm({
           buttonClass="min-h-tap px-3 text-body"
         />
       </div>
+
+      {metZwaar && (
+        <Toggle
+          checked={heavy}
+          onChange={setHeavy}
+          label="Zwaar voor de benen"
+          hint="Telt dan als kracht-duur in de beenbelasting; anders als een rustige duurrit."
+        />
+      )}
 
       <div>
         <p className="caps mb-in-block">Datum</p>
@@ -210,7 +229,7 @@ export function ActivityList({
         >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Chip tone="neutral">Extra</Chip>
+              <Chip tone="neutral">{a.replacesSession ? 'Vervangt kracht' : 'Extra'}</Chip>
               {showDate && <span className="text-meta text-dim">{formatShort(a.date)}</span>}
             </div>
             <p className="mt-tight text-list text-ink">{activitySummary(a)}</p>

@@ -32,9 +32,12 @@ import type { DayKind, UserState } from '../types'
 export function WeekScreen({
   onOpenSession,
   onOpenRun,
+  onOpenBike = () => {},
 }: {
   onOpenSession: (date: string, kind: DayKind) => void
   onOpenRun: (date: string) => void
+  /** de fietstraining die een krachtsessie vervangt */
+  onOpenBike?: (date: string) => void
 }) {
   const state = useStore()
   const [offset, setOffset] = useState(0)
@@ -97,6 +100,7 @@ export function WeekScreen({
             laatste={i === dagen.length - 1}
             onOpenSession={onOpenSession}
             onOpenRun={onOpenRun}
+            onOpenBike={onOpenBike}
             onKeuze={setKeuze}
           />
         ))}
@@ -115,6 +119,10 @@ export function WeekScreen({
           onOpenRun={(date) => {
             setKeuze(null)
             onOpenRun(date)
+          }}
+          onOpenBike={(date) => {
+            setKeuze(null)
+            onOpenBike(date)
           }}
         />
       )}
@@ -199,12 +207,15 @@ function weekStats(
  * Een afgeronde sessie blijft te openen — terugkijken en bijstellen hoort erbij; een
  * overgeslagen sessie niet, die heeft zijn eigen weg terug op Vandaag.
  */
-export function dayActions(plan: DayPlan): { id: 'run' | 'strength'; label: string }[] {
-  const out: { id: 'run' | 'strength'; label: string }[] = []
+export function dayActions(plan: DayPlan): { id: 'run' | 'strength' | 'bike'; label: string }[] {
+  const out: { id: 'run' | 'strength' | 'bike'; label: string }[] = []
   if (plan.run && !plan.run.skipped) {
     out.push({ id: 'run', label: `${runName(plan.run.kind, plan.run.bike)} openen` })
   }
-  if (plan.strength && !plan.strength.skipped) {
+  if (plan.strength?.bike) {
+    // vervangen door fietsen: dan opent de rit, niet de krachtsessie die er niet meer is
+    out.push({ id: 'bike', label: `${BIKE_VARIANT_LABEL[plan.strength.bike.variant]} openen` })
+  } else if (plan.strength && !plan.strength.skipped) {
     out.push({ id: 'strength', label: `${plan.strength.naam} openen` })
   }
   return out
@@ -216,6 +227,7 @@ function DagRij({
   laatste,
   onOpenSession,
   onOpenRun,
+  onOpenBike,
   onKeuze,
 }: {
   iso: string
@@ -223,6 +235,7 @@ function DagRij({
   laatste: boolean
   onOpenSession: (date: string, kind: DayKind) => void
   onOpenRun: (date: string) => void
+  onOpenBike: (date: string) => void
   onKeuze: (date: string) => void
 }) {
   const state = useStore()
@@ -239,6 +252,7 @@ function DagRij({
     if (keuzes.length === 0) return
     if (keuzes.length > 1) return onKeuze(iso)
     if (keuzes[0].id === 'strength') return onOpenSession(iso, plan.strength!.kind)
+    if (keuzes[0].id === 'bike') return onOpenBike(iso)
     onOpenRun(iso)
   }
 
@@ -331,7 +345,9 @@ function dagMeta(state: UserState, iso: string, plan: DayPlan): string | null {
   }
   if (s?.bike) {
     delen.push(`vervangt ${s.naam}`)
-    delen.push(s.bike.ride ? `${s.bike.ride.minutes} min gefietst` : `~${s.bike.plannedMin} min`)
+    const rit = s.bike.ride
+    const km = rit ? activityKm(rit) : null
+    delen.push(rit ? `${rit.minutes} min gefietst${km === null ? '' : ` / ${fmt(km)} km`}` : `~${s.bike.plannedMin} min`)
   } else if (s) {
     delen.push(`${s.slots.length} oefeningen`)
     if (s.log) delen.push(`${formatThousands(sessionVolumeKg(s.log))} kg`)
@@ -361,12 +377,14 @@ function DagKeuze({
   onClose,
   onOpenSession,
   onOpenRun,
+  onOpenBike,
 }: {
   iso: string
   plan: DayPlan
   onClose: () => void
   onOpenSession: (date: string, kind: DayKind) => void
   onOpenRun: (date: string) => void
+  onOpenBike: (date: string) => void
 }) {
   return (
     <Sheet open onClose={onClose} title={formatShort(iso)}>
@@ -375,7 +393,13 @@ function DagKeuze({
           <button
             key={a.id}
             className="btn-ghost w-full"
-            onClick={() => (a.id === 'strength' ? onOpenSession(iso, plan.strength!.kind) : onOpenRun(iso))}
+            onClick={() =>
+              a.id === 'strength'
+                ? onOpenSession(iso, plan.strength!.kind)
+                : a.id === 'bike'
+                  ? onOpenBike(iso)
+                  : onOpenRun(iso)
+            }
           >
             {a.label}
           </button>

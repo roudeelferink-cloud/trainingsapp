@@ -1,14 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import { Actions, Caps, Link, Primary, Screen, TopLine } from '../components/logboek'
+import { BikeSwapSheet } from '../components/BikeSwapSheet'
 import { MoveSheet } from '../components/MoveSheet'
 import { ChoiceGrid, Sheet } from '../components/ui'
 import { DAY_LABEL } from '../data/plan'
 import { programFor, restDayHint, restDayLabel } from '../data/programs'
 import { isBackfillDate } from '../logic/backfill'
+import { BIKE_VARIANT_LABEL, canSwap, canUndoSwap } from '../logic/bike'
 import { openForWeek, type Missed } from '../logic/gemist'
 import {
   buildDay,
   canMove,
+  hasLoggedWork,
   moveTargets,
   runName,
   type DayPlan,
@@ -67,6 +70,8 @@ export function PlanScreen({
   const [moveFrom, setMoveFrom] = useState<{ date: string; what: MoveWhat } | null>(null)
   /** de sessie die overgeslagen wordt */
   const [skipFor, setSkipFor] = useState<{ date: string; what: MoveWhat } | null>(null)
+  /** de krachtsessie die door fietsen vervangen wordt */
+  const [fietsFor, setFietsFor] = useState<{ date: string; naam: string } | null>(null)
   /** het conflict dat opkwam bij het oppakken van een gemiste sessie */
   const [conflict, setConflict] = useState<{ m: Missed; met: PickUpConflict } | null>(null)
 
@@ -142,6 +147,7 @@ export function PlanScreen({
               laatste={i === dagen.length - 1}
               onMove={(what) => setMoveFrom({ date: iso, what })}
               onSkip={(what) => setSkipFor({ date: iso, what })}
+              onBike={(naam) => setFietsFor({ date: iso, naam })}
               onOpenSession={onOpenSession}
               onOpenRun={onOpenRun}
             />
@@ -191,6 +197,13 @@ export function PlanScreen({
         </Sheet>
       )}
 
+      <BikeSwapSheet
+        open={fietsFor !== null}
+        iso={fietsFor?.date ?? ''}
+        naam={fietsFor?.naam ?? ''}
+        onClose={() => setFietsFor(null)}
+      />
+
       <Sheet open={skipFor !== null} onClose={() => setSkipFor(null)} title="Overslaan — waarom?">
         <p className="mb-block text-body text-muted">Wordt gelogd, verder geen gevolgen.</p>
         <ChoiceGrid
@@ -216,6 +229,7 @@ function PlanRij({
   laatste,
   onMove,
   onSkip,
+  onBike,
   onOpenSession,
   onOpenRun,
 }: {
@@ -224,6 +238,7 @@ function PlanRij({
   laatste: boolean
   onMove: (what: MoveWhat) => void
   onSkip: (what: MoveWhat) => void
+  onBike: (naam: string) => void
   onOpenSession: (date: string, kind: DayKind) => void
   onOpenRun: (date: string) => void
 }) {
@@ -254,6 +269,7 @@ function PlanRij({
               plan={plan}
               onMove={onMove}
               onSkip={onSkip}
+              onBike={onBike}
               onOpenSession={onOpenSession}
             />
             {!plan.run && !plan.strength && !plan.movedTo && !plan.runMovedTo && (
@@ -339,12 +355,14 @@ function KrachtRegel({
   plan,
   onMove,
   onSkip,
+  onBike,
   onOpenSession,
 }: {
   iso: string
   plan: DayPlan
   onMove: (what: MoveWhat) => void
   onSkip: (what: MoveWhat) => void
+  onBike: (naam: string) => void
   onOpenSession: (date: string, kind: DayKind) => void
 }) {
   const state = useStore()
@@ -364,6 +382,17 @@ function KrachtRegel({
   const s = plan.strength
   if (!s) return null
 
+  if (s.bike) {
+    return (
+      <Regel
+        naam={`Fietsen · ${BIKE_VARIANT_LABEL[s.bike.variant].toLowerCase()}`}
+        status={`vervangt ${s.naam}${s.bike.ride ? ' · gereden' : ''}`}
+      >
+        {canUndoSwap(iso, today()) && <Link onClick={() => A.undoBikeSwap(iso)}>Terughalen</Link>}
+      </Regel>
+    )
+  }
+
   if (s.skipped) {
     return (
       <Regel naam={s.naam} status="overgeslagen">
@@ -380,6 +409,8 @@ function KrachtRegel({
         Verplaatsen
       </Link>
       <Link onClick={() => onSkip('strength')}>Overslaan</Link>
+      {/* vervangen door fietsen kan vandaag en vooruit, zolang er niets gelogd is */}
+      {canSwap(iso, today()) && !hasLoggedWork(s.log) && <Link onClick={() => onBike(s.naam)}>Fietsen</Link>}
     </Regel>
   )
 }

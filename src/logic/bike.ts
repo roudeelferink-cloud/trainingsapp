@@ -190,11 +190,6 @@ export function suggestVariant(
   return { variant: 'duurrit', reason: 'Geen beensessie: een rustige duurrit.' }
 }
 
-/** De twee dagen vóór `iso`: dat is "de afgelopen 48 uur" voor een sessie op `iso`. */
-export function previous48h(iso: string): string[] {
-  return [addDays(iso, -1), addDays(iso, -2)]
-}
-
 /**
  * De extra regel bij de duurrit: bij zware benen of pijn aan knie of heup moet de
  * weerstand echt licht blijven en de cadans hoog.

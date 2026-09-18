@@ -95,6 +95,15 @@ export function countsAsDone(s: StrengthBlock | null | undefined): boolean {
 }
 
 /**
+ * Is er van deze sessie al iets gelogd — afgerond, of minstens één set afgevinkt? Dan kan
+ * hij niet meer vervangen worden: de ingevulde sets zouden blijven hangen.
+ */
+export function hasLoggedWork(log: SessionLog | null | undefined): boolean {
+  if (!log) return false
+  return !!log.completedAt || Object.values(log.entries ?? {}).some((sets) => sets.some((x) => x.done))
+}
+
+/**
  * Is deze krachtsessie echt overgeslagen? Een vervanging door fietsen is dat niet: die
  * telt als alternatief, niet als gemist en niet als overgeslagen.
  */

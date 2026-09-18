@@ -4,8 +4,9 @@ import type { Activity, ActivityIntensity, ActivityType, UserState } from '../ty
  * Losse activiteiten staan naast het schema. Ze worden nergens in de progressie- of
  * gewichtsadvieslogica gelezen: die kijkt alleen naar `sessions` (kracht).
  *
- * Eén uitzondering, en die is bewust: een los rondje hardlopen telt wél mee in de
- * weekkilometers (`runningLoad.ts`). Anders zou de +10%-bewaking te omzeilen zijn door
+ * Twee uitzonderingen, en die zijn bewust. Een los rondje hardlopen telt wél mee in de
+ * weekkilometers (`runningLoad.ts`), en een fietsrit telt mee in de beenbelasting
+ * (`bike.ts`) — als duurrit, of als kracht-duur als hij zwaar was. Anders zou de +10%-bewaking te omzeilen zijn door
  * je lopen buiten het schema om te loggen, terwijl je pezen niet weten of het in het
  * schema stond.
  */
@@ -45,12 +46,17 @@ export function activityIntensityLabel(intensity: ActivityIntensity): string {
   return ACTIVITY_INTENSITIES.find((i) => i.id === intensity)?.label ?? intensity
 }
 
-/** Eén regel: "Fietsen 40 min · 12,5 km · rustig". */
+/**
+ * Eén regel: "Fietsen 40 min · 12,5 km · rustig". Een rit die een krachtsessie verving
+ * noemt zijn variant in plaats van de intensiteit; een zware losse rit zegt dat erbij.
+ */
 export function activitySummary(a: Activity): string {
   const delen = [`${activityTypeLabel(a.type)} ${a.minutes} min`]
   const km = activityKm(a)
   if (km !== null) delen.push(`${fmtNumber(km)} km`)
-  delen.push(activityIntensityLabel(a.intensity).toLowerCase())
+  if (a.variant) delen.push(a.variant === 'kracht_duur' ? 'kracht-duur' : 'rustige duurrit')
+  else delen.push(activityIntensityLabel(a.intensity).toLowerCase())
+  if (a.heavy && !a.variant) delen.push('zwaar voor de benen')
   return delen.join(' · ')
 }
 

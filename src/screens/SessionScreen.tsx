@@ -9,6 +9,7 @@ import {
   Secondary,
   TopLine,
 } from '../components/logboek'
+import { BikeSwapSheet } from '../components/BikeSwapSheet'
 import { MoveSheet } from '../components/MoveSheet'
 import { RestTimer } from '../components/RestTimer'
 import { SetsRegel } from '../components/Sets'
@@ -19,7 +20,8 @@ import { MAX_BAND_LEVEL, MIN_BAND_LEVEL, bandLabel, isBandExercise, levelOf } fr
 import { barTotalLabel, barWeightFor, platesFromTotal, totalFromPlates } from '../logic/barWeight'
 import { TOO_OLD_TEXT, backfillNotice, isTooOld } from '../logic/backfill'
 import { buildDay, canMove, moveTargets } from '../logic/day'
-import { formatShort } from '../logic/dates'
+import { formatShort, today } from '../logic/dates'
+import { canSwap } from '../logic/bike'
 import { lastSessionFor, weightLabel } from '../logic/history'
 import { DUMBBELL_WEIGHT_UNIT, isDumbbell } from '../logic/dumbbell'
 import { loadHint, repsHint, repsInputLabel, weightInputLabel } from '../logic/load'
@@ -68,10 +70,13 @@ export function SessionScreen({
   date,
   kind,
   onClose,
+  onReplaced,
 }: {
   date: string
   kind: DayKind
   onClose: () => void
+  /** de sessie is net door fietsen vervangen; zonder deze prop sluit het scherm gewoon */
+  onReplaced?: () => void
 }) {
   const state = useStore()
   const plan = buildDay(state, date)
@@ -89,6 +94,7 @@ export function SessionScreen({
   const [lijstOpen, setLijstOpen] = useState(false)
   const [doneOpen, setDoneOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [fietsOpen, setFietsOpen] = useState(false)
   const [orderHelp, setOrderHelp] = useState(false)
   const [messages, setMessages] = useState<string[] | null>(null)
   const [completed, setCompleted] = useState<string[]>(() => strength?.log?.completedSlots ?? [])
@@ -258,6 +264,8 @@ export function SessionScreen({
   */
   const nogNietsGelogd = !strength.done && doneSets === 0 && completed.length === 0
   const kanVerplaatsen = nogNietsGelogd && canMove(state, date, 'strength')
+  // vervangen door fietsen: onder dezelfde voorwaarde, en alleen vandaag of vooruit
+  const kanVervangen = nogNietsGelogd && canSwap(date, today())
 
   /**
    * De voortgangssegmenten: de warming-up telt als eerste stap. Elk segment is een knop —
@@ -320,6 +328,8 @@ export function SessionScreen({
           onDone={() => gaNaar(eersteKey)}
           kanVerplaatsen={kanVerplaatsen}
           onMove={() => setMoveOpen(true)}
+          kanVervangen={kanVervangen}
+          onVervang={() => setFietsOpen(true)}
         />
         <SessieBladen
           date={date}
@@ -347,6 +357,10 @@ export function SessionScreen({
           kanVerplaatsen={kanVerplaatsen}
           moveOpen={moveOpen}
           setMoveOpen={setMoveOpen}
+          kanVervangen={kanVervangen}
+          fietsOpen={fietsOpen}
+          setFietsOpen={setFietsOpen}
+          onReplaced={onReplaced}
         />
       </Full>
     )
@@ -599,6 +613,10 @@ export function SessionScreen({
         kanVerplaatsen={kanVerplaatsen}
         moveOpen={moveOpen}
         setMoveOpen={setMoveOpen}
+        kanVervangen={kanVervangen}
+        fietsOpen={fietsOpen}
+        setFietsOpen={setFietsOpen}
+        onReplaced={onReplaced}
       />
     </Full>
   )
@@ -619,6 +637,8 @@ function WarmupStep({
   onDone,
   kanVerplaatsen,
   onMove,
+  kanVervangen,
+  onVervang,
 }: {
   date: string
   kind: DayKind
@@ -630,6 +650,8 @@ function WarmupStep({
   onDone: () => void
   kanVerplaatsen: boolean
   onMove: () => void
+  kanVervangen: boolean
+  onVervang: () => void
 }) {
   const [help, setHelp] = useState(false)
   const warmup: Warmup = strength.warmup
@@ -690,9 +712,14 @@ function WarmupStep({
       */}
       <div className="mt-block flex items-baseline justify-between gap-column">
         <Caps>Deze sessie</Caps>
-        <Link disabled={!kanVerplaatsen} onClick={onMove}>
-          Verplaatsen
-        </Link>
+        <div className="flex gap-meta">
+          <Link disabled={!kanVerplaatsen} onClick={onMove}>
+            Verplaatsen
+          </Link>
+          <Link tone="quiet" disabled={!kanVervangen} onClick={onVervang}>
+            Vervang door fietsen
+          </Link>
+        </div>
       </div>
 
       {regels.length > 0 && (
@@ -981,6 +1008,10 @@ function SessieBladen(props: {
   kanVerplaatsen: boolean
   moveOpen: boolean
   setMoveOpen: (v: boolean) => void
+  kanVervangen: boolean
+  fietsOpen: boolean
+  setFietsOpen: (v: boolean) => void
+  onReplaced?: () => void
 }) {
   const state = useStore()
   const {
@@ -1009,6 +1040,10 @@ function SessieBladen(props: {
     kanVerplaatsen,
     moveOpen,
     setMoveOpen,
+    kanVervangen,
+    fietsOpen,
+    setFietsOpen,
+    onReplaced,
   } = props
 
   return (
@@ -1071,8 +1106,26 @@ function SessieBladen(props: {
           >
             Sessie verplaatsen
           </button>
+          <button
+            className="btn-ghost w-full disabled:opacity-40"
+            disabled={!kanVervangen}
+            onClick={() => {
+              setLijstOpen(false)
+              setFietsOpen(true)
+            }}
+          >
+            Vervang door fietsen
+          </button>
         </div>
       </Sheet>
+
+      <BikeSwapSheet
+        open={fietsOpen}
+        iso={date}
+        naam={strength.naam}
+        onClose={() => setFietsOpen(false)}
+        onDone={onReplaced ?? onClose}
+      />
 
       {/* dezelfde lijst als op Vandaag en op de planpagina; er is er maar één */}
       <MoveSheet

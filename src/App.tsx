@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Onboarding } from './screens/Onboarding'
 import { HistoryScreen } from './screens/HistoryScreen'
+import { BikeScreen } from './screens/BikeScreen'
 import { RunScreen } from './screens/RunScreen'
 import { SessionScreen } from './screens/SessionScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
@@ -39,11 +40,14 @@ export default function App() {
   const [session, setSession] = useState<{ date: string; kind: DayKind } | null>(null)
   /** datum van de loop die open staat; loopt los van de krachtsessie */
   const [runDate, setRunDate] = useState<string | null>(null)
+  /** datum van de fietstraining die een krachtsessie vervangt */
+  const [bikeDate, setBikeDate] = useState<string | null>(null)
   const [instellingen, setInstellingen] = useState(false)
   const klaar = !!root.currentUser
 
   const open = (date: string, kind: DayKind) => setSession({ date, kind })
   const openRun = (date: string) => setRunDate(date)
+  const openBike = (date: string) => setBikeDate(date)
 
   if (!klaar) {
     return (
@@ -68,8 +72,8 @@ export default function App() {
           scherm={TABS.find((t) => t.id === tab)?.label}
           onReset={() => setTab('vandaag')}
         >
-          {tab === 'vandaag' && <Today onOpenSession={open} onOpenRun={openRun} />}
-          {tab === 'week' && <WeekScreen onOpenSession={open} onOpenRun={openRun} />}
+          {tab === 'vandaag' && <Today onOpenSession={open} onOpenRun={openRun} onOpenBike={openBike} />}
+          {tab === 'week' && <WeekScreen onOpenSession={open} onOpenRun={openRun} onOpenBike={openBike} />}
           {tab === 'historie' && <HistoryScreen onOpenSettings={() => setInstellingen(true)} />}
         </ErrorBoundary>
       </div>
@@ -124,7 +128,28 @@ export default function App() {
             setTab('vandaag')
           }}
         >
-          <SessionScreen date={session.date} kind={session.kind} onClose={() => setSession(null)} />
+          <SessionScreen
+            date={session.date}
+            kind={session.kind}
+            onClose={() => setSession(null)}
+            onReplaced={() => {
+              setSession(null)
+              setBikeDate(session.date)
+            }}
+          />
+        </ErrorBoundary>
+      )}
+
+      {bikeDate && (
+        <ErrorBoundary
+          key={`bike:${bikeDate}`}
+          scherm="Fietsen"
+          onReset={() => {
+            setBikeDate(null)
+            setTab('vandaag')
+          }}
+        >
+          <BikeScreen date={bikeDate} onClose={() => setBikeDate(null)} />
         </ErrorBoundary>
       )}
     </div>
