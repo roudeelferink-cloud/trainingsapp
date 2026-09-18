@@ -17,9 +17,13 @@ export const SKIP_LABEL: Record<SkipReason, string> = {
   geen_zin: 'Geen zin',
   ziek: 'Ziek',
   ingehaald: 'Ingehaald',
+  fietsen: 'Vervangen door fietsen',
 }
 
-/** De redenen die je zelf kiest. `ingehaald` staat er niet bij: die zet de app. */
+/**
+ * De redenen die je zelf kiest. `ingehaald` en `fietsen` staan er niet bij: die komen er
+ * via het oppakken van een sessie en via "Vervang door fietsen".
+ */
 export const SKIP_CHOICES: { id: SkipReason; label: string }[] = (
   ['druk', 'etentje', 'geen_zin', 'ziek'] as const
 ).map((id) => ({ id, label: SKIP_LABEL[id] }))

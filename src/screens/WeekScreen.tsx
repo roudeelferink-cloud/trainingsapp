@@ -13,7 +13,8 @@ import { formatThousands, Sheet } from '../components/ui'
 import { programFor } from '../data/programs'
 import { activitiesOn, activityKm, activityTypeLabel, paceMinPerKm } from '../logic/activities'
 import { openForWeek } from '../logic/gemist'
-import { buildDay, runName, type DayPlan } from '../logic/day'
+import { buildDay, countsAsDone, isRealSkip, runName, type DayPlan } from '../logic/day'
+import { BIKE_VARIANT_LABEL, weekBikeMinutes } from '../logic/bike'
 import { addDays, dayNumber, formatRange, formatShort, mondayOf, today, weekdayShort } from '../logic/dates'
 import { fmt, weekRunFacts } from '../logic/runningLoad'
 import { sessionVolumeKg } from '../logic/stats'
@@ -79,7 +80,7 @@ export function WeekScreen({
       </div>
 
       <div className="mt-block">
-        <Stats variant="week" items={weekStats(dagplannen, week)} />
+        <Stats variant="week" items={weekStats(dagplannen, week, weekBikeMinutes(state, dagen))} />
       </div>
 
       <div className="mt-block flex items-baseline justify-between gap-column">
@@ -151,24 +152,35 @@ function markeringen(state: UserState, kalibratie: boolean, deload: DayPlan['del
  * De drie weekcijfers. Gelopen tegen het plafond, sessies gedaan tegen gepland, en
  * het tilvolume — alle drie afgeleid uit wat er gelogd is, niets voorspeld.
  */
-function weekStats(plannen: DayPlan[], week: ReturnType<typeof weekRunFacts>): Stat[] {
+function weekStats(
+  plannen: DayPlan[],
+  week: ReturnType<typeof weekRunFacts>,
+  fietsMinuten: number,
+): Stat[] {
   let gepland = 0
   let gedaan = 0
   let volume = 0
   for (const plan of plannen) {
-    for (const blok of [plan.run, plan.strength]) {
-      if (!blok || blok.skipped) continue
+    if (plan.run && !plan.run.skipped) {
       gepland++
-      if (blok.done) gedaan++
+      if (plan.run.done) gedaan++
+    }
+    // vervangen door fietsen telt als uitgevoerd, niet als overgeslagen
+    if (plan.strength && !isRealSkip(plan.strength)) {
+      gepland++
+      if (countsAsDone(plan.strength)) gedaan++
     }
     if (plan.strength?.log) volume += sessionVolumeKg(plan.strength.log)
   }
 
-  return [
+  const items: Stat[] = [
     { label: 'Gelopen', value: `${week.aantal}×`, suffix: ` / ${fmt(week.km)} km`, flex: 1.2 },
     { label: 'Sessies', value: String(gedaan), suffix: ` / ${gepland}`, flex: 1 },
     { label: 'Volume', value: formatThousands(volume), suffix: ' kg', flex: 1.1 },
   ]
+  // alleen als er gefietst is: geen kolom zonder gegeven
+  if (fietsMinuten > 0) items.push({ label: 'Fietsen', value: String(fietsMinuten), suffix: ' min', flex: 1 })
+  return items
 }
 
 /* -------------------------------------------------------------------------
@@ -216,8 +228,11 @@ function DagRij({
   const state = useStore()
   const isToday = iso === today()
   const verleden = iso < today()
-  const blokken = [plan.run, plan.strength].filter(Boolean) as { done: boolean }[]
-  const gedaan = blokken.length > 0 && blokken.every((b) => b.done)
+  const blokken = [
+    ...(plan.run ? [plan.run.done] : []),
+    ...(plan.strength ? [countsAsDone(plan.strength)] : []),
+  ]
+  const gedaan = blokken.length > 0 && blokken.every(Boolean)
   const keuzes = dayActions(plan)
 
   const doen = () => {
@@ -296,7 +311,8 @@ function dagTitel(plan: DayPlan): string {
     else if (run.free) delen.push(run.kind === 'long' ? 'Duurloop' : 'Hardlopen')
     else delen.push(`${run.kind === 'long' ? 'Duurloop' : 'Hardlopen'} ${fmt(run.km)} km`)
   }
-  if (plan.strength) delen.push(plan.strength.naam)
+  if (plan.strength?.bike) delen.push(`Fietsen (${BIKE_VARIANT_LABEL[plan.strength.bike.variant].toLowerCase()})`)
+  else if (plan.strength) delen.push(plan.strength.naam)
   if (delen.length > 0) return delen.join(' · ')
   if (plan.movedTo) return 'Kracht verplaatst'
   if (plan.runMovedTo) return 'Loop verplaatst'
@@ -313,18 +329,23 @@ function dagMeta(state: UserState, iso: string, plan: DayPlan): string | null {
     const tempo = paceMinPerKm(run.log.km, run.log.minutes)
     if (tempo) delen.push(tempo.replace(' min/km', '/km'))
   }
-  if (s) {
+  if (s?.bike) {
+    delen.push(`vervangt ${s.naam}`)
+    delen.push(s.bike.ride ? `${s.bike.ride.minutes} min gefietst` : `~${s.bike.plannedMin} min`)
+  } else if (s) {
     delen.push(`${s.slots.length} oefeningen`)
     if (s.log) delen.push(`${formatThousands(sessionVolumeKg(s.log))} kg`)
     else if (s.optional) delen.push('optioneel')
     if (s.short) delen.push('kort')
   }
   if (run?.skipped) delen.push('loop overgeslagen')
-  if (s?.skipped) delen.push('sessie overgeslagen')
+  if (isRealSkip(s)) delen.push('sessie overgeslagen')
   if (plan.movedTo) delen.push(`kracht verplaatst naar ${formatShort(plan.movedTo)}`)
   if (plan.runMovedTo) delen.push(`loop verplaatst naar ${formatShort(plan.runMovedTo)}`)
 
   for (const a of activitiesOn(state, iso)) {
+    // de vervangende rit staat hierboven al bij de sessie die hij verving
+    if (a.replacesSession) continue
     const km = activityKm(a)
     const afstand = km === null ? '' : ` / ${fmt(km)} km`
     delen.push(`extra: ${activityTypeLabel(a.type)} ${a.minutes} min${afstand}`)

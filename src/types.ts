@@ -206,6 +206,12 @@ export interface Settings {
   plates: number[]
   /** het tempo van de gewichtsprogressie, per spiergroep */
   progressie: Record<MuscleZone, Tempo>
+  /**
+   * De regel "fietsen vervangt geen zwaar beenwerk": bij `count` of meer beengerichte
+   * krachtsessies die binnen `days` dagen door fietsen vervangen zijn, staat er op Vandaag
+   * één regel. `null` = de regel staat uit voor dit profiel.
+   */
+  bikeLegPriority: { count: number; days: number } | null
 }
 
 /** Waarmee je warm wordt: rustig op de loopband of losfietsen op de spinningfiets. */
@@ -312,11 +318,13 @@ export interface SessionLog {
  * Waarom een sessie niet doorging.
  *
  * De eerste vier kies je zelf. `ingehaald` niet: die zet de app zelf neer als je een
- * gemiste sessie vandaag oppakt en de sessie die daar al stond niet meer past. Hij staat
+ * gemiste sessie vandaag oppakt en de sessie die daar al stond niet meer past. Ook
+ * `fietsen` niet: die komt er via "Vervang door fietsen", en telt in de statistieken als
+ * uitgevoerd in plaats van als overgeslagen (zie `bike.ts`). Hij staat
  * bewust in dezelfde lijst en niet ergens apart — een overgeslagen sessie is een
  * overgeslagen sessie, en de reden hoort erbij te staan.
  */
-export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek' | 'ingehaald'
+export type SkipReason = 'druk' | 'etentje' | 'geen_zin' | 'ziek' | 'ingehaald' | 'fietsen'
 
 /**
  * Eén hardloopsessie. Gepland en werkelijk staan bewust apart: `plannedKm` is wat de
@@ -358,6 +366,37 @@ export interface Activity {
   /** vrije notitie; leeg veld wordt null */
   note: string | null
   createdAt: string
+  /**
+   * Alleen bij een fietstraining die een krachtsessie verving: welke variant het was.
+   * Afwezig bij elke andere activiteit.
+   */
+  variant?: BikeVariant
+  /** de sessiesleutel (`${datum}:${soort}`) van de krachtsessie die deze rit verving */
+  replacesSession?: string
+  /**
+   * Een losse fietsactiviteit die zwaar was voor de benen. Zonder dit telt een losse rit
+   * als een rustige duurrit in de beenbelasting; met dit als kracht-duur.
+   */
+  heavy?: boolean
+}
+
+/**
+ * De twee fietstrainingen op de spinningfiets die een krachtsessie kunnen vervangen:
+ * kracht-duur (zware blokken op lage cadans) en de rustige duurrit.
+ */
+export type BikeVariant = 'kracht_duur' | 'duurrit'
+
+/**
+ * Een krachtsessie die vervangen is door fietsen, zolang de rit nog niet geregistreerd
+ * is: de gekozen variant en of de sessie beengericht was. Staat in de override van die
+ * dag, naast de skip met reden `fietsen`.
+ */
+export interface BikeSwap {
+  variant: BikeVariant
+  /** de sessiesleutel van de vervangen krachtsessie */
+  sessionKey: string
+  /** benen A/B, of beenzwaar volgens de belastingsscore — vastgelegd op het moment van vervangen */
+  legFocused: boolean
 }
 
 export interface ExerciseState {
@@ -479,6 +518,8 @@ export interface DayOverride {
    * weer zoals hij bedoeld is.
    */
   extraSlot?: { key: string; exerciseId: string }
+  /** de krachtsessie van deze dag is vervangen door een fietstraining */
+  bikeSwap?: BikeSwap
 }
 
 /**

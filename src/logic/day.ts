@@ -1,6 +1,7 @@
 import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
-import type { DayCheck, UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
+import type { Activity, BikeVariant, DayCheck, UserState, DayKind, RunKind, RunLog, SessionLog, SkipReason, Warmup } from '../types'
+import { activeSwap, plannedMinutes, swapRide } from './bike'
 import { cycleInfo, type CycleInfo } from './cycle'
 import { isBackfillDate, TOO_OLD_TEXT } from './backfill'
 import { addDays, mondayOf, today, weekday } from './dates'
@@ -67,6 +68,38 @@ export interface StrengthBlock {
   estimatedMin: number
   /** waarschuwing bij een sessie boven het uur, met wat eruit kan */
   tooLong: DurationWarning | null
+  /**
+   * De sessie is vervangen door fietsen (dan is `skipped` 'fietsen'). Telt als uitgevoerd;
+   * zie `countsAsDone`.
+   */
+  bike: BikeBlockInfo | null
+}
+
+export interface BikeBlockInfo {
+  variant: BikeVariant
+  legFocused: boolean
+  /** geplande duur van de variant op deze dag, in minuten */
+  plannedMin: number
+  /** de geregistreerde rit; null zolang hij nog niet gereden is */
+  ride: Activity | null
+}
+
+/**
+ * Telt deze krachtsessie als uitgevoerd? Gelogd en afgerond, of vervangen door fietsen: het
+ * alternatief telt als uitgevoerd, niet als overgeslagen en niet als gemist. Voor naleving
+ * en voortgang. (De minuten van de rit tellen pas mee als hij geregistreerd is.)
+ */
+export function countsAsDone(s: StrengthBlock | null | undefined): boolean {
+  if (!s) return false
+  return s.done || !!s.bike
+}
+
+/**
+ * Is deze krachtsessie echt overgeslagen? Een vervanging door fietsen is dat niet: die
+ * telt als alternatief, niet als gemist en niet als overgeslagen.
+ */
+export function isRealSkip(s: StrengthBlock | null | undefined): boolean {
+  return !!s?.skipped && s.skipped !== 'fietsen'
 }
 
 export interface DayPlan {
@@ -93,6 +126,17 @@ export interface DayPlan {
 export function runName(kind: RunKind, bike: boolean): string {
   if (bike) return 'Fietsen'
   return kind === 'long' ? 'Duurloop' : 'Korte loop'
+}
+
+function bikeInfo(state: UserState, iso: string): BikeBlockInfo | null {
+  const swap = activeSwap(state, iso)
+  if (!swap) return null
+  return {
+    variant: swap.variant,
+    legFocused: swap.legFocused,
+    plannedMin: plannedMinutes(state, iso, swap.variant),
+    ride: swapRide(state, swap.sessionKey),
+  }
 }
 
 export function sessionKeyFor(date: string, kind: DayKind): string {
@@ -209,6 +253,7 @@ export function buildDay(state: UserState, iso: string): DayPlan {
         hiddenCalf,
         estimatedMin: sessionMinutes(slots, warmup.minutes),
         tooLong,
+        bike: bikeInfo(state, iso),
       }
 
       if (deload.active) notes.push('Deloadweek: 1 set minder per oefening en 40% van het gewicht af.')

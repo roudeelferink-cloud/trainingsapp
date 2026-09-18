@@ -1,6 +1,7 @@
 import { BY_ID } from '../data/exercises'
 import type { SessionLog, UserState } from '../types'
-import { buildDay } from './day'
+import { buildDay, countsAsDone, isRealSkip } from './day'
+import { activeSwap } from './bike'
 import { addDays, mondayOf, today } from './dates'
 import { setVolumeKg } from './dumbbell'
 import { estimate1RM } from './progression'
@@ -11,6 +12,17 @@ import { weeklyKm } from './runningLoad'
 /** Aantal afgeronde krachtsessies. */
 export function completedSessions(state: UserState): number {
   return Object.values(state.sessions).filter((s) => s.completedAt).length
+}
+
+/**
+ * Krachtsessies die door fietsen vervangen zijn. Die tellen in de voortgang als uitgevoerd
+ * (het alternatief), naast de afgeronde sessies.
+ */
+export function replacedByBike(state: UserState): number {
+  return Object.keys(state.skips ?? {}).filter((key) => {
+    const [iso, what] = key.split(':')
+    return what === 'strength' && activeSwap(state, iso) !== null
+  }).length
 }
 
 export function completedRuns(state: UserState): number {
@@ -26,15 +38,16 @@ export function trainingStreak(state: UserState): number {
   let iso = today()
   for (let i = 0; i < 400; i++) {
     const plan = buildDay(state, iso)
+    // vervangen door fietsen is geen overslaan: dat telt als gedaan, zie countsAsDone
     const neutral =
       plan.isRest ||
       (!plan.run && !plan.strength) ||
       (plan.strength?.optional ?? false) ||
-      !!plan.strength?.skipped ||
+      isRealSkip(plan.strength) ||
       !!plan.run?.skipped
     if (!neutral) {
       const runOk = !plan.run || plan.run.done
-      const strengthOk = !plan.strength || plan.strength.done
+      const strengthOk = !plan.strength || countsAsDone(plan.strength)
       if (runOk && strengthOk) streak++
       else if (i === 0) {
         // vandaag is nog niet voorbij: telt niet mee, breekt ook niet

@@ -1,5 +1,7 @@
 import { BY_ID, getExercise } from '../data/exercises'
 import { supportsDistance } from '../logic/activities'
+import { activeSwap, canSwap, canUndoSwap, isBikeActivity, strengthKindOn, swapRide } from '../logic/bike'
+import { legFocusedOn } from '../logic/bikeSwap'
 import { programFor } from '../data/programs'
 import { cycleInfo } from '../logic/cycle'
 import {
@@ -36,6 +38,8 @@ import type {
   ActivityIntensity,
   ActivityType,
   BarId,
+  BikeSwap,
+  BikeVariant,
   DayCheck,
   DayKind,
   Deviation,
@@ -435,6 +439,8 @@ export interface ActivityInput {
   type: ActivityType
   minutes: number
   intensity: ActivityIntensity
+  /** alleen bij fietsen en spinning: zwaar voor de benen (telt als kracht-duur) */
+  heavy?: boolean
   /** alleen zinvol bij hardlopen, fietsen en wandelen; anders (of leeg) null */
   distanceKm?: number | null
   note?: string | null
@@ -477,6 +483,7 @@ export function addActivity(iso: string, input: ActivityInput): string {
     intensity: input.intensity,
     note: cleanNote(input.note),
     createdAt: new Date().toISOString(),
+    ...(input.heavy && isBikeActivity({ type: input.type } as Activity) ? { heavy: true } : {}),
   }
   setState((s) => ({ ...s, activities: [...s.activities, activity] }))
   return activity.id
@@ -492,9 +499,13 @@ export function updateActivity(
     activities: s.activities.map((a) => {
       if (a.id !== id) return a
       const type = patch.type ?? a.type
+      const { heavy: zwaar, ...rest } = patch
+      const heavy = (zwaar ?? a.heavy) && isBikeActivity({ type } as Activity) && !a.variant
+      const { heavy: _oud, ...basis } = a
       return {
-        ...a,
-        ...patch,
+        ...basis,
+        ...rest,
+        ...(heavy ? { heavy: true } : {}),
         type,
         minutes: patch.minutes === undefined ? a.minutes : Math.max(1, Math.round(patch.minutes)),
         // het type kan mee veranderen, dus de afstand wordt altijd opnieuw gewogen
@@ -507,6 +518,104 @@ export function updateActivity(
 
 export function removeActivity(id: string): void {
   setState((s) => ({ ...s, activities: s.activities.filter((a) => a.id !== id) }))
+}
+
+/* ---- krachtsessie vervangen door fietsen ---- */
+
+/**
+ * Vervangt de krachtsessie van deze dag door een fietstraining. Eén actie: de sessie krijgt
+ * skip-reden `fietsen`, en de gekozen variant komt in de override van die dag. Er wordt
+ * niets geschoven en niets aan de streefgewichten gedaan.
+ *
+ * Kan vandaag en vooruit, zolang er van de sessie nog niets gelogd is: een sessie met halve
+ * invoer vervangen zou de ingevulde sets laten hangen.
+ */
+export function replaceWithBike(iso: string, variant: BikeVariant): { ok: boolean; reason?: string } {
+  const state = getState()
+  if (!canSwap(iso, today())) return { ok: false, reason: 'Een dag die voorbij is vervang je niet meer.' }
+  const kind = strengthKindOn(state, iso)
+  const strength = buildDay(state, iso).strength
+  if (!kind || !strength) return { ok: false, reason: 'Er staat op deze dag geen krachtsessie.' }
+  if (strength.skipped && strength.skipped !== 'fietsen') return { ok: false, reason: 'Deze sessie is overgeslagen.' }
+  const log = state.sessions[sessionKeyFor(iso, kind)]
+  const gelogd = !!log?.completedAt || Object.values(log?.entries ?? {}).some((sets) => sets.some((x) => x.done))
+  if (gelogd) return { ok: false, reason: 'Van deze sessie is al iets gelogd.' }
+
+  const swap: BikeSwap = { variant, sessionKey: sessionKeyFor(iso, kind), legFocused: legFocusedOn(state, iso) }
+  setState((s) => ({
+    ...patchOverride(s, iso, { bikeSwap: swap }),
+    skips: { ...s.skips, [`${iso}:strength`]: { reason: 'fietsen', what: 'strength' } },
+  }))
+  return { ok: true }
+}
+
+/** De andere variant kiezen, zolang de rit nog niet geregistreerd is. */
+export function setBikeVariant(iso: string, variant: BikeVariant): void {
+  setState((s) => {
+    const swap = activeSwap(s, iso)
+    if (!swap || swapRide(s, swap.sessionKey)) return s
+    return patchOverride(s, iso, { bikeSwap: { ...swap, variant } })
+  })
+}
+
+/**
+ * De vervanging terugdraaien: de krachtsessie staat weer open en de fietstraining verdwijnt
+ * uit de historie, ook als hij al geregistreerd was. Kan tot en met de dag zelf.
+ */
+export function undoBikeSwap(iso: string): { ok: boolean; reason?: string } {
+  const state = getState()
+  const swap = activeSwap(state, iso)
+  if (!swap) return { ok: false, reason: 'Deze sessie is niet vervangen.' }
+  if (!canUndoSwap(iso, today())) return { ok: false, reason: 'Ongedaan maken kan alleen op de dag zelf.' }
+  setState((s) => {
+    const override = { ...(s.overrides[iso] ?? {}) }
+    delete override.bikeSwap
+    const skips = { ...s.skips }
+    delete skips[`${iso}:strength`]
+    return {
+      ...s,
+      overrides: { ...s.overrides, [iso]: override },
+      skips,
+      activities: s.activities.filter((a) => a.replacesSession !== swap.sessionKey),
+    }
+  })
+  return { ok: true }
+}
+
+/**
+ * Na afloop: de rit komt in de historie als activiteit, met de variant en de sessie die hij
+ * verving. Nog een keer afronden werkt de bestaande rit bij in plaats van er een tweede neer
+ * te zetten.
+ */
+export function completeBikeSwap(iso: string, minutes: number, km: number | null): { ok: boolean } {
+  const swap = activeSwap(getState(), iso)
+  if (!swap) return { ok: false }
+  const invoer = {
+    type: 'fietsen' as const,
+    minutes: Math.max(1, Math.round(minutes)),
+    distanceKm: cleanDistance('fietsen', km),
+    intensity: (swap.variant === 'kracht_duur' ? 'intensief' : 'rustig') as ActivityIntensity,
+  }
+  setState((s) => {
+    const bestaand = swapRide(s, swap.sessionKey)
+    if (bestaand) {
+      return {
+        ...s,
+        activities: s.activities.map((a) => (a.id === bestaand.id ? { ...a, ...invoer, variant: swap.variant } : a)),
+      }
+    }
+    const rit: Activity = {
+      id: activityId(),
+      date: iso,
+      ...invoer,
+      note: null,
+      createdAt: new Date().toISOString(),
+      variant: swap.variant,
+      replacesSession: swap.sessionKey,
+    }
+    return { ...s, activities: [...s.activities, rit] }
+  })
+  return { ok: true }
 }
 
 /**

@@ -12,6 +12,7 @@ import { fmt, stateFor } from '../logic/progression'
 import {
   completedRuns,
   completedSessions,
+  replacedByBike,
   oneRmSeries,
   trainingStreak,
   weeklyRunVolume,
@@ -54,7 +55,8 @@ export function HistoryScreen({ onOpenSettings }: { onOpenSettings: () => void }
         <Stats
           variant="week"
           items={[
-            { label: 'Sessies', value: String(completedSessions(state)) },
+            // vervangen door fietsen telt als uitgevoerd: het alternatief is ook een sessie
+            { label: 'Sessies', value: String(completedSessions(state) + replacedByBike(state)) },
             { label: 'Loops', value: String(completedRuns(state)) },
             { label: 'Extra', value: String(activityCount(state)) },
             { label: 'Streak', value: String(streak), suffix: streak === 1 ? ' dag' : ' dgn' },

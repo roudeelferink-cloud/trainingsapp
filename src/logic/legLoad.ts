@@ -1,5 +1,7 @@
 import type { DayKind, Exercise, Pattern, UserState } from '../types'
+import { bikeLoadOn } from './bike'
 import { cycleInfo } from './cycle'
+import { addDays } from './dates'
 import { legsHeavy } from './dayCheck'
 import { DELOAD_WEIGHT_FACTOR, deloadFor } from './deload'
 import { bestEstimated1RM, stateFor } from './progression'
@@ -118,7 +120,7 @@ const LEEG: Omit<LegLoad, 'date'> = { kind: null, score: 0, level: 'geen', parts
  */
 const cache = new WeakMap<UserState, Map<string, LegLoad>>()
 
-/** De beenbelasting van de krachtsessie op deze dag. */
+/** De beenbelasting van deze dag: de krachtsessie, plus wat er gefietst is of wordt. */
 export function legLoadOn(state: UserState, iso: string): LegLoad {
   const cached = cache.get(state)?.get(iso)
   if (cached) return cached
@@ -130,10 +132,34 @@ export function legLoadOn(state: UserState, iso: string): LegLoad {
 }
 
 function computeLegLoad(state: UserState, iso: string): LegLoad {
+  const kracht = strengthLegLoad(state, iso)
+  // Fietsen telt mee op dezelfde schaal: een vervangende rit (ook als hij nog gereden moet
+  // worden) en losse ritten van die dag. Zie `bike.ts` voor de waarden.
+  const fiets: LegLoadPart[] = bikeLoadOn(state, iso).map((p) => ({
+    exerciseId: 'fietsen',
+    naam: p.naam,
+    sets: 0,
+    category: p.variant === 'kracht_duur' ? 'zwaar' : 'licht',
+    score: p.score,
+  }))
+  if (fiets.length === 0) return kracht
+
+  const parts = [...kracht.parts, ...fiets].sort(
+    (a, b) => b.score - a.score || a.naam.localeCompare(b.naam),
+  )
+  const score = round(parts.reduce((sum, p) => sum + p.score, 0))
+  return { date: iso, kind: kracht.kind, score, level: levelOf(score), parts }
+}
+
+/**
+ * Alleen de krachtsessie van deze dag. Met `ignoreSkip` telt hij ook als hij overgeslagen
+ * of vervangen is: dan is dit wat de sessie geweest zou zijn, en dat is wat de keuze tussen
+ * de fietsvarianten wil weten.
+ */
+export function strengthLegLoad(state: UserState, iso: string, ignoreSkip = false): LegLoad {
   const kind = scheduledStrength(state, iso).kind
   if (!kind || kind === 'rest') return { date: iso, ...LEEG }
-  if (state.skips?.[`${iso}:strength`]) return { date: iso, ...LEEG }
-
+  if (!ignoreSkip && state.skips?.[`${iso}:strength`]) return { date: iso, ...LEEG }
   const cycle = cycleInfo(state.startDate, iso)
   const deload = deloadFor(state, iso).active
   const lowEnergy = legsHeavy(state.dayChecks?.[iso])
@@ -168,6 +194,11 @@ function computeLegLoad(state: UserState, iso: string): LegLoad {
   const score = round(parts.reduce((sum, p) => sum + p.score, 0))
 
   return { date: iso, kind, score, level: levelOf(score), parts }
+}
+
+/** Was er in de 48 uur vóór `iso` een dag met zware benen (score op of boven `hoog`)? */
+export function recentHighLegLoad(state: UserState, iso: string): boolean {
+  return [addDays(iso, -1), addDays(iso, -2)].some((d) => legLoadOn(state, d).score >= LEG_LOAD_HIGH)
 }
 
 /** De oefeningen die het zwaarst wegen, voor in de uitleg. */

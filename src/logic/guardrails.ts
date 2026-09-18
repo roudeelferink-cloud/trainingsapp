@@ -2,6 +2,7 @@ import { DAY_LABEL } from '../data/plan'
 import { programFor } from '../data/programs'
 import type { UserState } from '../types'
 import { addDays, formatShort } from './dates'
+import { legPriorityNote } from './bike'
 import { deloadFor } from './deload'
 import { LEG_LOAD_HIGH, legLoadOn, type LegLoad } from './legLoad'
 
@@ -18,7 +19,8 @@ import { LEG_LOAD_HIGH, legLoadOn, type LegLoad } from './legLoad'
  * stijgende weken en de waarschuwing over zware benen vlak voor de duurloop zijn eruit.
  * Die gingen alle drie over hardlopen, en daar bemoeit de app zich niet meer mee: de
  * loopplanning is met de hand beter dan met een formule. Wat overblijft gaat over kracht
- * — de deloadweek, en twee zware beendagen achter elkaar.
+ * — de deloadweek, twee zware beendagen achter elkaar, en beensessies die te vaak door
+ * fietsen vervangen worden.
  */
 
 export type GuardrailTone = 'info' | 'warn'
@@ -43,7 +45,10 @@ export interface LegStack {
 }
 
 function sessionName(state: UserState, load: LegLoad): string {
-  if (!load.kind) return 'De krachtsessie'
+  if (!load.kind) {
+    // geen krachtsessie maar wel zware benen: dan is het de fietstraining
+    return load.parts.find((p) => p.exerciseId === 'fietsen')?.naam ?? 'De krachtsessie'
+  }
   const program = programFor(state)
   return program.templateFor(load.kind, 1)?.naam ?? DAY_LABEL[load.kind]
 }
@@ -98,6 +103,10 @@ export function dayGuardrails(state: UserState, iso: string): Guardrail[] {
       move: { date: stapel.second, what: 'strength' },
     })
   }
+
+  // beenprioriteit: te vaak een beensessie door fietsen vervangen; per profiel in te stellen
+  const been = legPriorityNote(state, iso)
+  if (been) out.push({ id: 'beenprioriteit', text: been, tone: 'info' })
 
   return out
 }

@@ -59,6 +59,7 @@ export function defaultSettings(): Settings {
     barWeights: { ...DEFAULT_BAR_WEIGHTS },
     plates: [...DEFAULT_PLATES],
     progressie: alleZones('opbouwen'),
+    bikeLegPriority: null,
   }
 }
 
@@ -75,6 +76,9 @@ export function defaultSettingsFor(userId: string): Settings {
   // Dat is een startpunt en geen oordeel — het staat in Instellingen en gaat per
   // spiergroep om te zetten.
   if (userId === ANOUC) settings.progressie = alleZones('onderhoud')
+  // Rob bouwt op met benen voorop: fietsen mag een beensessie vervangen, maar niet stilletjes
+  // twee keer in twee weken. Bij Anouc staat de regel uit.
+  if (userId === ROB) settings.bikeLegPriority = { count: 2, days: 14 }
   return settings
 }
 
@@ -117,7 +121,22 @@ export function normalizeSettings(raw: unknown, fallback?: Settings): Settings {
     barWeights,
     plates: normalizePlates(s.plates, base.plates),
     progressie: normalizeProgressie(s.progressie, base.progressie),
+    bikeLegPriority: normalizeBikeLegPriority(s.bikeLegPriority, base.bikeLegPriority),
   }
+}
+
+/** Aantal en periode van de beenprioriteitsregel; `null` laat hem uit staan. */
+function normalizeBikeLegPriority(
+  raw: unknown,
+  fallback: Settings['bikeLegPriority'] | undefined,
+): Settings['bikeLegPriority'] {
+  if (raw === null) return null
+  if (isObject(raw)) {
+    const count = Math.round(Number(raw.count))
+    const days = Math.round(Number(raw.days))
+    if (count >= 1 && days >= 1) return { count, days }
+  }
+  return fallback ?? null
 }
 
 /** Het tempo per spiergroep: onbekende waarden vallen terug op wat er al stond. */

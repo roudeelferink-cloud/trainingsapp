@@ -8,6 +8,7 @@ import { averageRunKm, longestRunKm, weekRunFacts } from '../../src/logic/runnin
 import { sessionVolumeKg } from '../../src/logic/stats'
 import { BY_ID } from '../../src/data/exercises'
 import { BUMP_MARKER } from '../../src/logic/extra'
+import { activeSwap, weekBikeMinutes } from '../../src/logic/bike'
 import type { Feel, MuscleZone, Tempo, UserState } from '../../src/types'
 
 /**
@@ -58,6 +59,10 @@ export interface WeekSignaal {
   benenZwaar: number
   /** gemelde pijn, als plek per dag: 'knie', 'rug', ... */
   pijn: string[]
+  /** minuten gefietst: ritten die een krachtsessie vervingen en losse ritten samen */
+  fietsMinuten: number
+  /** krachtsessies die door fietsen vervangen zijn; tellen als uitgevoerd, niet als overgeslagen */
+  vervangenDoorFietsen: number
   overwegendSlechteWeek: boolean
   overgeslagen: string[]
 }
@@ -218,9 +223,12 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
     }
     for (const [sleutel, skip] of Object.entries(state.skips ?? {})) {
       const datum = sleutel.split(':')[0]
+      // vervangen door fietsen is geen overslaan; dat staat hieronder apart
+      if (skip.reason === 'fietsen') continue
       if (dagen.has(datum)) overgeslagen.push(`${skip.what}: ${skip.reason}`)
     }
 
+    const vervangen = [...dagen].filter((dag) => activeSwap(state, dag) !== null).length
     const checks = dayChecksInWeek(state, w.weekStart)
     const pijn: string[] = []
     for (const dag of [...dagen].sort()) {
@@ -243,6 +251,8 @@ function wekenReeks(state: UserState, iso: string, weken: number): WeekSignaal[]
       dagchecks: checks.length,
       benenZwaar: checks.filter((c) => c.legs === 'zwaar').length,
       pijn,
+      fietsMinuten: weekBikeMinutes(state, [...dagen]),
+      vervangenDoorFietsen: vervangen,
       overwegendSlechteWeek: weekIsPoor(state, w.weekStart),
       overgeslagen,
     }
