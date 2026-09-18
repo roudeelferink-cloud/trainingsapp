@@ -91,6 +91,9 @@ De suite staat in `tests/` en draait op vitest, zonder browser:
 | `extraOefening.test.ts` | de extra oefening na een te makkelijke sessie: de gemeten sessieduur, elke voorwaarde die het aanbod tegenhoudt, twee makkelijke sessies op rij die het streefgewicht verhogen, en het opnieuw afronden zonder dubbele progressie |
 | `advies.test.tsx` | het adviesblok: wanneer er opgehaald wordt, het ophalen zelf (inclusief elke manier waarop dat mis kan gaan), het advies per profiel bewaren, en het blok dat zwijgt zolang er niets is |
 | `overzetten.test.ts` | verhuizen naar het nieuwe adres: een echte export van de Pages-versie (schemaVersion 14) inlezen zonder verlies — historie, streefgewichten, check-ins, dagchecks, pincode en beide profielen — plus een tweede rondje export-import |
+| `dagcheck.test.tsx` | de dagcheck van v18: de migratie van slaap/energie/benen 1-5 naar benen en pijn, het schoonmaken van rommel, de pijnregel per oefening en in het sessiescherm, de gemelde plek in historie en export |
+| `fietsen.test.ts` | een krachtsessie vervangen door fietsen: de keuzeregel (a/b/c), vervangen en ongedaan maken, de skip-reden, naleving als uitgevoerd, de beenbelasting van fietsen en de beenwaarschuwing na kracht-duur, streefgewichten/schema/deload onaangeroerd, fiets-km buiten het hardlopen, beenprioriteit, de deloadvariant, de bloktimer en export/import |
+| `fietsenScherm.test.tsx` | de schermen daarbij: het keuzeblad, Vandaag, Plannen, het sessiescherm, het fietsscherm met zijn blokken (ook na scherm-uit), en week en historie |
 | `hosting.test.ts` | de PWA op het nieuwe adres: basispad, `start_url`, `scope` en `id` op `/`, relatieve iconen, `/api` buiten de service worker, en geen Pages-workflow meer |
 
 `tests/setup.ts` zet een `localStorage`-vervanger neer, want de store leest die bij het
@@ -324,18 +327,23 @@ De belasting wordt geteld uit wat er echt gepland staat, niet uit de naam van de
 - **Wat voor werk** — zwaar samengesteld beenwerk (squat, leg press, RDL, lunges, hip
   thrust) telt vol mee, beenisolatie (leg curl, leg extension, kuiten, abductie) voor 0,3
   per set, bovenlichaam en romp niet.
-- **Hoeveel werksets**, ná alles wat de dag er al af haalt: de korte versie, een lage
-  check-in en de deloadweek.
+- **Hoeveel werksets**, ná alles wat de dag er al af haalt: de korte versie, zware benen
+  in de dagcheck en de deloadweek.
 - **Hoe zwaar** — welk deel van je hoogst geschatte 1RM er gepland staat. Zonder historie
   telt 0,7; werk op lichaamsgewicht of band 0,4, want daar staan geen kilo's tegenover.
 
 Boven de 3 heet dat zwaar, boven de 6 heel zwaar. Ter ijking: benen A komt op ~9, een full
 body met één matige beenoefening op ~2,8 — die laatste levert dus geen melding op.
 
+Fietsen telt op dezelfde schaal mee: kracht-duur 3,0 (0,6 per zwaar blok; in de deloadweek
+1,8), de rustige duurrit 1,0. Een losse fietsrit telt als duurrit, of als kracht-duur als
+je bij het toevoegen "zwaar voor de benen" aanvinkte. Een vervangende rit die nog gereden
+moet worden telt al met de gekozen variant, net als een geplande krachtsessie.
+
 ### Deload (`src/logic/deload.ts`)
 
-Aanleiding — drie sessies als zwaar beoordeeld binnen twee weken, twee weken op rij een
-overwegend slechte dagcheck, of simpelweg elke achtste trainingsweek. De reactieve
+Aanleiding — drie sessies als zwaar beoordeeld binnen twee weken, twee weken op rij
+overwegend zware benen in de dagcheck, of simpelweg elke achtste trainingsweek. De reactieve
 triggers kijken alleen naar wat er vóór deze week gebeurde: het schema verandert niet
 onder je voeten terwijl je er in staat.
 
@@ -514,6 +522,16 @@ alle sets), berekend met dezelfde conventie.
 - **Per sessie:** korte versie (alleen `core`-oefeningen, ~25 min), verplaatsen naar een
   andere dag, overslaan met reden. Een loop kan daarnaast vervangen worden door 30 min
   fietsen — dat telt als voltooid.
+- **Krachtsessie vervangen door fietsen** (spinningfiets, beide profielen): op Vandaag onder
+  *Meer*, op Plannen en in het sessiescherm. De app stelt **kracht-duur** (10 in, 5 × 4 min
+  zwaar op cadans 75–85, 5 uit; 43 min — in de deloadweek 3 blokken) of de **rustige
+  duurrit** (40 min, cadans 85–95) voor; de andere is één tik. De rit heeft een
+  blokkenschema met een timer per blok die scherm-uit overleeft, en een toon plus een
+  okerbalk bij elke wissel. Na afloop duur en optioneel km; de rit staat als activiteit in
+  de historie. De sessie krijgt reden "vervangen door fietsen", telt als uitgevoerd, en is
+  tot en met die dag terug te draaien. Streefgewichten, schema en deload blijven staan.
+  Fietsen telt mee in de beenbelasting (kracht-duur 3,0, duurrit 1,0) en nooit als
+  hardloopkilometers. Zie `BOUW-FIETSEN.md`.
 - **Verplaatsen:** kracht én loop kunnen naar een andere dag, onafhankelijk van elkaar. Op
   Vandaag zit de knop bij de sessie zelf; op de weekpagina heeft elke regel zijn eigen knop
   — *Open* bij de krachtsessie, *Verplaatsen* bij de loop — zodat ook een loop van morgen of
@@ -761,7 +779,10 @@ src/
   logic/gemist.ts     wat er in dat venster nog open staat, per week en in totaal
   logic/history.ts    wat je van een oefening al deed: de vorige keer en het verloop
   logic/skips.ts      de redenen om over te slaan, en welke je zelf kunt kiezen
-  logic/feel.ts       beoordeling per sessie en de dagcheck
+  logic/feel.ts       beoordeling per sessie, en de dagcheck in de deloadtelling
+  logic/dayCheck.ts   de dagcheck: benen, pijn en de pijnregel per oefening
+  logic/bike.ts       krachtsessie vervangen door fietsen: varianten, blokken, keuzeregel, belasting
+  logic/bikeSwap.ts   de keuzeregel met de beenbelasting erbij (los, tegen een importkring)
   logic/startWeight.ts geschat startgewicht zonder historie
   logic/stats.ts      streaks, 1RM-verloop, weekvolume
   logic/activities.ts losse activiteiten naast het schema
@@ -783,7 +804,9 @@ src/
   components/Activities.tsx  invoer en weergave van losse activiteiten
   components/MoveSheet.tsx   dagkeuze bij verplaatsen, gedeeld door Vandaag en Week
   components/Sets.tsx        één regel gelogde sets, gedeeld door Sessie en Historie
-  screens/            Welkom, Vandaag, Sessie, Week, Plannen, Historie, Oefening,
+  components/BikeSwapSheet.tsx  het blad "Vervang door fietsen", op Vandaag, Plannen en in Sessie
+  components/bikeSound.ts    de toon bij een blokwissel (Web Audio)
+  screens/            Welkom, Vandaag, Sessie, Fietsen, Week, Plannen, Historie, Oefening,
                       Meekijken, Instellingen (Meekijken zit onder Instellingen → Profiel,
                       Oefening en Instellingen onder Historie — niet in de onderbalk)
 tests/                vitest-suite, draait zonder browser
